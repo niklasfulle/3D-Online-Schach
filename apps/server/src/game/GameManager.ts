@@ -19,6 +19,12 @@ export interface AcceptedMove {
   result?: 'white' | 'black' | 'draw';
 }
 
+export interface GameSync {
+  fen: string;
+  game: GameSummary;
+  moves: MoveRecord[];
+}
+
 export class GameTimeoutError extends Error {
   constructor(
     public readonly game: GameSummary,
@@ -145,6 +151,21 @@ export class GameManager {
     const game = this.getManagedGame(code);
     if (game) this.expireIfNeeded(game);
     return game ? this.snapshot(game) : undefined;
+  }
+
+  getGameSync(code: string, playerId: string): GameSync {
+    const game = this.getManagedGame(code);
+    if (!game) throw new Error('Game not found');
+    if (game.summary.whitePlayerId !== playerId && game.summary.blackPlayerId !== playerId) {
+      throw new Error('Player is not part of this game');
+    }
+
+    this.expireIfNeeded(game);
+    return {
+      fen: game.chess.getState().fen,
+      game: this.snapshot(game),
+      moves: game.chess.history(),
+    };
   }
 
   private expireIfNeeded(game: ManagedGame): GameTimeoutError | undefined {

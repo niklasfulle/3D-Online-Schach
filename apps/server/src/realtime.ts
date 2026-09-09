@@ -9,6 +9,10 @@ interface JoinPayload {
   code?: string;
 }
 
+interface SyncPayload {
+  code?: string;
+}
+
 interface MovePayload extends Move {
   code?: string;
 }
@@ -43,6 +47,23 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
       } catch (error) {
         socket.emit('game:error', {
           error: error instanceof Error ? error.message : 'Unable to join game',
+        });
+      }
+    });
+
+    socket.on('game:sync', (payload: SyncPayload) => {
+      if (!payload.code) {
+        socket.emit('game:error', { error: 'code is required' });
+        return;
+      }
+
+      try {
+        const sync = gameManager.getGameSync(payload.code, playerId);
+        void socket.join(payload.code.toUpperCase());
+        socket.emit('game:state', sync);
+      } catch (error) {
+        socket.emit('game:error', {
+          error: error instanceof Error ? error.message : 'Unable to sync game',
         });
       }
     });

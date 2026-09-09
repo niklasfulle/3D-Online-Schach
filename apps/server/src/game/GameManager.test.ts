@@ -116,4 +116,18 @@ describe('GameManager', () => {
       whiteRemainingMs: 0,
     });
   });
+
+  it('returns a complete authorized sync snapshot', () => {
+    manager = new GameManager(() => 1_000);
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+    manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' });
+
+    const sync = manager.getGameSync(created.code, 'player-b');
+
+    expect(sync.fen).toContain(' b ');
+    expect(sync.moves[0].san).toBe('e4');
+    expect(sync.game.blackPlayerId).toBe('player-b');
+    expect(() => manager.getGameSync(created.code, 'intruder')).toThrow('not part');
+  });
 });

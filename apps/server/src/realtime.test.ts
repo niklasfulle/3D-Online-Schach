@@ -53,6 +53,15 @@ describe('realtime game rooms', () => {
 
     expect((await whiteMovePromise).move.san).toBe('e4');
     expect((await blackMovePromise).move.san).toBe('e4');
+
+    const syncPromise = waitForEvent<{ fen: string; moves: Array<{ san: string }> }>(
+      white,
+      'game:state',
+    );
+    white.emit('game:sync', { code: created.code });
+    const sync = await syncPromise;
+    expect(sync.fen).toContain(' b ');
+    expect(sync.moves[0].san).toBe('e4');
   });
 
   it('broadcasts game end with the winning color', async () => {
