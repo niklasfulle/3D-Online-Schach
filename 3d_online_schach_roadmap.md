@@ -168,7 +168,7 @@ Dieser Meilenstein startet erst nach einem stabilen MVP.
 - Regeln: `chess.js`
 - Backend: Node.js + TypeScript + Fastify
 - Realtime: Socket.IO
-- Datenbank: PostgreSQL mit Prisma oder Drizzle
+- Datenbank: PostgreSQL mit Prisma
 - Live-Zustand im MVP: In-Memory
 - Später: Redis für Presence, Pub/Sub und skalierte WebSockets
 - Deployment: Docker Compose
@@ -193,6 +193,7 @@ Dieser Meilenstein startet erst nach einem stabilen MVP.
 - M3 – Chess Core und lokale Partie: `chess.js`, legale Züge, Sonderregeln, lokale Zugausführung, Aufgabe-UI und Regeltests sind umgesetzt
 - M4 – Online-Multiplayer-MVP: GameManager, private Game-Codes, Join-/Farbzuweisung, serverseitige Move-Validierung, Socket.IO-Broadcast, Game-Ende-Events und per-Game-Queue sind umgesetzt
 - M5 – Spieluhr, Reconnect und Stabilität: Uhr, Timeout-Events und autorisierter FEN-/Zug-/Clock-State-Sync sind umgesetzt
+- M6 – Persistenz: Prisma-Schema, PostgreSQL-Compose-Setup, `.env.example` und zentraler Prisma-Client sind eingerichtet; Game-/Move-Repositories und Migrationen folgen als nächster Schritt
 
 ### Als Nächstes
 

@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String             @id @default(cuid())
+  username       String             @unique
+  email          String?            @unique
+  passwordHash   String?
+  rating         Int                @default(1200)
+  createdAt      DateTime           @default(now())
+  lastOnline     DateTime?
+  whiteGames     Game[]             @relation("WhitePlayer")
+  blackGames     Game[]             @relation("BlackPlayer")
+  wonGames       Game[]             @relation("Winner")
+  moves          Move[]
+  invitations    GameInvitation[]   @relation("InvitationCreator")
+}
+
+model Game {
+  id              String    @id @default(cuid())
+  status          String
+  initialFen      String
+  currentFen      String
+  whiteTimeMs     Int
+  blackTimeMs     Int
+  incrementMs     Int       @default(0)
+  result          String?
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  whitePlayerId   String?
+  blackPlayerId   String?
+  winnerId        String?
+  whitePlayer     User?     @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
+  blackPlayer     User?     @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+  winner          User?     @relation("Winner", fields: [winnerId], references: [id])
+  moves           Move[]
+}
+
+model Move {
+  id             String   @id @default(cuid())
+  gameId         String
+  moveNumber     Int
+  from           String
+  to             String
+  piece          String
+  capturedPiece  String?
+  promotion      String?
+  san            String
+  fenAfterMove   String
+  createdAt      DateTime @default(now())
+  game           Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  playerId       String?
+  player         User?    @relation(fields: [playerId], references: [id])
+
+  @@unique([gameId, moveNumber])
+  @@index([gameId, createdAt])
+}
+
+model GameInvitation {
+  id          String   @id @default(cuid())
+  createdById String
+  gameCode    String   @unique
+  timeControl String
+  rated       Boolean  @default(false)
+  status      String
+  createdAt   DateTime @default(now())
+  createdBy   User     @relation("InvitationCreator", fields: [createdById], references: [id])
+}
