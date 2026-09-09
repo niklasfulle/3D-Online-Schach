@@ -7,7 +7,7 @@ services:
       POSTGRES_DB: chess3d
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - chess3d-postgres:/var/lib/postgresql/data
 
