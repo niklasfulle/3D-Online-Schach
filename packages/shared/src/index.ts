@@ -3,6 +3,11 @@ export type GameStatus = 'waiting' | 'active' | 'finished';
 export type Square =
   `${'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h'}${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
 
+export interface TimeControl {
+  initialMs: number;
+  incrementMs: number;
+}
+
 export interface MoveRequest {
   gameId: string;
   from: Square;
@@ -16,6 +21,10 @@ export interface GameSummary {
   status: GameStatus;
   whitePlayerId?: string;
   blackPlayerId?: string;
+  timeControl: TimeControl;
+  whiteRemainingMs: number;
+  blackRemainingMs: number;
+  turnStartedAt?: number;
 }
 
 export interface WebSocketEventMap {

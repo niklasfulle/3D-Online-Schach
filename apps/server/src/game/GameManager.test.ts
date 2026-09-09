@@ -82,4 +82,34 @@ describe('GameManager', () => {
     await expect(first).resolves.toMatchObject({ move: { san: 'e4' } });
     await expect(second).rejects.toThrow("It is not this player's turn");
   });
+
+  it('keeps the clock authoritative and applies the increment on a move', () => {
+    let now = 1_000;
+    manager = new GameManager(() => now);
+    const created = manager.createGame('player-a', { initialMs: 5_000, incrementMs: 1_000 });
+    manager.joinGame(created.code, 'player-b');
+
+    now += 1_200;
+    const accepted = manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' });
+
+    expect(accepted.game.whiteRemainingMs).toBe(4_800);
+    expect(accepted.game.blackRemainingMs).toBe(5_000);
+    expect(accepted.game.turnStartedAt).toBe(2_200);
+  });
+
+  it('finishes a game when the active clock reaches zero', () => {
+    let now = 1_000;
+    manager = new GameManager(() => now);
+    const created = manager.createGame('player-a', { initialMs: 5_000, incrementMs: 0 });
+    manager.joinGame(created.code, 'player-b');
+
+    now += 5_001;
+    expect(() => manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' })).toThrow(
+      'Time expired',
+    );
+    expect(manager.getGame(created.code)).toMatchObject({
+      status: 'finished',
+      whiteRemainingMs: 0,
+    });
+  });
 });

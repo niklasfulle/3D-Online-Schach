@@ -15,11 +15,18 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
 
   app.get('/health', async () => ({ status: 'ok', service: 'chess3d-server' }));
 
-  app.post<{ Body: { playerId?: string } }>('/games', async (request, reply) => {
+  app.post<{
+    Body: { playerId?: string; initialMs?: number; incrementMs?: number };
+  }>('/games', async (request, reply) => {
     const playerId = request.body?.playerId;
     if (!playerId) return reply.code(400).send({ error: 'playerId is required' });
 
-    return reply.code(201).send(gameManager.createGame(playerId));
+    return reply.code(201).send(
+      gameManager.createGame(playerId, {
+        initialMs: request.body.initialMs ?? 5 * 60 * 1000,
+        incrementMs: request.body.incrementMs ?? 0,
+      }),
+    );
   });
 
   app.post<{ Params: { code: string }; Body: { playerId?: string } }>(

@@ -1,10 +1,11 @@
 import { randomInt, randomUUID } from 'node:crypto';
 
 import { ChessGame, type Move, type MoveRecord } from '@chess3d/chess-core';
-import type { GameSummary } from '@chess3d/shared';
+import type { GameSummary, TimeControl } from '@chess3d/shared';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
+const DEFAULT_TIME_CONTROL: TimeControl = { initialMs: 5 * 60 * 1000, incrementMs: 0 };
 
 interface ManagedGame {
   chess: ChessGame;
@@ -22,7 +23,13 @@ export class GameManager {
   private readonly games = new Map<string, ManagedGame>();
   private readonly moveQueues = new Map<string, Promise<void>>();
 
-  createGame(whitePlayerId: string): GameSummary {
+  constructor(private readonly now: () => number = () => Date.now()) {}
+
+  createGame(whitePlayerId: string, timeControl = DEFAULT_TIME_CONTROL): GameSummary {
+    if (timeControl.initialMs <= 0 || timeControl.incrementMs < 0) {
+      throw new Error('Invalid time control');
+    }
+
     let code = this.createCode();
     while (this.games.has(code)) code = this.createCode();
 
@@ -33,10 +40,13 @@ export class GameManager {
         code,
         status: 'waiting',
         whitePlayerId,
+        timeControl,
+        whiteRemainingMs: timeControl.initialMs,
+        blackRemainingMs: timeControl.initialMs,
       },
     };
     this.games.set(code, game);
-    return game.summary;
+    return this.snapshot(game);
   }
 
   joinGame(code: string, blackPlayerId: string): GameSummary {
@@ -50,8 +60,9 @@ export class GameManager {
       ...game.summary,
       blackPlayerId,
       status: 'active',
+      turnStartedAt: this.now(),
     };
-    return game.summary;
+    return this.snapshot(game);
   }
 
   requestMove(code: string, playerId: string, move: Move): AcceptedMove {
@@ -59,9 +70,17 @@ export class GameManager {
     if (!game) throw new Error('Game not found');
     if (game.summary.status !== 'active') throw new Error('Game is not active');
 
+    const clock = this.clockSnapshot(game);
     const state = game.chess.getState();
+    const movingColor = state.activeColor;
+    const remainingMs = movingColor === 'white' ? clock.whiteRemainingMs : clock.blackRemainingMs;
+    if (remainingMs <= 0) {
+      game.summary = { ...game.summary, ...clock, status: 'finished', turnStartedAt: undefined };
+      throw new Error('Time expired');
+    }
+
     const expectedPlayerId =
-      state.activeColor === 'white' ? game.summary.whitePlayerId : game.summary.blackPlayerId;
+      movingColor === 'white' ? game.summary.whitePlayerId : game.summary.blackPlayerId;
     if (expectedPlayerId !== playerId) throw new Error("It is not this player's turn");
 
     const legalMove = game.chess
@@ -80,13 +99,21 @@ export class GameManager {
           : 'white'
         : 'draw'
       : undefined;
-    if (game.chess.isGameOver()) {
-      game.summary = { ...game.summary, status: 'finished' };
-    }
+    const movedRemainingMs = remainingMs + game.summary.timeControl.incrementMs;
+    const nextTurnStartedAt = game.chess.isGameOver() ? undefined : this.now();
+
+    game.summary = {
+      ...game.summary,
+      ...clock,
+      status: game.chess.isGameOver() ? 'finished' : 'active',
+      whiteRemainingMs: movingColor === 'white' ? movedRemainingMs : clock.whiteRemainingMs,
+      blackRemainingMs: movingColor === 'black' ? movedRemainingMs : clock.blackRemainingMs,
+      turnStartedAt: nextTurnStartedAt,
+    };
 
     return {
-      fen: game.chess.getState().fen,
-      game: game.summary,
+      fen: nextState.fen,
+      game: this.snapshot(game),
       move: playedMove,
       result,
     };
@@ -107,7 +134,35 @@ export class GameManager {
   }
 
   getGame(code: string): GameSummary | undefined {
-    return this.getManagedGame(code)?.summary;
+    const game = this.getManagedGame(code);
+    return game ? this.snapshot(game) : undefined;
+  }
+
+  private snapshot(game: ManagedGame): GameSummary {
+    return { ...game.summary, ...this.clockSnapshot(game) };
+  }
+
+  private clockSnapshot(
+    game: ManagedGame,
+  ): Pick<GameSummary, 'whiteRemainingMs' | 'blackRemainingMs'> {
+    if (game.summary.status !== 'active' || game.summary.turnStartedAt === undefined) {
+      return {
+        whiteRemainingMs: game.summary.whiteRemainingMs,
+        blackRemainingMs: game.summary.blackRemainingMs,
+      };
+    }
+
+    const elapsed = Math.max(0, this.now() - game.summary.turnStartedAt);
+    return {
+      whiteRemainingMs:
+        game.chess.getState().activeColor === 'white'
+          ? Math.max(0, game.summary.whiteRemainingMs - elapsed)
+          : game.summary.whiteRemainingMs,
+      blackRemainingMs:
+        game.chess.getState().activeColor === 'black'
+          ? Math.max(0, game.summary.blackRemainingMs - elapsed)
+          : game.summary.blackRemainingMs,
+    };
   }
 
   private getManagedGame(code: string): ManagedGame | undefined {

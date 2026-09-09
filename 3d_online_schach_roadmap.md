@@ -192,7 +192,8 @@ Dieser Meilenstein startet erst nach einem stabilen MVP.
 
 - M3 – Chess Core und lokale Partie: `chess.js`, legale Züge, Sonderregeln, lokale Zugausführung, Aufgabe-UI und Regeltests sind umgesetzt
 - M4 – Online-Multiplayer-MVP: GameManager, private Game-Codes, Join-/Farbzuweisung, serverseitige Move-Validierung, Socket.IO-Broadcast, Game-Ende-Events und per-Game-Queue sind umgesetzt
+- M5 – Spieluhr, Reconnect und Stabilität: serverautoritative Uhr mit Startzeit und Inkrement ist umgesetzt
 
 ### Als Nächstes
 
-- M4 – Online-Multiplayer-MVP: serverseitige Move-Validierung und WebSocket-Synchronisierung
+- M5 – Spieluhr, Reconnect und Stabilität: Timeout, Disconnect und vollständiger State-Sync
