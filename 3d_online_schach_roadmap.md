@@ -196,4 +196,4 @@ Dieser Meilenstein startet erst nach einem stabilen MVP.
 
 ### Als Nächstes
 
-- M5 – Spieluhr, Reconnect und Stabilität: Timeout, Disconnect und vollständiger State-Sync
+- M6 – Persistenz: PostgreSQL, Spiele/Züge und PGN-Export
