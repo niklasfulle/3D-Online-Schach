@@ -5,7 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 
 import type { Move } from '@chess3d/chess-core';
 
-import { GameManager } from './game/GameManager.js';
+import { GameManager, GameTimeoutError } from './game/GameManager.js';
 import { registerRealtime } from './realtime.js';
 
 export function buildApp(gameManager = new GameManager()): FastifyInstance {
@@ -64,6 +64,11 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
         await gameManager.requestMoveQueued(request.params.code, playerId, { from, to, promotion }),
       );
     } catch (error) {
+      if (error instanceof GameTimeoutError) {
+        return reply
+          .code(409)
+          .send({ error: error.message, game: error.game, result: error.result });
+      }
       return reply
         .code(400)
         .send({ error: error instanceof Error ? error.message : 'Unable to play move' });

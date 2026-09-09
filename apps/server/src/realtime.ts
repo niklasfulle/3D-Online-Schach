@@ -3,7 +3,7 @@ import { Server } from 'socket.io';
 
 import type { Move } from '@chess3d/chess-core';
 
-import type { GameManager } from './game/GameManager.js';
+import { GameTimeoutError, type GameManager } from './game/GameManager.js';
 
 interface JoinPayload {
   code?: string;
@@ -65,6 +65,13 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
           io.to(room).emit('game:ended', { gameId: accepted.game.id, result: accepted.result });
         }
       } catch (error) {
+        if (error instanceof GameTimeoutError) {
+          io.to(payload.code.toUpperCase()).emit('game:ended', {
+            gameId: error.game.id,
+            result: error.result,
+          });
+          return;
+        }
         socket.emit('move:rejected', {
           reason: error instanceof Error ? error.message : 'Unable to play move',
         });

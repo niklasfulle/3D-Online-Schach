@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { GameManager } from './GameManager.js';
+import { GameManager, GameTimeoutError } from './GameManager.js';
 
 describe('GameManager', () => {
   let manager: GameManager;
@@ -104,9 +104,13 @@ describe('GameManager', () => {
     manager.joinGame(created.code, 'player-b');
 
     now += 5_001;
-    expect(() => manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' })).toThrow(
-      'Time expired',
-    );
+    try {
+      manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' });
+      throw new Error('Expected timeout');
+    } catch (error) {
+      expect(error).toBeInstanceOf(GameTimeoutError);
+      expect((error as GameTimeoutError).result).toBe('black');
+    }
     expect(manager.getGame(created.code)).toMatchObject({
       status: 'finished',
       whiteRemainingMs: 0,

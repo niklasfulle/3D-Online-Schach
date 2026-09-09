@@ -19,6 +19,15 @@ export interface AcceptedMove {
   result?: 'white' | 'black' | 'draw';
 }
 
+export class GameTimeoutError extends Error {
+  constructor(
+    public readonly game: GameSummary,
+    public readonly result: 'white' | 'black',
+  ) {
+    super('Time expired');
+  }
+}
+
 export class GameManager {
   private readonly games = new Map<string, ManagedGame>();
   private readonly moveQueues = new Map<string, Promise<void>>();
@@ -70,14 +79,13 @@ export class GameManager {
     if (!game) throw new Error('Game not found');
     if (game.summary.status !== 'active') throw new Error('Game is not active');
 
+    const timeout = this.expireIfNeeded(game);
+    if (timeout) throw timeout;
+
     const clock = this.clockSnapshot(game);
     const state = game.chess.getState();
     const movingColor = state.activeColor;
     const remainingMs = movingColor === 'white' ? clock.whiteRemainingMs : clock.blackRemainingMs;
-    if (remainingMs <= 0) {
-      game.summary = { ...game.summary, ...clock, status: 'finished', turnStartedAt: undefined };
-      throw new Error('Time expired');
-    }
 
     const expectedPlayerId =
       movingColor === 'white' ? game.summary.whitePlayerId : game.summary.blackPlayerId;
@@ -135,7 +143,20 @@ export class GameManager {
 
   getGame(code: string): GameSummary | undefined {
     const game = this.getManagedGame(code);
+    if (game) this.expireIfNeeded(game);
     return game ? this.snapshot(game) : undefined;
+  }
+
+  private expireIfNeeded(game: ManagedGame): GameTimeoutError | undefined {
+    if (game.summary.status !== 'active') return undefined;
+
+    const clock = this.clockSnapshot(game);
+    const activeColor = game.chess.getState().activeColor;
+    const remainingMs = activeColor === 'white' ? clock.whiteRemainingMs : clock.blackRemainingMs;
+    if (remainingMs > 0) return undefined;
+
+    game.summary = { ...game.summary, ...clock, status: 'finished', turnStartedAt: undefined };
+    return new GameTimeoutError(this.snapshot(game), activeColor === 'white' ? 'black' : 'white');
   }
 
   private snapshot(game: ManagedGame): GameSummary {
