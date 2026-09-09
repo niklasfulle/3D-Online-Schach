@@ -191,7 +191,7 @@ Dieser Meilenstein startet erst nach einem stabilen MVP.
 ### In Arbeit
 
 - M3 – Chess Core und lokale Partie: `chess.js`, legale Züge, Sonderregeln, lokale Zugausführung, Aufgabe-UI und Regeltests sind umgesetzt
-- M4 – Online-Multiplayer-MVP: GameManager, private Game-Codes, Join-/Farbzuweisung und serverseitige Move-Validierung sind umgesetzt
+- M4 – Online-Multiplayer-MVP: GameManager, private Game-Codes, Join-/Farbzuweisung, serverseitige Move-Validierung und Socket.IO-Broadcast sind umgesetzt
 
 ### Als Nächstes
 

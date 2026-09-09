@@ -6,6 +6,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { Move } from '@chess3d/chess-core';
 
 import { GameManager } from './game/GameManager.js';
+import { registerRealtime } from './realtime.js';
 
 export function buildApp(gameManager = new GameManager()): FastifyInstance {
   const app = Fastify({ logger: true });
@@ -66,7 +67,9 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
 }
 
 async function start() {
-  const app = buildApp();
+  const gameManager = new GameManager();
+  const app = buildApp(gameManager);
+  const realtime = registerRealtime(app, gameManager);
   const port = Number(process.env.PORT ?? 3001);
   const host = process.env.HOST ?? '127.0.0.1';
 
@@ -74,6 +77,7 @@ async function start() {
     await app.listen({ host, port });
   } catch (error) {
     app.log.error(error);
+    realtime.close();
     process.exit(1);
   }
 }
