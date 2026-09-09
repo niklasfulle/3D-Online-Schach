@@ -47,14 +47,14 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
       }
     });
 
-    socket.on('move:request', (payload: MovePayload) => {
+    socket.on('move:request', async (payload: MovePayload) => {
       if (!payload.code || !payload.from || !payload.to) {
         socket.emit('move:rejected', { reason: 'code, from and to are required' });
         return;
       }
 
       try {
-        const accepted = gameManager.requestMove(payload.code, playerId, {
+        const accepted = await gameManager.requestMoveQueued(payload.code, playerId, {
           from: payload.from,
           to: payload.to,
           promotion: payload.promotion,

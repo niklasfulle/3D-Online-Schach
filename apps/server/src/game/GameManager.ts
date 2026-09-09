@@ -20,6 +20,7 @@ export interface AcceptedMove {
 
 export class GameManager {
   private readonly games = new Map<string, ManagedGame>();
+  private readonly moveQueues = new Map<string, Promise<void>>();
 
   createGame(whitePlayerId: string): GameSummary {
     let code = this.createCode();
@@ -89,6 +90,20 @@ export class GameManager {
       move: playedMove,
       result,
     };
+  }
+
+  requestMoveQueued(code: string, playerId: string, move: Move): Promise<AcceptedMove> {
+    const normalizedCode = code.toUpperCase();
+    const previous = this.moveQueues.get(normalizedCode) ?? Promise.resolve();
+    const next = previous.then(() => this.requestMove(normalizedCode, playerId, move));
+    this.moveQueues.set(
+      normalizedCode,
+      next.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return next;
   }
 
   getGame(code: string): GameSummary | undefined {

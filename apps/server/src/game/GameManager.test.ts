@@ -70,4 +70,16 @@ describe('GameManager', () => {
     expect(accepted.result).toBe('black');
     expect(accepted.game.status).toBe('finished');
   });
+
+  it('serializes concurrent move requests per game', async () => {
+    manager = new GameManager();
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+
+    const first = manager.requestMoveQueued(created.code, 'player-a', { from: 'e2', to: 'e4' });
+    const second = manager.requestMoveQueued(created.code, 'player-a', { from: 'd2', to: 'd4' });
+
+    await expect(first).resolves.toMatchObject({ move: { san: 'e4' } });
+    await expect(second).rejects.toThrow("It is not this player's turn");
+  });
 });

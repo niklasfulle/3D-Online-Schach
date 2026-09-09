@@ -54,7 +54,7 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
 
     try {
       return reply.send(
-        gameManager.requestMove(request.params.code, playerId, { from, to, promotion }),
+        await gameManager.requestMoveQueued(request.params.code, playerId, { from, to, promotion }),
       );
     } catch (error) {
       return reply
