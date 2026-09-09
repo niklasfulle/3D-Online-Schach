@@ -6,7 +6,8 @@ Browserbasierte 3D-Schachplattform mit React, Three.js, Fastify, Socket.IO, Post
 
 Der MVP-Unterbau ist umgesetzt:
 
-- 3D-Schachbrett mit Figuren, Kamera und Auswahl
+- 3D-Schachbrett mit sechs unterscheidbaren, in Blender erzeugten Figurenmodellen
+- FEN-gesteuerte Figurenpositionen mit animierten Zügen, Kamera und Auswahl
 - lokale Schachregeln mit `chess.js`
 - private Online-Spielräume über Game-Codes
 - serverseitige Zugvalidierung und Socket.IO-Synchronisierung
@@ -21,6 +22,7 @@ PGN-Export und ladbare Spielhistorie sind als nächster Schritt in GitHub-Ticket
 - Node.js
 - pnpm 11
 - Docker Desktop für PostgreSQL
+- Blender 5.1 oder neuer, nur zum Neuerzeugen der mitgelieferten 3D-Modelle
 
 ## Entwicklung starten
 
@@ -51,6 +53,14 @@ pnpm dev
 
 Die lokale Datenbankverbindung wird über `DATABASE_URL` konfiguriert. Eine Vorlage liegt in [.env.example](.env.example).
 
+## 3D-Figuren neu erzeugen
+
+Die fertigen GLB-Dateien liegen unter `apps/client/public/models/chess` und werden direkt mitgeliefert. Nach Änderungen am Generator können sie mit Blender neu gebaut werden:
+
+```bash
+blender --background --python scripts/blender/generate_chess_pieces.py
+```
+
 ## Qualitätssicherung
 
 ```bash
@@ -67,7 +77,8 @@ apps/client              React-, Vite- und 3D-Frontend
 apps/server              Fastify-, Socket.IO- und Prisma-Backend
 apps/server/prisma       Prisma-Schema und Datenbankmigrationen
 packages/chess-core      Schachregeln und Chess-State
-packages/shared         Gemeinsame Typen und Verträge
+packages/shared          Gemeinsame Typen und Verträge
+scripts/blender          Reproduzierbarer Generator für die GLB-Figuren
 ```
 
 Die ausführliche Planung steht in [3d_online_schach_roadmap.md](3d_online_schach_roadmap.md). GitHub-Milestones und Tickets sind die aktive Arbeitsliste.

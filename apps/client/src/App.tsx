@@ -100,10 +100,12 @@ export function App() {
       </header>
       <section className="game-layout">
         <div className="scene-card" aria-label="3D-Schachbrett">
-          <Canvas camera={{ position: [0, 7, 7], fov: 42 }} shadows>
+          <Canvas camera={{ position: [0, 9.6, 11.8], fov: 46 }} shadows>
             <color attach="background" args={['#10151f']} />
             <ChessScene
+              fen={gameState.fen}
               highlightedSquares={legalTargets}
+              lastMove={moveHistory.at(-1)}
               selectedSquare={selectedSquare}
               onSelectSquare={handleSelectSquare}
             />

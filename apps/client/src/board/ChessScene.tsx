@@ -1,27 +1,37 @@
-import { OrbitControls } from '@react-three/drei';
-import { memo, useMemo } from 'react';
-import type { ThreeEvent } from '@react-three/fiber';
+import { OrbitControls, useGLTF } from '@react-three/drei';
+import { memo, useMemo, useRef } from 'react';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { Mesh, MeshStandardMaterial, type Group } from 'three';
 
+import type { Move } from '@chess3d/chess-core';
 import type { Square } from '@chess3d/shared';
 
 import { squareToWorld } from './coordinates';
+import { piecesFromFen, type PieceDefinition, type PieceType } from './pieces';
 
 const LIGHT_TILE = '#d8c7a4';
 const DARK_TILE = '#6b4f3a';
 const SELECTED_TILE = '#4e91d9';
 const BOARD_EDGE = 8.35;
 
+const MODEL_URLS: Record<PieceType, string> = {
+  bishop: '/models/chess/bishop.glb',
+  king: '/models/chess/king.glb',
+  knight: '/models/chess/knight.glb',
+  pawn: '/models/chess/pawn.glb',
+  queen: '/models/chess/queen.glb',
+  rook: '/models/chess/rook.glb',
+};
+
+const PIECE_MATERIALS = {
+  white: new MeshStandardMaterial({ color: '#f2e6cf', metalness: 0.08, roughness: 0.3 }),
+  black: new MeshStandardMaterial({ color: '#2d3a4d', metalness: 0.16, roughness: 0.24 }),
+};
+
+Object.values(MODEL_URLS).forEach((url) => useGLTF.preload(url));
+
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
-
-type PieceType = 'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn';
-type PieceColor = 'white' | 'black';
-
-interface PieceDefinition {
-  color: PieceColor;
-  square: Square;
-  type: PieceType;
-}
 
 interface SquareTileProps {
   highlighted: boolean;
@@ -31,43 +41,15 @@ interface SquareTileProps {
 }
 
 interface PieceProps {
+  animationFrom?: Square;
   piece: PieceDefinition;
   onSelect: (square: Square) => void;
 }
 
-const BACK_RANK: PieceType[] = [
-  'rook',
-  'knight',
-  'bishop',
-  'queen',
-  'king',
-  'bishop',
-  'knight',
-  'rook',
-];
-
-const STARTING_PIECES: PieceDefinition[] = [
-  ...FILES.map((file) => ({
-    color: 'white' as const,
-    square: `${file}2` as Square,
-    type: 'pawn' as const,
-  })),
-  ...FILES.map((file) => ({
-    color: 'black' as const,
-    square: `${file}7` as Square,
-    type: 'pawn' as const,
-  })),
-  ...FILES.map((file, index) => ({
-    color: 'white' as const,
-    square: `${file}1` as Square,
-    type: BACK_RANK[index],
-  })),
-  ...FILES.map((file, index) => ({
-    color: 'black' as const,
-    square: `${file}8` as Square,
-    type: BACK_RANK[index],
-  })),
-];
+interface PieceModelProps {
+  color: PieceDefinition['color'];
+  type: PieceType;
+}
 
 const SquareTile = memo(function SquareTile({
   highlighted,
@@ -97,8 +79,38 @@ const SquareTile = memo(function SquareTile({
   );
 });
 
-const Piece = memo(function Piece({ piece, onSelect }: PieceProps) {
-  const [x, , z] = squareToWorld(piece.square, 0.32);
+const PieceModel = memo(function PieceModel({ color, type }: PieceModelProps) {
+  const { scene } = useGLTF(MODEL_URLS[type]);
+  const model = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((child) => {
+      if (child instanceof Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.material = PIECE_MATERIALS[color];
+      }
+    });
+    return clone;
+  }, [color, scene]);
+
+  return <primitive object={model} />;
+});
+
+const Piece = memo(function Piece({ animationFrom, piece, onSelect }: PieceProps) {
+  const groupRef = useRef<Group>(null);
+  const target = useMemo(() => squareToWorld(piece.square), [piece.square]);
+  const start = useMemo(
+    () => squareToWorld(animationFrom ?? piece.square),
+    [animationFrom, piece.square],
+  );
+
+  useFrame((_, delta) => {
+    const group = groupRef.current;
+    if (!group) return;
+    const progress = 1 - Math.exp(-12 * delta);
+    group.position.x += (target[0] - group.position.x) * progress;
+    group.position.z += (target[2] - group.position.z) * progress;
+  });
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     event.stopPropagation();
@@ -106,39 +118,29 @@ const Piece = memo(function Piece({ piece, onSelect }: PieceProps) {
   }
 
   return (
-    <group position={[x, 0, z]} onClick={handleClick}>
-      <mesh castShadow position={[0, piece.type === 'pawn' ? 0.22 : 0.28, 0]}>
-        {piece.type === 'pawn' ? (
-          <sphereGeometry args={[0.2, 16, 12]} />
-        ) : (
-          <cylinderGeometry args={[0.24, 0.3, 0.48, 16]} />
-        )}
-        <meshStandardMaterial color={piece.color === 'white' ? '#f4ead7' : '#20252d'} />
-      </mesh>
-      <mesh castShadow position={[0, 0.08, 0]}>
-        <cylinderGeometry args={[0.34, 0.38, 0.12, 16]} />
-        <meshStandardMaterial color={piece.color === 'white' ? '#d8c7a4' : '#11151b'} />
-      </mesh>
-      <mesh position={[0, 0.68, 0]}>
-        <planeGeometry args={[0.5, 0.5]} />
-        <meshBasicMaterial
-          color={piece.color === 'white' ? '#201b17' : '#f4ead7'}
-          transparent
-          opacity={0.9}
-        />
-      </mesh>
+    <group
+      ref={groupRef}
+      position={start}
+      rotation={[0, piece.color === 'black' ? Math.PI : 0, 0]}
+      onClick={handleClick}
+    >
+      <PieceModel color={piece.color} type={piece.type} />
     </group>
   );
 });
 
 export interface ChessSceneProps {
+  fen: string;
   highlightedSquares: readonly Square[];
+  lastMove?: Move;
   selectedSquare: Square | null;
   onSelectSquare: (square: Square) => void;
 }
 
 export function ChessScene({
+  fen,
   highlightedSquares,
+  lastMove,
   selectedSquare,
   onSelectSquare,
 }: ChessSceneProps) {
@@ -146,6 +148,7 @@ export function ChessScene({
     () => RANKS.flatMap((rank) => FILES.map((file) => `${file}${rank}` as Square)),
     [],
   );
+  const pieces = useMemo(() => piecesFromFen(fen), [fen]);
 
   return (
     <>
@@ -156,11 +159,13 @@ export function ChessScene({
         position={[4, 8, 4]}
         shadow-mapSize={[2048, 2048]}
       />
+      <directionalLight color="#8fb7ff" intensity={0.8} position={[-4, 5, -4]} />
       <OrbitControls
         enablePan={false}
         maxPolarAngle={Math.PI / 2.15}
-        minDistance={5}
-        maxDistance={12}
+        minDistance={7}
+        maxDistance={18}
+        target={[0, 0.35, 0]}
       />
       <mesh position={[0, -0.12, 0]} receiveShadow>
         <boxGeometry args={[BOARD_EDGE, 0.24, BOARD_EDGE]} />
@@ -175,8 +180,13 @@ export function ChessScene({
           onSelect={onSelectSquare}
         />
       ))}
-      {STARTING_PIECES.map((piece) => (
-        <Piece key={`${piece.color}-${piece.square}`} piece={piece} onSelect={onSelectSquare} />
+      {pieces.map((piece) => (
+        <Piece
+          key={`${piece.color}-${piece.type}-${piece.square}`}
+          animationFrom={lastMove?.to === piece.square ? lastMove.from : undefined}
+          piece={piece}
+          onSelect={onSelectSquare}
+        />
       ))}
     </>
   );

@@ -9,3 +9,5 @@ coverage/
 !.env.example
 .pnpm-store/
 *.tsbuildinfo
+.playwright-cli/
+output/playwright/
