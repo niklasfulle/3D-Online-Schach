@@ -59,7 +59,11 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
           to: payload.to,
           promotion: payload.promotion,
         });
-        io.to(payload.code.toUpperCase()).emit('move:accepted', accepted);
+        const room = payload.code.toUpperCase();
+        io.to(room).emit('move:accepted', accepted);
+        if (accepted.result) {
+          io.to(room).emit('game:ended', { gameId: accepted.game.id, result: accepted.result });
+        }
       } catch (error) {
         socket.emit('move:rejected', {
           reason: error instanceof Error ? error.message : 'Unable to play move',

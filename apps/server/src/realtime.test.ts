@@ -54,4 +54,42 @@ describe('realtime game rooms', () => {
     expect((await whiteMovePromise).move.san).toBe('e4');
     expect((await blackMovePromise).move.san).toBe('e4');
   });
+
+  it('broadcasts game end with the winning color', async () => {
+    const gameManager = new GameManager();
+    app = buildApp(gameManager);
+    realtime = registerRealtime(app, gameManager);
+    await app.listen({ host: '127.0.0.1', port: 0 });
+
+    const address = app.server.address();
+    if (!address || typeof address === 'string') throw new Error('Server address unavailable');
+    const url = `http://127.0.0.1:${address.port}`;
+    const white = connect(url, { auth: { playerId: 'player-a' }, transports: ['websocket'] });
+    const black = connect(url, { auth: { playerId: 'player-b' }, transports: ['websocket'] });
+    clients = [white, black];
+
+    await Promise.all([waitForEvent(white, 'connect'), waitForEvent(black, 'connect')]);
+    const createdPromise = waitForEvent<{ code: string }>(white, 'game:created');
+    white.emit('game:create');
+    const created = await createdPromise;
+    const startedPromise = waitForEvent(black, 'game:started');
+    black.emit('game:join', { code: created.code });
+    await startedPromise;
+
+    async function play(socket: Socket, from: string, to: string) {
+      const accepted = waitForEvent(socket, 'move:accepted');
+      socket.emit('move:request', { code: created.code, from, to });
+      await accepted;
+    }
+
+    await play(white, 'f2', 'f3');
+    await play(black, 'e7', 'e5');
+    await play(white, 'g2', 'g4');
+    const whiteEnded = waitForEvent<{ result: string }>(white, 'game:ended');
+    const blackEnded = waitForEvent<{ result: string }>(black, 'game:ended');
+    black.emit('move:request', { code: created.code, from: 'd8', to: 'h4' });
+
+    expect((await whiteEnded).result).toBe('black');
+    expect((await blackEnded).result).toBe('black');
+  });
 });

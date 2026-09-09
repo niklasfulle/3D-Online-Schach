@@ -15,6 +15,7 @@ export interface AcceptedMove {
   fen: string;
   game: GameSummary;
   move: MoveRecord;
+  result?: 'white' | 'black' | 'draw';
 }
 
 export class GameManager {
@@ -70,6 +71,14 @@ export class GameManager {
     }
 
     const playedMove = game.chess.move(move);
+    const nextState = game.chess.getState();
+    const result = game.chess.isGameOver()
+      ? nextState.status === 'checkmate'
+        ? nextState.activeColor === 'white'
+          ? 'black'
+          : 'white'
+        : 'draw'
+      : undefined;
     if (game.chess.isGameOver()) {
       game.summary = { ...game.summary, status: 'finished' };
     }
@@ -78,6 +87,7 @@ export class GameManager {
       fen: game.chess.getState().fen,
       game: game.summary,
       move: playedMove,
+      result,
     };
   }
 

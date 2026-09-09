@@ -56,4 +56,18 @@ describe('GameManager', () => {
       'Illegal move',
     );
   });
+
+  it('returns the winning color when a move ends the game', () => {
+    manager = new GameManager();
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+
+    manager.requestMove(created.code, 'player-a', { from: 'f2', to: 'f3' });
+    manager.requestMove(created.code, 'player-b', { from: 'e7', to: 'e5' });
+    manager.requestMove(created.code, 'player-a', { from: 'g2', to: 'g4' });
+    const accepted = manager.requestMove(created.code, 'player-b', { from: 'd8', to: 'h4' });
+
+    expect(accepted.result).toBe('black');
+    expect(accepted.game.status).toBe('finished');
+  });
 });
