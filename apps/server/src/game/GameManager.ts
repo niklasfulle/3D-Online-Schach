@@ -1,43 +1,91 @@
-import { randomInt } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 
+import { ChessGame, type Move, type MoveRecord } from '@chess3d/chess-core';
 import type { GameSummary } from '@chess3d/shared';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 
+interface ManagedGame {
+  chess: ChessGame;
+  summary: GameSummary;
+}
+
+export interface AcceptedMove {
+  fen: string;
+  game: GameSummary;
+  move: MoveRecord;
+}
+
 export class GameManager {
-  private readonly games = new Map<string, GameSummary>();
+  private readonly games = new Map<string, ManagedGame>();
 
   createGame(whitePlayerId: string): GameSummary {
     let code = this.createCode();
     while (this.games.has(code)) code = this.createCode();
 
-    const game: GameSummary = {
-      id: crypto.randomUUID(),
-      code,
-      status: 'waiting',
-      whitePlayerId,
+    const game: ManagedGame = {
+      chess: new ChessGame(),
+      summary: {
+        id: randomUUID(),
+        code,
+        status: 'waiting',
+        whitePlayerId,
+      },
     };
     this.games.set(code, game);
-    return game;
+    return game.summary;
   }
 
   joinGame(code: string, blackPlayerId: string): GameSummary {
-    const game = this.getGame(code);
+    const game = this.getManagedGame(code);
     if (!game) throw new Error('Game not found');
-    if (game.status !== 'waiting') throw new Error('Game is not waiting for a player');
-    if (game.whitePlayerId === blackPlayerId) throw new Error('Player is already in this game');
+    if (game.summary.status !== 'waiting') throw new Error('Game is not waiting for a player');
+    if (game.summary.whitePlayerId === blackPlayerId)
+      throw new Error('Player is already in this game');
 
-    const joinedGame: GameSummary = {
-      ...game,
+    game.summary = {
+      ...game.summary,
       blackPlayerId,
       status: 'active',
     };
-    this.games.set(game.code, joinedGame);
-    return joinedGame;
+    return game.summary;
+  }
+
+  requestMove(code: string, playerId: string, move: Move): AcceptedMove {
+    const game = this.getManagedGame(code);
+    if (!game) throw new Error('Game not found');
+    if (game.summary.status !== 'active') throw new Error('Game is not active');
+
+    const state = game.chess.getState();
+    const expectedPlayerId =
+      state.activeColor === 'white' ? game.summary.whitePlayerId : game.summary.blackPlayerId;
+    if (expectedPlayerId !== playerId) throw new Error("It is not this player's turn");
+
+    const legalMove = game.chess
+      .legalMoves(move.from)
+      .find((candidate) => candidate.to === move.to);
+    if (!legalMove || (legalMove.promotion && move.promotion !== legalMove.promotion)) {
+      throw new Error('Illegal move');
+    }
+
+    const playedMove = game.chess.move(move);
+    if (game.chess.isGameOver()) {
+      game.summary = { ...game.summary, status: 'finished' };
+    }
+
+    return {
+      fen: game.chess.getState().fen,
+      game: game.summary,
+      move: playedMove,
+    };
   }
 
   getGame(code: string): GameSummary | undefined {
+    return this.getManagedGame(code)?.summary;
+  }
+
+  private getManagedGame(code: string): ManagedGame | undefined {
     return this.games.get(code.toUpperCase());
   }
 

@@ -83,6 +83,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@chess3d/chess-core':
+        specifier: workspace:*
+        version: link:../../packages/chess-core
       '@chess3d/shared':
         specifier: workspace:*
         version: link:../../packages/shared

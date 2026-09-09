@@ -3,6 +3,8 @@ import { pathToFileURL } from 'node:url';
 import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance } from 'fastify';
 
+import type { Move } from '@chess3d/chess-core';
+
 import { GameManager } from './game/GameManager.js';
 
 export function buildApp(gameManager = new GameManager()): FastifyInstance {
@@ -39,6 +41,25 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
     const game = gameManager.getGame(request.params.code);
     if (!game) return reply.code(404).send({ error: 'Game not found' });
     return reply.send(game);
+  });
+
+  app.post<{
+    Params: { code: string };
+    Body: Move & { playerId?: string };
+  }>('/games/:code/moves', async (request, reply) => {
+    const { playerId, from, to, promotion } = request.body ?? {};
+    if (!playerId || !from || !to)
+      return reply.code(400).send({ error: 'playerId, from and to are required' });
+
+    try {
+      return reply.send(
+        gameManager.requestMove(request.params.code, playerId, { from, to, promotion }),
+      );
+    } catch (error) {
+      return reply
+        .code(400)
+        .send({ error: error instanceof Error ? error.message : 'Unable to play move' });
+    }
   });
 
   return app;

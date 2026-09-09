@@ -36,4 +36,24 @@ describe('GameManager', () => {
 
     expect(() => manager.joinGame(created.code, 'player-c')).toThrow('Game is not waiting');
   });
+
+  it('accepts only legal moves from the player whose turn it is', () => {
+    manager = new GameManager();
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+
+    const accepted = manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' });
+
+    expect(accepted.move.san).toBe('e4');
+    expect(accepted.fen).toContain(' b ');
+    expect(() => manager.requestMove(created.code, 'player-a', { from: 'd2', to: 'd4' })).toThrow(
+      "It is not this player's turn",
+    );
+    expect(() =>
+      manager.requestMove(created.code, 'player-b', { from: 'e7', to: 'e6' }),
+    ).not.toThrow();
+    expect(() => manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e5' })).toThrow(
+      'Illegal move',
+    );
+  });
 });
