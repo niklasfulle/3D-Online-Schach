@@ -7,7 +7,7 @@ import type { Move } from '@chess3d/chess-core';
 import type { Square } from '@chess3d/shared';
 
 import { squareToWorld } from './coordinates';
-import { piecesFromFen, type PieceDefinition, type PieceType } from './pieces';
+import { pieceRotationY, piecesFromFen, type PieceDefinition, type PieceType } from './pieces';
 
 const LIGHT_TILE = '#d8c7a4';
 const DARK_TILE = '#6b4f3a';
@@ -121,7 +121,7 @@ const Piece = memo(function Piece({ animationFrom, piece, onSelect }: PieceProps
     <group
       ref={groupRef}
       position={start}
-      rotation={[0, piece.color === 'black' ? Math.PI : 0, 0]}
+      rotation={[0, pieceRotationY(piece.type, piece.color), 0]}
       onClick={handleClick}
     >
       <PieceModel color={piece.color} type={piece.type} />

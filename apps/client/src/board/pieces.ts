@@ -20,6 +20,11 @@ const PIECE_TYPES: Record<string, PieceType> = {
   r: 'rook',
 };
 
+export function pieceRotationY(type: PieceType, color: PieceColor): number {
+  const colorRotation = color === 'black' ? Math.PI : 0;
+  return type === 'knight' ? (colorRotation + Math.PI) % (Math.PI * 2) : colorRotation;
+}
+
 export function piecesFromFen(fen: string): PieceDefinition[] {
   const board = fen.split(' ')[0];
   const fenRanks = board?.split('/');
