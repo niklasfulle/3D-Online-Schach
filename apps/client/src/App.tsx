@@ -100,7 +100,11 @@ export function App() {
       </header>
       <section className="game-layout">
         <div className="scene-card" aria-label="3D-Schachbrett">
-          <Canvas camera={{ position: [0, 9.6, 11.8], fov: 46 }} shadows>
+          <Canvas
+            camera={{ position: [0, 9.6, 11.8], fov: 46 }}
+            onContextMenu={(event) => event.preventDefault()}
+            shadows
+          >
             <color attach="background" args={['#10151f']} />
             <ChessScene
               fen={gameState.fen}

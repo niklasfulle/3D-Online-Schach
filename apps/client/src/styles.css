@@ -33,7 +33,7 @@ input {
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  max-width: 1100px;
+  max-width: 1320px;
   width: 100%;
   margin: 0 auto;
 }
@@ -65,8 +65,8 @@ h1 {
   position: relative;
   overflow: hidden;
   width: 100%;
-  max-width: 1100px;
-  min-height: 480px;
+  max-width: 1320px;
+  min-height: clamp(560px, 72vh, 820px);
   margin: 0 auto;
   border: 1px solid #26364e;
   border-radius: 1.25rem;
@@ -76,15 +76,15 @@ h1 {
 
 .game-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 1.5rem;
   width: 100%;
-  max-width: 1100px;
+  max-width: 1320px;
   margin: 0 auto;
 }
 
 .scene-card canvas {
-  min-height: 480px;
+  min-height: clamp(560px, 72vh, 820px);
 }
 
 .scene-overlay {
@@ -208,5 +208,10 @@ h1 {
 
   .game-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scene-card,
+  .scene-card canvas {
+    min-height: min(68vh, 680px);
   }
 }

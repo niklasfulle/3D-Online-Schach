@@ -61,6 +61,14 @@ Die fertigen GLB-Dateien liegen unter `apps/client/public/models/chess` und werd
 blender --background --python scripts/blender/generate_chess_pieces.py
 ```
 
+## 3D-Brett bedienen
+
+- Linke Maustaste: Kamera drehen und Figuren/Felder auswählen
+- Mittlere Maustaste: zoomen
+- Rechte Maustaste: Brett verschieben
+
+Die Kamerabewegung ist auf einen Bereich rund um das Schachbrett begrenzt.
+
 ## Qualitätssicherung
 
 ```bash

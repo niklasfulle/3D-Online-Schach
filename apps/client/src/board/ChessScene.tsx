@@ -1,7 +1,7 @@
 import { OrbitControls, useGLTF } from '@react-three/drei';
-import { memo, useMemo, useRef } from 'react';
-import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import { Mesh, MeshStandardMaterial, type Group } from 'three';
+import { memo, useMemo, useRef, type ComponentRef } from 'react';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { MOUSE, Mesh, MeshStandardMaterial, type Group } from 'three';
 
 import type { Move } from '@chess3d/chess-core';
 import type { Square } from '@chess3d/shared';
@@ -13,6 +13,9 @@ const LIGHT_TILE = '#d8c7a4';
 const DARK_TILE = '#6b4f3a';
 const SELECTED_TILE = '#4e91d9';
 const BOARD_EDGE = 8.35;
+const PAN_LIMIT = 1.5;
+const MIN_TARGET_Y = -0.2;
+const MAX_TARGET_Y = 1.2;
 
 const MODEL_URLS: Record<PieceType, string> = {
   bishop: '/models/chess/bishop.glb',
@@ -129,6 +132,10 @@ const Piece = memo(function Piece({ animationFrom, piece, onSelect }: PieceProps
   );
 });
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 export interface ChessSceneProps {
   fen: string;
   highlightedSquares: readonly Square[];
@@ -144,11 +151,34 @@ export function ChessScene({
   selectedSquare,
   onSelectSquare,
 }: ChessSceneProps) {
+  const controlsRef = useRef<ComponentRef<typeof OrbitControls>>(null);
+  const { camera } = useThree();
   const squares = useMemo(
     () => RANKS.flatMap((rank) => FILES.map((file) => `${file}${rank}` as Square)),
     [],
   );
   const pieces = useMemo(() => piecesFromFen(fen), [fen]);
+
+  useFrame(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    const target = controls.target;
+    const nextX = clamp(target.x, -PAN_LIMIT, PAN_LIMIT);
+    const nextY = clamp(target.y, MIN_TARGET_Y, MAX_TARGET_Y);
+    const nextZ = clamp(target.z, -PAN_LIMIT, PAN_LIMIT);
+    const deltaX = nextX - target.x;
+    const deltaY = nextY - target.y;
+    const deltaZ = nextZ - target.z;
+
+    if (deltaX === 0 && deltaY === 0 && deltaZ === 0) return;
+
+    target.set(nextX, nextY, nextZ);
+    camera.position.x += deltaX;
+    camera.position.y += deltaY;
+    camera.position.z += deltaZ;
+    controls.update();
+  });
 
   return (
     <>
@@ -161,7 +191,13 @@ export function ChessScene({
       />
       <directionalLight color="#8fb7ff" intensity={0.8} position={[-4, 5, -4]} />
       <OrbitControls
-        enablePan={false}
+        ref={controlsRef}
+        enablePan
+        mouseButtons={{
+          LEFT: MOUSE.ROTATE,
+          MIDDLE: MOUSE.DOLLY,
+          RIGHT: MOUSE.PAN,
+        }}
         maxPolarAngle={Math.PI / 2.15}
         minDistance={7}
         maxDistance={18}
