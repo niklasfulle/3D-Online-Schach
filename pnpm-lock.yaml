@@ -83,6 +83,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@chess3d/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@fastify/cors':
         specifier: ^11.0.1
         version: 11.3.0
