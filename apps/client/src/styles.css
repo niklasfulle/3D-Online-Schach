@@ -136,6 +136,20 @@ h1 {
   line-height: 1.4;
 }
 
+.resign-button {
+  border: 1px solid #8e4654;
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: #3d202b;
+  color: #ffdce3;
+  cursor: pointer;
+}
+
+.resign-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .move-history {
   max-height: 280px;
   overflow: auto;

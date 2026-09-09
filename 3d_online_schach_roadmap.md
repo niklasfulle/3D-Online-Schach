@@ -190,8 +190,7 @@ Dieser Meilenstein startet erst nach einem stabilen MVP.
 
 ### In Arbeit
 
-- M3 – Chess Core und lokale Partie: `chess.js`, legale Züge, Sonderregeln und lokale Zugausführung sind umgesetzt
-- Offen: Aufgabe/Remis-UI sowie vollständige Regeltestabdeckung
+- M3 – Chess Core und lokale Partie: `chess.js`, legale Züge, Sonderregeln, lokale Zugausführung, Aufgabe-UI und Regeltests sind umgesetzt
 
 ### Als Nächstes
 

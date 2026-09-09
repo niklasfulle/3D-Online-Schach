@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 
 import { ChessGame, type Move, type PromotionPiece } from '@chess3d/chess-core';
-import type { Square } from '@chess3d/shared';
+import type { Color, Square } from '@chess3d/shared';
 
 import { ChessScene } from './board/ChessScene';
 
@@ -36,6 +36,7 @@ export function App() {
   const [legalTargets, setLegalTargets] = useState<Square[]>([]);
   const [moveHistory, setMoveHistory] = useState(() => game.history());
   const [promotionMove, setPromotionMove] = useState<Move | null>(null);
+  const [resignedBy, setResignedBy] = useState<Color | null>(null);
 
   function resetSelection() {
     setSelectedSquare(null);
@@ -51,7 +52,7 @@ export function App() {
   }
 
   function handleSelectSquare(square: Square) {
-    if (promotionMove || game.isGameOver()) return;
+    if (promotionMove || resignedBy || game.isGameOver()) return;
 
     if (selectedSquare && legalTargets.includes(square)) {
       const candidate = game.legalMoves(selectedSquare).find((move) => move.to === square);
@@ -75,7 +76,18 @@ export function App() {
     setLegalTargets([...new Set(moves.map((move) => move.to))]);
   }
 
+  function handleResign() {
+    if (resignedBy || game.isGameOver()) return;
+    if (window.confirm('Möchtest du diese Partie wirklich aufgeben?')) {
+      setResignedBy(gameState.activeColor);
+      resetSelection();
+    }
+  }
+
   const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
+  const resultLabel = resignedBy
+    ? `${resignedBy === 'white' ? 'Weiß' : 'Schwarz'} gibt auf`
+    : statusLabel(gameState.status);
 
   return (
     <main className="app-shell">
@@ -84,7 +96,7 @@ export function App() {
           <p className="eyebrow">3D ONLINE-SCHACH</p>
           <h1>Lokale Partie</h1>
         </div>
-        <span className="status-pill">{statusLabel(gameState.status)}</span>
+        <span className="status-pill">{resultLabel}</span>
       </header>
       <section className="game-layout">
         <div className="scene-card" aria-label="3D-Schachbrett">
@@ -98,18 +110,34 @@ export function App() {
           </Canvas>
           <div className="scene-overlay">
             <strong>
-              {selectedSquare ? `${selectedSquare} ausgewählt` : `${turnLabel} am Zug`}
+              {resignedBy || game.isGameOver()
+                ? resultLabel
+                : selectedSquare
+                  ? `${selectedSquare} ausgewählt`
+                  : `${turnLabel} am Zug`}
             </strong>
             <span>
-              {selectedSquare ? 'Grüne Felder sind mögliche Ziele.' : 'Wähle eine Figur aus.'}
+              {selectedSquare && !resignedBy && !game.isGameOver()
+                ? 'Grüne Felder sind mögliche Ziele.'
+                : resignedBy || game.isGameOver()
+                  ? 'Die Partie ist beendet.'
+                  : 'Wähle eine Figur aus.'}
             </span>
           </div>
         </div>
         <aside className="game-panel" aria-label="Partieinformationen">
           <div className="panel-section">
             <span className="panel-label">Status</span>
-            <strong>{turnLabel} am Zug</strong>
+            <strong>{resignedBy || game.isGameOver() ? resultLabel : `${turnLabel} am Zug`}</strong>
             <code>{gameState.fen}</code>
+            <button
+              className="resign-button"
+              type="button"
+              disabled={Boolean(resignedBy) || game.isGameOver()}
+              onClick={handleResign}
+            >
+              Aufgeben
+            </button>
           </div>
           <div className="panel-section move-history">
             <span className="panel-label">Züge</span>

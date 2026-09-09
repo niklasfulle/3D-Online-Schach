@@ -47,4 +47,27 @@ describe('chess core', () => {
     promotion.move({ from: 'a7', to: 'a8', promotion: 'q' });
     expect(promotion.history()[0].san).toBe('a8=Q+');
   });
+
+  it('covers en passant and basic piece movement', () => {
+    const enPassant = new ChessGame('rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3');
+    expect(enPassant.legalMoves('e5').some((move) => move.to === 'd6')).toBe(true);
+
+    const knight = new ChessGame('8/8/8/3N4/8/8/8/4K2k w - - 0 1');
+    const bishop = new ChessGame('8/8/8/3B4/8/8/8/4K2k w - - 0 1');
+    const rook = new ChessGame('8/8/8/3R4/8/8/8/4K2k w - - 0 1');
+    const queen = new ChessGame('8/8/8/3Q4/8/8/8/4K2k w - - 0 1');
+    const king = new ChessGame('8/8/8/3K4/8/8/8/4k3 w - - 0 1');
+
+    expect(knight.legalMoves('d5').some((move) => move.to === 'f6')).toBe(true);
+    expect(bishop.legalMoves('d5').some((move) => move.to === 'h1')).toBe(true);
+    expect(rook.legalMoves('d5').some((move) => move.to === 'd8')).toBe(true);
+    expect(queen.legalMoves('d5').some((move) => move.to === 'h5')).toBe(true);
+    expect(king.legalMoves('d5').some((move) => move.to === 'e6')).toBe(true);
+  });
+
+  it('detects stalemate and draw by material or move count', () => {
+    expect(new ChessGame('7k/5Q2/6K1/8/8/8/8/8 b - - 0 1').getState().status).toBe('stalemate');
+    expect(new ChessGame('8/8/8/8/8/8/8/K6k w - - 0 1').getState().status).toBe('draw');
+    expect(new ChessGame('8/8/8/8/8/8/R7/K6k w - - 100 51').getState().status).toBe('draw');
+  });
 });
