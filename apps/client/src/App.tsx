@@ -1,34 +1,150 @@
 import { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 
+import { ChessGame, type Move, type PromotionPiece } from '@chess3d/chess-core';
 import type { Square } from '@chess3d/shared';
 
 import { ChessScene } from './board/ChessScene';
 
+const PROMOTION_OPTIONS: PromotionPiece[] = ['q', 'r', 'b', 'n'];
+const PROMOTION_LABELS: Record<PromotionPiece, string> = {
+  q: 'Dame',
+  r: 'Turm',
+  b: 'Läufer',
+  n: 'Springer',
+};
+
+function statusLabel(status: ReturnType<ChessGame['getStatus']>) {
+  switch (status) {
+    case 'check':
+      return 'Schach';
+    case 'checkmate':
+      return 'Schachmatt';
+    case 'stalemate':
+      return 'Patt';
+    case 'draw':
+      return 'Remis';
+    default:
+      return 'Partie läuft';
+  }
+}
+
 export function App() {
+  const [game] = useState(() => new ChessGame());
+  const [gameState, setGameState] = useState(() => game.getState());
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [legalTargets, setLegalTargets] = useState<Square[]>([]);
+  const [moveHistory, setMoveHistory] = useState(() => game.history());
+  const [promotionMove, setPromotionMove] = useState<Move | null>(null);
+
+  function resetSelection() {
+    setSelectedSquare(null);
+    setLegalTargets([]);
+  }
+
+  function commitMove(move: Move) {
+    game.move(move);
+    setGameState(game.getState());
+    setMoveHistory(game.history());
+    setPromotionMove(null);
+    resetSelection();
+  }
+
+  function handleSelectSquare(square: Square) {
+    if (promotionMove || game.isGameOver()) return;
+
+    if (selectedSquare && legalTargets.includes(square)) {
+      const candidate = game.legalMoves(selectedSquare).find((move) => move.to === square);
+      if (!candidate) return;
+
+      if (candidate.promotion) {
+        setPromotionMove({ from: selectedSquare, to: square });
+      } else {
+        commitMove({ from: selectedSquare, to: square });
+      }
+      return;
+    }
+
+    const moves = game.legalMoves(square);
+    if (moves.length === 0) {
+      resetSelection();
+      return;
+    }
+
+    setSelectedSquare(square);
+    setLegalTargets([...new Set(moves.map((move) => move.to))]);
+  }
+
+  const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
 
   return (
     <main className="app-shell">
       <header className="app-header">
         <div>
           <p className="eyebrow">3D ONLINE-SCHACH</p>
-          <h1>Projektbasis steht.</h1>
+          <h1>Lokale Partie</h1>
         </div>
-        <span className="status-pill">M1 · Grundgerüst</span>
+        <span className="status-pill">{statusLabel(gameState.status)}</span>
       </header>
-      <section className="scene-card" aria-label="3D-Szenenvorschau">
-        <Canvas camera={{ position: [0, 7, 7], fov: 42 }} shadows>
-          <color attach="background" args={['#10151f']} />
-          <ChessScene selectedSquare={selectedSquare} onSelectSquare={setSelectedSquare} />
-        </Canvas>
-        <div className="scene-overlay">
-          <strong>
-            {selectedSquare ? `${selectedSquare} ausgewählt` : '3D-Brett initialisiert'}
-          </strong>
-          <span>Regelprüfung folgt in M3.</span>
+      <section className="game-layout">
+        <div className="scene-card" aria-label="3D-Schachbrett">
+          <Canvas camera={{ position: [0, 7, 7], fov: 42 }} shadows>
+            <color attach="background" args={['#10151f']} />
+            <ChessScene
+              highlightedSquares={legalTargets}
+              selectedSquare={selectedSquare}
+              onSelectSquare={handleSelectSquare}
+            />
+          </Canvas>
+          <div className="scene-overlay">
+            <strong>
+              {selectedSquare ? `${selectedSquare} ausgewählt` : `${turnLabel} am Zug`}
+            </strong>
+            <span>
+              {selectedSquare ? 'Grüne Felder sind mögliche Ziele.' : 'Wähle eine Figur aus.'}
+            </span>
+          </div>
         </div>
+        <aside className="game-panel" aria-label="Partieinformationen">
+          <div className="panel-section">
+            <span className="panel-label">Status</span>
+            <strong>{turnLabel} am Zug</strong>
+            <code>{gameState.fen}</code>
+          </div>
+          <div className="panel-section move-history">
+            <span className="panel-label">Züge</span>
+            {moveHistory.length === 0 ? (
+              <span className="muted">Noch keine Züge.</span>
+            ) : (
+              moveHistory.map((move, index) => (
+                <div className="move-row" key={`${move.san}-${index}`}>
+                  <span>
+                    {Math.floor(index / 2) + 1}
+                    {index % 2 === 0 ? '.' : '…'}
+                  </span>
+                  <strong>{move.san}</strong>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
       </section>
+      {promotionMove ? (
+        <div className="promotion-dialog" role="dialog" aria-label="Bauernumwandlung">
+          <strong>Umwandeln zu</strong>
+          <div className="promotion-actions">
+            {PROMOTION_OPTIONS.map((promotion) => (
+              <button
+                key={promotion}
+                type="button"
+                onClick={() => commitMove({ ...promotionMove, promotion })}
+              >
+                {PROMOTION_LABELS[promotion]}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

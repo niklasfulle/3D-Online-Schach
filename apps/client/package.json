@@ -9,6 +9,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@chess3d/chess-core": "workspace:*",
     "@chess3d/shared": "workspace:*",
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.4.0",

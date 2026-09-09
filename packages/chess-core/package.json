@@ -6,7 +6,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@chess3d/shared": "workspace:*"
+    "@chess3d/shared": "workspace:*",
+    "chess.js": "^1.4.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

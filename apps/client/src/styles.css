@@ -74,6 +74,15 @@ h1 {
   box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
 }
 
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
 .scene-card canvas {
   min-height: 480px;
 }
@@ -95,4 +104,95 @@ h1 {
 .scene-overlay span {
   color: #91a3bd;
   font-size: 0.9rem;
+}
+
+.game-panel {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #26364e;
+  border-radius: 1.25rem;
+  background: rgb(16 21 31 / 88%);
+}
+
+.panel-section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.panel-label {
+  color: #70a8ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.panel-section code {
+  overflow-wrap: anywhere;
+  color: #91a3bd;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.move-history {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.move-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.5rem;
+  color: #d8e7ff;
+}
+
+.move-row span,
+.muted {
+  color: #91a3bd;
+}
+
+.promotion-dialog {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  z-index: 2;
+  display: grid;
+  gap: 0.8rem;
+  min-width: 280px;
+  padding: 1rem;
+  border: 1px solid #4777ae;
+  border-radius: 1rem;
+  background: #141d2b;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+  transform: translate(-50%, -50%);
+}
+
+.promotion-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.promotion-actions button {
+  border: 1px solid #31547f;
+  border-radius: 0.6rem;
+  padding: 0.65rem;
+  background: #1b2a40;
+  color: #eef2f7;
+  cursor: pointer;
+}
+
+.promotion-actions button:hover {
+  background: #294a73;
+}
+
+@media (max-width: 820px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .game-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

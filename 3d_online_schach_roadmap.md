@@ -188,6 +188,11 @@ Dieser Meilenstein startet erst nach einem stabilen MVP.
 - M1 – Projektbasis: Monorepo, Tooling, Client-Grundgerüst, Server-Grundgerüst und Shared-Verträge
 - M2 – 3D-Brett und Interaktion: Brett, Koordinaten-Mapping, MVP-Figuren, Kamera, Beleuchtung und Raycasting-Auswahl
 
+### In Arbeit
+
+- M3 – Chess Core und lokale Partie: `chess.js`, legale Züge, Sonderregeln und lokale Zugausführung sind umgesetzt
+- Offen: Aufgabe/Remis-UI sowie vollständige Regeltestabdeckung
+
 ### Als Nächstes
 
-- M3 – Chess Core und lokale Partie: `chess.js`, legale Züge, Sonderregeln, Spielende und lokale Partie
+- M4 – Online-Multiplayer-MVP: private Spielräume, Game-Codes und serverseitige Move-Validierung

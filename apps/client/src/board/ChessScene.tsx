@@ -24,6 +24,7 @@ interface PieceDefinition {
 }
 
 interface SquareTileProps {
+  highlighted: boolean;
   selected: boolean;
   square: Square;
   onSelect: (square: Square) => void;
@@ -68,7 +69,12 @@ const STARTING_PIECES: PieceDefinition[] = [
   })),
 ];
 
-const SquareTile = memo(function SquareTile({ selected, square, onSelect }: SquareTileProps) {
+const SquareTile = memo(function SquareTile({
+  highlighted,
+  selected,
+  square,
+  onSelect,
+}: SquareTileProps) {
   const [x, , z] = squareToWorld(square, 0.08);
   const fileIndex = FILES.indexOf(square[0] as (typeof FILES)[number]);
   const rankIndex = Number(square[1]) - 1;
@@ -82,7 +88,11 @@ const SquareTile = memo(function SquareTile({ selected, square, onSelect }: Squa
   return (
     <mesh position={[x, 0.08, z]} onClick={handleClick} receiveShadow>
       <boxGeometry args={[0.98, 0.16, 0.98]} />
-      <meshStandardMaterial color={selected ? SELECTED_TILE : isLight ? LIGHT_TILE : DARK_TILE} />
+      <meshStandardMaterial
+        color={
+          selected ? SELECTED_TILE : highlighted ? '#7cbf75' : isLight ? LIGHT_TILE : DARK_TILE
+        }
+      />
     </mesh>
   );
 });
@@ -122,11 +132,16 @@ const Piece = memo(function Piece({ piece, onSelect }: PieceProps) {
 });
 
 export interface ChessSceneProps {
+  highlightedSquares: readonly Square[];
   selectedSquare: Square | null;
   onSelectSquare: (square: Square) => void;
 }
 
-export function ChessScene({ selectedSquare, onSelectSquare }: ChessSceneProps) {
+export function ChessScene({
+  highlightedSquares,
+  selectedSquare,
+  onSelectSquare,
+}: ChessSceneProps) {
   const squares = useMemo(
     () => RANKS.flatMap((rank) => FILES.map((file) => `${file}${rank}` as Square)),
     [],
@@ -155,6 +170,7 @@ export function ChessScene({ selectedSquare, onSelectSquare }: ChessSceneProps) 
         <SquareTile
           key={square}
           square={square}
+          highlighted={highlightedSquares.includes(square)}
           selected={square === selectedSquare}
           onSelect={onSelectSquare}
         />
