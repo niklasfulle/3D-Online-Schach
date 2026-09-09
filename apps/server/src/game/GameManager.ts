@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 
-import { ChessGame, type Move, type MoveRecord } from '@chess3d/chess-core';
+import { ChessGame, STARTING_FEN, type Move, type MoveRecord } from '@chess3d/chess-core';
 import type { GameSummary, TimeControl } from '@chess3d/shared';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -11,6 +11,21 @@ interface ManagedGame {
   chess: ChessGame;
   summary: GameSummary;
 }
+
+export interface GamePersistence {
+  saveGame(summary: GameSummary, fen: string): Promise<void>;
+  saveMove(
+    summary: GameSummary,
+    move: MoveRecord,
+    fenAfterMove: string,
+    moveNumber: number,
+  ): Promise<void>;
+}
+
+const NOOP_PERSISTENCE: GamePersistence = {
+  saveGame: async () => undefined,
+  saveMove: async () => undefined,
+};
 
 export interface AcceptedMove {
   fen: string;
@@ -37,8 +52,13 @@ export class GameTimeoutError extends Error {
 export class GameManager {
   private readonly games = new Map<string, ManagedGame>();
   private readonly moveQueues = new Map<string, Promise<void>>();
+  private readonly pendingPersistence = new Set<Promise<void>>();
+  private persistenceError: unknown;
 
-  constructor(private readonly now: () => number = () => Date.now()) {}
+  constructor(
+    private readonly now: () => number = () => Date.now(),
+    private readonly persistence: GamePersistence = NOOP_PERSISTENCE,
+  ) {}
 
   createGame(whitePlayerId: string, timeControl = DEFAULT_TIME_CONTROL): GameSummary {
     if (timeControl.initialMs <= 0 || timeControl.incrementMs < 0) {
@@ -61,6 +81,7 @@ export class GameManager {
       },
     };
     this.games.set(code, game);
+    this.enqueuePersistence(() => this.persistence.saveGame(game.summary, STARTING_FEN));
     return this.snapshot(game);
   }
 
@@ -77,6 +98,9 @@ export class GameManager {
       status: 'active',
       turnStartedAt: this.now(),
     };
+    this.enqueuePersistence(() =>
+      this.persistence.saveGame(game.summary, game.chess.getState().fen),
+    );
     return this.snapshot(game);
   }
 
@@ -123,11 +147,18 @@ export class GameManager {
       whiteRemainingMs: movingColor === 'white' ? movedRemainingMs : clock.whiteRemainingMs,
       blackRemainingMs: movingColor === 'black' ? movedRemainingMs : clock.blackRemainingMs,
       turnStartedAt: nextTurnStartedAt,
+      result: result ?? game.summary.result,
     };
+
+    const summary = this.snapshot(game);
+    this.enqueuePersistence(() => this.persistence.saveGame(summary, nextState.fen));
+    this.enqueuePersistence(() =>
+      this.persistence.saveMove(summary, playedMove, nextState.fen, game.chess.history().length),
+    );
 
     return {
       fen: nextState.fen,
-      game: this.snapshot(game),
+      game: summary,
       move: playedMove,
       result,
     };
@@ -168,6 +199,15 @@ export class GameManager {
     };
   }
 
+  async flushPersistence(): Promise<void> {
+    await Promise.all(this.pendingPersistence);
+    if (this.persistenceError) {
+      const error = this.persistenceError;
+      this.persistenceError = undefined;
+      throw error;
+    }
+  }
+
   private expireIfNeeded(game: ManagedGame): GameTimeoutError | undefined {
     if (game.summary.status !== 'active') return undefined;
 
@@ -177,7 +217,20 @@ export class GameManager {
     if (remainingMs > 0) return undefined;
 
     game.summary = { ...game.summary, ...clock, status: 'finished', turnStartedAt: undefined };
+    this.enqueuePersistence(() =>
+      this.persistence.saveGame(this.snapshot(game), game.chess.getState().fen),
+    );
     return new GameTimeoutError(this.snapshot(game), activeColor === 'white' ? 'black' : 'white');
+  }
+
+  private enqueuePersistence(operation: () => Promise<void>): void {
+    const pending = Promise.resolve()
+      .then(operation)
+      .catch((error: unknown) => {
+        this.persistenceError ??= error;
+      });
+    this.pendingPersistence.add(pending);
+    void pending.finally(() => this.pendingPersistence.delete(pending)).catch(() => undefined);
   }
 
   private snapshot(game: ManagedGame): GameSummary {

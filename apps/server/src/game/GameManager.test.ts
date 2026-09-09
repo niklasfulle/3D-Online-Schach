@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { GameManager, GameTimeoutError } from './GameManager.js';
+import { GameManager, GameTimeoutError, type GamePersistence } from './GameManager.js';
 
 describe('GameManager', () => {
   let manager: GameManager;
@@ -129,5 +129,34 @@ describe('GameManager', () => {
     expect(sync.moves[0].san).toBe('e4');
     expect(sync.game.blackPlayerId).toBe('player-b');
     expect(() => manager.getGameSync(created.code, 'intruder')).toThrow('not part');
+  });
+
+  it('flushes game, move and FEN persistence after state changes', async () => {
+    const savedGames: Array<{ status: string; fen: string }> = [];
+    const savedMoves: Array<{ moveNumber: number; san: string; fen: string }> = [];
+    const persistence: GamePersistence = {
+      saveGame: async (game, fen) => {
+        savedGames.push({ status: game.status, fen });
+      },
+      saveMove: async (_game, move, fen, moveNumber) => {
+        savedMoves.push({ moveNumber, san: move.san, fen });
+      },
+    };
+
+    manager = new GameManager(() => 1_000, persistence);
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+    manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' });
+
+    await manager.flushPersistence();
+
+    expect(savedGames).toHaveLength(3);
+    expect(savedGames.at(-1)).toMatchObject({
+      status: 'active',
+      fen: expect.stringContaining(' b '),
+    });
+    expect(savedMoves).toEqual([
+      expect.objectContaining({ moveNumber: 1, san: 'e4', fen: expect.stringContaining(' b ') }),
+    ]);
   });
 });

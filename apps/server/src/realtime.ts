@@ -28,13 +28,20 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
       return;
     }
 
-    socket.on('game:create', () => {
-      const game = gameManager.createGame(playerId);
-      void socket.join(game.code);
-      socket.emit('game:created', game);
+    socket.on('game:create', async () => {
+      try {
+        const game = gameManager.createGame(playerId);
+        await gameManager.flushPersistence();
+        void socket.join(game.code);
+        socket.emit('game:created', game);
+      } catch (error) {
+        socket.emit('game:error', {
+          error: error instanceof Error ? error.message : 'Unable to create game',
+        });
+      }
     });
 
-    socket.on('game:join', (payload: JoinPayload) => {
+    socket.on('game:join', async (payload: JoinPayload) => {
       if (!payload.code) {
         socket.emit('game:error', { error: 'code is required' });
         return;
@@ -42,6 +49,7 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
 
       try {
         const game = gameManager.joinGame(payload.code, playerId);
+        await gameManager.flushPersistence();
         void socket.join(game.code);
         io.to(game.code).emit('game:started', game);
       } catch (error) {
@@ -51,7 +59,7 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
       }
     });
 
-    socket.on('game:sync', (payload: SyncPayload) => {
+    socket.on('game:sync', async (payload: SyncPayload) => {
       if (!payload.code) {
         socket.emit('game:error', { error: 'code is required' });
         return;
@@ -59,6 +67,7 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
 
       try {
         const sync = gameManager.getGameSync(payload.code, playerId);
+        await gameManager.flushPersistence();
         void socket.join(payload.code.toUpperCase());
         socket.emit('game:state', sync);
       } catch (error) {
@@ -80,6 +89,7 @@ export function registerRealtime(app: FastifyInstance, gameManager: GameManager)
           to: payload.to,
           promotion: payload.promotion,
         });
+        await gameManager.flushPersistence();
         const room = payload.code.toUpperCase();
         io.to(room).emit('move:accepted', accepted);
         if (accepted.result) {

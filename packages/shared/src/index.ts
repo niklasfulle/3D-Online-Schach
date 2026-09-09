@@ -25,6 +25,7 @@ export interface GameSummary {
   whiteRemainingMs: number;
   blackRemainingMs: number;
   turnStartedAt?: number;
+  result?: 'white' | 'black' | 'draw';
 }
 
 export interface WebSocketEventMap {

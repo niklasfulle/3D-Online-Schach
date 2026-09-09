@@ -6,6 +6,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { Move } from '@chess3d/chess-core';
 
 import { GameManager, GameTimeoutError } from './game/GameManager.js';
+import { prisma } from './db/client.js';
+import { PrismaGamePersistence } from './persistence/PrismaGamePersistence.js';
 import { registerRealtime } from './realtime.js';
 
 export function buildApp(gameManager = new GameManager()): FastifyInstance {
@@ -21,12 +23,18 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
     const playerId = request.body?.playerId;
     if (!playerId) return reply.code(400).send({ error: 'playerId is required' });
 
-    return reply.code(201).send(
-      gameManager.createGame(playerId, {
+    try {
+      const game = gameManager.createGame(playerId, {
         initialMs: request.body.initialMs ?? 5 * 60 * 1000,
         incrementMs: request.body.incrementMs ?? 0,
-      }),
-    );
+      });
+      await gameManager.flushPersistence();
+      return reply.code(201).send(game);
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to persist game',
+      });
+    }
   });
 
   app.post<{ Params: { code: string }; Body: { playerId?: string } }>(
@@ -36,7 +44,9 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
       if (!playerId) return reply.code(400).send({ error: 'playerId is required' });
 
       try {
-        return reply.send(gameManager.joinGame(request.params.code, playerId));
+        const game = gameManager.joinGame(request.params.code, playerId);
+        await gameManager.flushPersistence();
+        return reply.send(game);
       } catch (error) {
         return reply
           .code(400)
@@ -48,6 +58,7 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
   app.get<{ Params: { code: string } }>('/games/:code', async (request, reply) => {
     const game = gameManager.getGame(request.params.code);
     if (!game) return reply.code(404).send({ error: 'Game not found' });
+    await gameManager.flushPersistence();
     return reply.send(game);
   });
 
@@ -60,9 +71,13 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
       return reply.code(400).send({ error: 'playerId, from and to are required' });
 
     try {
-      return reply.send(
-        await gameManager.requestMoveQueued(request.params.code, playerId, { from, to, promotion }),
-      );
+      const accepted = await gameManager.requestMoveQueued(request.params.code, playerId, {
+        from,
+        to,
+        promotion,
+      });
+      await gameManager.flushPersistence();
+      return reply.send(accepted);
     } catch (error) {
       if (error instanceof GameTimeoutError) {
         return reply
@@ -79,7 +94,7 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
 }
 
 async function start() {
-  const gameManager = new GameManager();
+  const gameManager = new GameManager(undefined, new PrismaGamePersistence(prisma));
   const app = buildApp(gameManager);
   const realtime = registerRealtime(app, gameManager);
   const port = Number(process.env.PORT ?? 3001);
