@@ -1,0 +1,98 @@
+:root {
+  color: #eef2f7;
+  background: #0b0f16;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  gap: 1.5rem;
+  min-height: 100vh;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: radial-gradient(circle at top right, #1a2940 0, #0b0f16 45%);
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: #70a8ff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4rem);
+  letter-spacing: -0.04em;
+}
+
+.status-pill {
+  border: 1px solid #31547f;
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  color: #9cc6ff;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.scene-card {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 1100px;
+  min-height: 480px;
+  margin: 0 auto;
+  border: 1px solid #26364e;
+  border-radius: 1.25rem;
+  background: #10151f;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
+}
+
+.scene-card canvas {
+  min-height: 480px;
+}
+
+.scene-overlay {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgb(156 198 255 / 30%);
+  border-radius: 0.75rem;
+  background: rgb(11 15 22 / 75%);
+  backdrop-filter: blur(12px);
+  color: #d8e7ff;
+}
+
+.scene-overlay span {
+  color: #91a3bd;
+  font-size: 0.9rem;
+}

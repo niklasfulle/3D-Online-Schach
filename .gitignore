@@ -1,1 +1,11 @@
 3d_online_schach_projektplan.md
+
+node_modules/
+dist/
+coverage/
+.vite/
+.env
+.env.*
+!.env.example
+.pnpm-store/
+*.tsbuildinfo
