@@ -118,7 +118,9 @@ export function buildApp(
   app.get('/lobby', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
     if (!user) return;
-    return reply.send({ games: gameManager.listWaitingGames().map(toLobbyGame) });
+    return reply.send({
+      games: gameManager.listWaitingGames().map((game) => toLobbyGame(game, user.id)),
+    });
   });
 
   app.post<{
@@ -310,7 +312,10 @@ function isGameMode(value: string): value is GameMode {
   return value === 'casual' || value === 'ranked';
 }
 
-function toLobbyGame(game: ReturnType<GameManager['listWaitingGames']>[number]) {
+function toLobbyGame(
+  game: ReturnType<GameManager['listWaitingGames']>[number],
+  currentUserId: string,
+) {
   return {
     id: game.id,
     code: game.code,
@@ -318,6 +323,7 @@ function toLobbyGame(game: ReturnType<GameManager['listWaitingGames']>[number]) 
     status: game.status,
     timeControl: game.timeControl,
     whiteRemainingMs: game.whiteRemainingMs,
+    isOwner: game.whitePlayerId === currentUserId,
   };
 }
 

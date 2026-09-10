@@ -58,6 +58,10 @@ interface GameSync {
   moves: MoveRecord[];
 }
 
+interface LobbyGame extends GameSummary {
+  isOwner: boolean;
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -107,7 +111,7 @@ export function App() {
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [view, setView] = useState<'lobby' | 'friends' | 'game'>('lobby');
-  const [lobbyGames, setLobbyGames] = useState<GameSummary[]>([]);
+  const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
   const [friends, setFriends] = useState<FriendsOverview | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SocialUser[]>([]);
@@ -121,7 +125,7 @@ export function App() {
   const socketRef = useRef<Socket | null>(null);
 
   const refreshLobby = useCallback(async () => {
-    const response = await requestJson<{ games: GameSummary[] }>('/lobby');
+    const response = await requestJson<{ games: LobbyGame[] }>('/lobby');
     setLobbyGames(response.games);
   }, []);
 
@@ -217,15 +221,20 @@ export function App() {
     setView('lobby');
   }
 
+  function openGame(nextGame: GameSummary) {
+    setError('');
+    setSelectedGame(nextGame);
+    setView('game');
+    socketRef.current?.emit('game:sync', { code: nextGame.code });
+  }
+
   async function createGame(mode: GameMode) {
     try {
       const created = await requestJson<GameSummary>('/lobby/games', {
         method: 'POST',
         body: JSON.stringify({ mode }),
       });
-      setSelectedGame(created);
-      setView('game');
-      socketRef.current?.emit('game:sync', { code: created.code });
+      openGame(created);
       await refreshLobby();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Partie konnte nicht erstellt werden');
@@ -233,13 +242,17 @@ export function App() {
   }
 
   async function joinGame(code: string) {
+    const ownWaitingGame = lobbyGames.find((game) => game.code === code);
+    if (ownWaitingGame?.isOwner) {
+      openGame(ownWaitingGame);
+      return;
+    }
+
     try {
       const joined = await requestJson<GameSummary>(`/lobby/games/${code}/join`, {
         method: 'POST',
       });
-      setSelectedGame(joined);
-      setView('game');
-      socketRef.current?.emit('game:sync', { code: joined.code });
+      openGame(joined);
       await refreshLobby();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Partie konnte nicht beigetreten werden');
@@ -780,7 +793,7 @@ function LobbyView({
   onCreate,
   onJoin,
 }: {
-  games: GameSummary[];
+  games: LobbyGame[];
   onRefresh: () => void;
   onCreate: (mode: GameMode) => void;
   onJoin: (code: string) => void;
@@ -864,14 +877,15 @@ function LobbyView({
                   <span className="muted">5 Minuten · offen</span>
                 </div>
                 <span className="waiting-label">
-                  <span className="live-dot" /> Wartet
+                  <span className="live-dot" />
+                  {game.isOwner ? 'Deine Partie' : 'Wartet'}
                 </span>
                 <button
                   className="secondary-button"
                   type="button"
                   onClick={() => onJoin(game.code)}
                 >
-                  Beitreten <span aria-hidden="true">→</span>
+                  {game.isOwner ? 'Öffnen' : 'Beitreten'} <span aria-hidden="true">→</span>
                 </button>
               </div>
             ))}
