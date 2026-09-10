@@ -101,3 +101,5 @@ scripts/blender          Reproduzierbarer Generator für die GLB-Figuren
 ```
 
 Die ausführliche Planung steht in [3d_online_schach_roadmap.md](3d_online_schach_roadmap.md). GitHub-Milestones und Tickets sind die aktive Arbeitsliste.
+
+Die Plattformbegriffe stehen in [CONTEXT.md](CONTEXT.md); langfristige Entscheidungen sind unter [docs/adr](docs/adr) dokumentiert.
