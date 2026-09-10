@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">3D Online-Schach</title>
+  <desc id="desc">Goldener Schachspringer auf einem blauen 3D-Brett</desc>
+  <defs>
+    <linearGradient id="bg" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#294a73" />
+      <stop offset="1" stop-color="#0b1422" />
+    </linearGradient>
+    <linearGradient id="gold" x1="22" y1="12" x2="45" y2="53" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe6a3" />
+      <stop offset="0.45" stop-color="#d7a84f" />
+      <stop offset="1" stop-color="#8e5b1e" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#02050a" flood-opacity="0.65" />
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)" />
+  <path d="M9 47h46L47 56H17z" fill="#15263b" stroke="#4777ae" stroke-width="1.5" />
+  <path d="M13 44h38l4 4H9z" fill="#4777ae" opacity=".7" />
+  <path d="M18 48h8v7h-8zm20 0h8v7h-8z" fill="#0b1422" opacity=".85" />
+  <g filter="url(#shadow)">
+    <path d="M22 44c2-4 4-7 4-12 0-5-2-10-1-17l6 5 5-7 7 5-2 7c-1 4 2 8 5 12 2 3 2 5 2 7z" fill="url(#gold)" stroke="#704817" stroke-width="1.5" stroke-linejoin="round" />
+    <path d="M31 20l4 3 2-5 4 3-2 4-6 1z" fill="#8e5b1e" opacity=".7" />
+    <circle cx="40" cy="19" r="1.5" fill="#0b1422" />
+    <path d="M19 44h30l3 5H16z" fill="url(#gold)" stroke="#704817" stroke-width="1.5" stroke-linejoin="round" />
+    <path d="M17 50h34l-2 5H19z" fill="#b77d2a" stroke="#704817" stroke-width="1.5" />
+  </g>
+</svg>
