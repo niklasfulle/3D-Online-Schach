@@ -1,19 +1,166 @@
 import { pathToFileURL } from 'node:url';
 
 import cors from '@fastify/cors';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 
 import type { Move } from '@chess3d/chess-core';
+import type { GameMode } from '@chess3d/shared';
 
+import {
+  AuthError,
+  PrismaAuthProvider,
+  type AuthUser,
+  type AuthProvider,
+  type LoginInput,
+  type RegisterInput,
+} from './auth/AuthService.js';
+import { readSessionToken, SESSION_COOKIE } from './auth/sessionCookie.js';
 import { GameManager, GameTimeoutError } from './game/GameManager.js';
 import { prisma } from './db/client.js';
 import { PrismaGamePersistence } from './persistence/PrismaGamePersistence.js';
 import { registerRealtime } from './realtime.js';
+import { PrismaSocialProvider, SocialError, type SocialProvider } from './social/SocialService.js';
 
-export function buildApp(gameManager = new GameManager()): FastifyInstance {
+export function buildApp(
+  gameManager = new GameManager(),
+  authProvider: AuthProvider = new PrismaAuthProvider(prisma),
+  socialProvider: SocialProvider = new PrismaSocialProvider(prisma),
+): FastifyInstance {
   const app = Fastify({ logger: true });
 
-  void app.register(cors, { origin: true });
+  void app.register(cors, { origin: true, credentials: true });
+
+  app.post<{ Body: RegisterInput }>('/auth/register', async (request, reply) => {
+    try {
+      const result = await authProvider.register(request.body ?? {});
+      return sendSession(reply, result.sessionToken, result.user);
+    } catch (error) {
+      return sendAuthError(reply, error);
+    }
+  });
+
+  app.post<{ Body: LoginInput }>('/auth/login', async (request, reply) => {
+    try {
+      const result = await authProvider.login(request.body ?? {});
+      return sendSession(reply, result.sessionToken, result.user);
+    } catch (error) {
+      return sendAuthError(reply, error);
+    }
+  });
+
+  app.post('/auth/logout', async (request, reply) => {
+    await authProvider.logout(readSessionToken(request.headers.cookie));
+    return reply.header('Set-Cookie', clearSessionCookie()).send({ ok: true });
+  });
+
+  app.get('/auth/me', async (request, reply) => {
+    const user = await authProvider.authenticate(readSessionToken(request.headers.cookie));
+    if (!user) return reply.code(401).send({ error: 'Authentication required' });
+    return reply.send({ user });
+  });
+
+  app.get<{ Querystring: { q?: string } }>('/users/search', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+
+    try {
+      return reply.send({
+        users: await socialProvider.searchUsers(user.id, request.query.q ?? ''),
+      });
+    } catch (error) {
+      return sendSocialError(reply, error);
+    }
+  });
+
+  app.get('/friends', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+
+    try {
+      return reply.send(await socialProvider.getFriendsOverview(user.id));
+    } catch (error) {
+      return sendSocialError(reply, error);
+    }
+  });
+
+  app.post<{ Body: { username?: string } }>('/friends/requests', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    const username = request.body?.username?.trim();
+    if (!username) return reply.code(400).send({ error: 'username is required' });
+
+    try {
+      return reply.code(201).send(await socialProvider.sendRequest(user.id, username));
+    } catch (error) {
+      return sendSocialError(reply, error);
+    }
+  });
+
+  for (const [action, path] of [
+    ['accept', '/friends/requests/:id/accept'],
+    ['reject', '/friends/requests/:id/reject'],
+    ['cancel', '/friends/requests/:id/cancel'],
+  ] as const) {
+    app.post<{ Params: { id: string } }>(path, async (request, reply) => {
+      const user = await requireUser(request, reply, authProvider);
+      if (!user) return;
+
+      try {
+        return reply.send(
+          await socialProvider.respondToRequest(user.id, request.params.id, action),
+        );
+      } catch (error) {
+        return sendSocialError(reply, error);
+      }
+    });
+  }
+
+  app.get('/lobby', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    return reply.send({ games: gameManager.listWaitingGames().map(toLobbyGame) });
+  });
+
+  app.post<{
+    Body: { initialMs?: number; incrementMs?: number; mode?: GameMode };
+  }>('/lobby/games', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    const mode = request.body?.mode ?? 'casual';
+    if (!isGameMode(mode)) return reply.code(400).send({ error: 'mode must be casual or ranked' });
+
+    try {
+      const game = gameManager.createGame(
+        user.id,
+        {
+          initialMs: request.body?.initialMs ?? 5 * 60 * 1000,
+          incrementMs: request.body?.incrementMs ?? 0,
+        },
+        mode,
+      );
+      await gameManager.flushPersistence();
+      return reply.code(201).send(game);
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to persist game',
+      });
+    }
+  });
+
+  app.post<{ Params: { code: string } }>('/lobby/games/:code/join', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+
+    try {
+      const game = gameManager.joinGame(request.params.code, user.id);
+      await gameManager.flushPersistence();
+      return reply.send(game);
+    } catch (error) {
+      return reply
+        .code(400)
+        .send({ error: error instanceof Error ? error.message : 'Unable to join game' });
+    }
+  });
 
   app.get('/health', async () => ({ status: 'ok', service: 'chess3d-server' }));
 
@@ -120,10 +267,65 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
   return app;
 }
 
+function sendSession(reply: FastifyReply, sessionToken: string, user: unknown) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return reply
+    .header(
+      'Set-Cookie',
+      `${SESSION_COOKIE}=${sessionToken}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000${secure}`,
+    )
+    .send({ user });
+}
+
+function clearSessionCookie(): string {
+  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`;
+}
+
+function sendAuthError(reply: FastifyReply, error: unknown) {
+  if (error instanceof AuthError)
+    return reply.code(error.statusCode).send({ error: error.message });
+  return reply.code(503).send({ error: 'Authentication service unavailable' });
+}
+
+async function requireUser(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  authProvider: AuthProvider,
+): Promise<AuthUser | undefined> {
+  const user = await authProvider.authenticate(readSessionToken(request.headers.cookie));
+  if (!user) {
+    reply.code(401).send({ error: 'Authentication required' });
+    return undefined;
+  }
+  return user;
+}
+
+function sendSocialError(reply: FastifyReply, error: unknown) {
+  if (error instanceof SocialError)
+    return reply.code(error.statusCode).send({ error: error.message });
+  return reply.code(503).send({ error: 'Social service unavailable' });
+}
+
+function isGameMode(value: string): value is GameMode {
+  return value === 'casual' || value === 'ranked';
+}
+
+function toLobbyGame(game: ReturnType<GameManager['listWaitingGames']>[number]) {
+  return {
+    id: game.id,
+    code: game.code,
+    mode: game.mode ?? 'casual',
+    status: game.status,
+    timeControl: game.timeControl,
+    whiteRemainingMs: game.whiteRemainingMs,
+  };
+}
+
 async function start() {
   const gameManager = new GameManager(undefined, new PrismaGamePersistence(prisma));
-  const app = buildApp(gameManager);
-  const realtime = registerRealtime(app, gameManager);
+  const authProvider = new PrismaAuthProvider(prisma);
+  const app = buildApp(gameManager, authProvider);
+  const realtime = registerRealtime(app, gameManager, authProvider);
   const port = Number(process.env.PORT ?? 3001);
   const host = process.env.HOST ?? '127.0.0.1';
 

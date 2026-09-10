@@ -20,12 +20,28 @@ model User {
   wonGames       Game[]             @relation("Winner")
   moves          Move[]
   invitations    GameInvitation[]   @relation("InvitationCreator")
+  sessions       Session[]
+  sentFriendRequests     FriendRequest[] @relation("FriendRequestSender")
+  receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
 
 model Game {
   id              String    @id @default(cuid())
   code            String    @unique
   status          String
+  mode            String    @default("casual")
   initialFen      String
   currentFen      String
   whiteTimeMs     Int
@@ -42,6 +58,21 @@ model Game {
   blackPlayer     User?     @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
   winner          User?     @relation("Winner", fields: [winnerId], references: [id])
   moves           Move[]
+}
+
+model FriendRequest {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  respondedAt DateTime?
+  sender     User     @relation("FriendRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("FriendRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId, status])
+  @@index([receiverId, status])
 }
 
 model Move {

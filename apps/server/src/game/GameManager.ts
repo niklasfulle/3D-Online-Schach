@@ -7,7 +7,7 @@ import {
   type MoveRecord,
   type PgnHeaders,
 } from '@chess3d/chess-core';
-import type { GameSummary, TimeControl } from '@chess3d/shared';
+import type { GameMode, GameSummary, TimeControl } from '@chess3d/shared';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
@@ -92,7 +92,11 @@ export class GameManager {
     private readonly persistence: GamePersistence = NOOP_PERSISTENCE,
   ) {}
 
-  createGame(whitePlayerId: string, timeControl = DEFAULT_TIME_CONTROL): GameSummary {
+  createGame(
+    whitePlayerId: string,
+    timeControl = DEFAULT_TIME_CONTROL,
+    mode: GameMode = 'casual',
+  ): GameSummary {
     if (timeControl.initialMs <= 0 || timeControl.incrementMs < 0) {
       throw new Error('Invalid time control');
     }
@@ -105,6 +109,7 @@ export class GameManager {
       summary: {
         id: randomUUID(),
         code,
+        mode,
         status: 'waiting',
         whitePlayerId,
         timeControl,
@@ -214,6 +219,12 @@ export class GameManager {
     const game = this.getManagedGame(code);
     if (game) this.expireIfNeeded(game);
     return game ? this.snapshot(game) : undefined;
+  }
+
+  listWaitingGames(): GameSummary[] {
+    return [...this.games.values()]
+      .filter(({ summary }) => summary.status === 'waiting')
+      .map((game) => this.snapshot(game));
   }
 
   getGameSync(code: string, playerId: string): GameSync {

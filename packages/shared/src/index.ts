@@ -1,5 +1,6 @@
 export type Color = 'white' | 'black';
 export type GameStatus = 'waiting' | 'active' | 'finished';
+export type GameMode = 'casual' | 'ranked';
 export type Square =
   `${'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h'}${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
 
@@ -19,6 +20,7 @@ export interface GameSummary {
   id: string;
   code: string;
   status: GameStatus;
+  mode?: GameMode;
   whitePlayerId?: string;
   blackPlayerId?: string;
   timeControl: TimeControl;

@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { io, type Socket } from 'socket.io-client';
 
 import { ChessGame, type Move, type PromotionPiece } from '@chess3d/chess-core';
-import type { Color, Square } from '@chess3d/shared';
+import type { GameMode, GameSummary, Square } from '@chess3d/shared';
 
 import { ChessScene } from './board/ChessScene';
 
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001';
 const PROMOTION_OPTIONS: PromotionPiece[] = ['q', 'r', 'b', 'n'];
 const PROMOTION_LABELS: Record<PromotionPiece, string> = {
   q: 'Dame',
@@ -13,6 +15,58 @@ const PROMOTION_LABELS: Record<PromotionPiece, string> = {
   b: 'Läufer',
   n: 'Springer',
 };
+
+interface AuthUser {
+  id: string;
+  username: string;
+  email?: string;
+  rating: number;
+}
+
+interface SocialUser extends AuthUser {
+  online: boolean;
+}
+
+interface FriendRequest {
+  id: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  createdAt: string;
+  sender: SocialUser;
+  receiver: SocialUser;
+}
+
+interface FriendsOverview {
+  friends: SocialUser[];
+  incomingRequests: FriendRequest[];
+  outgoingRequests: FriendRequest[];
+}
+
+interface MoveRecord extends Move {
+  san: string;
+}
+
+interface AcceptedMove {
+  fen: string;
+  game: GameSummary;
+  move: MoveRecord;
+}
+
+interface GameSync {
+  fen: string;
+  game: GameSummary;
+  moves: MoveRecord[];
+}
+
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+  });
+  const body = (await response.json().catch(() => ({}))) as { error?: string } & T;
+  if (!response.ok) throw new Error(body.error ?? 'Anfrage fehlgeschlagen');
+  return body;
+}
 
 function statusLabel(status: ReturnType<ChessGame['getStatus']>) {
   switch (status) {
@@ -29,40 +83,222 @@ function statusLabel(status: ReturnType<ChessGame['getStatus']>) {
   }
 }
 
+function gameLabel(game: GameSummary) {
+  return `${game.mode === 'ranked' ? 'Ranked' : 'Casual'} · ${game.code}`;
+}
+
 export function App() {
-  const [game] = useState(() => new ChessGame());
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
+  const [error, setError] = useState('');
+  const [view, setView] = useState<'lobby' | 'friends' | 'game'>('lobby');
+  const [lobbyGames, setLobbyGames] = useState<GameSummary[]>([]);
+  const [friends, setFriends] = useState<FriendsOverview | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SocialUser[]>([]);
+  const [selectedGame, setSelectedGame] = useState<GameSummary | null>(null);
+  const [game, setGame] = useState(() => new ChessGame());
   const [gameState, setGameState] = useState(() => game.getState());
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalTargets, setLegalTargets] = useState<Square[]>([]);
-  const [moveHistory, setMoveHistory] = useState(() => game.history());
+  const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
   const [promotionMove, setPromotionMove] = useState<Move | null>(null);
-  const [resignedBy, setResignedBy] = useState<Color | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  const refreshLobby = useCallback(async () => {
+    const response = await requestJson<{ games: GameSummary[] }>('/lobby');
+    setLobbyGames(response.games);
+  }, []);
+
+  const refreshFriends = useCallback(async () => {
+    setFriends(await requestJson<FriendsOverview>('/friends'));
+  }, []);
+
+  useEffect(() => {
+    requestJson<{ user: AuthUser }>('/auth/me')
+      .then(({ user: authenticatedUser }) => setUser(authenticatedUser))
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    void refreshLobby().catch((reason: unknown) =>
+      setError(reason instanceof Error ? reason.message : 'Lobby konnte nicht geladen werden'),
+    );
+    void refreshFriends().catch((reason: unknown) =>
+      setError(reason instanceof Error ? reason.message : 'Freunde konnten nicht geladen werden'),
+    );
+  }, [refreshFriends, refreshLobby, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const socket = io(API_URL, { withCredentials: true });
+    socketRef.current = socket;
+    socket.on('game:state', (sync: GameSync) => applyGameSync(sync));
+    socket.on('game:started', (nextGame: GameSummary) => {
+      setSelectedGame(nextGame);
+      setView('game');
+      socket.emit('game:sync', { code: nextGame.code });
+    });
+    socket.on('move:accepted', (accepted: AcceptedMove) => {
+      setSelectedGame(accepted.game);
+      const nextGame = new ChessGame(accepted.fen);
+      setGame(nextGame);
+      setGameState(nextGame.getState());
+      setMoveHistory((history) => [...history, accepted.move]);
+      resetSelection();
+    });
+    socket.on('game:error', (payload: { error?: string }) =>
+      setError(payload.error ?? 'Partie konnte nicht synchronisiert werden'),
+    );
+    socket.on('move:rejected', (payload: { reason?: string }) =>
+      setError(payload.reason ?? 'Zug wurde abgelehnt'),
+    );
+    socket.on('connect_error', () =>
+      setError('Die Echtzeitverbindung zur Partie konnte nicht aufgebaut werden'),
+    );
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [user]);
+
+  function applyGameSync(sync: GameSync) {
+    const nextGame = new ChessGame(sync.fen);
+    setSelectedGame(sync.game);
+    setGame(nextGame);
+    setGameState(nextGame.getState());
+    setMoveHistory(sync.moves);
+    setView('game');
+    resetSelection();
+  }
 
   function resetSelection() {
     setSelectedSquare(null);
     setLegalTargets([]);
   }
 
+  async function submitAuth(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
+    try {
+      const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+      const response = await requestJson<{ user: AuthUser }>(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(authForm),
+      });
+      setUser(response.user);
+      setAuthForm({ username: '', email: '', password: '' });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Authentifizierung fehlgeschlagen');
+    }
+  }
+
+  async function logout() {
+    await requestJson('/auth/logout', { method: 'POST' });
+    setUser(null);
+    setSelectedGame(null);
+    setView('lobby');
+  }
+
+  async function createGame(mode: GameMode) {
+    try {
+      const created = await requestJson<GameSummary>('/lobby/games', {
+        method: 'POST',
+        body: JSON.stringify({ mode }),
+      });
+      setSelectedGame(created);
+      setView('game');
+      socketRef.current?.emit('game:sync', { code: created.code });
+      await refreshLobby();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Partie konnte nicht erstellt werden');
+    }
+  }
+
+  async function joinGame(code: string) {
+    try {
+      const joined = await requestJson<GameSummary>(`/lobby/games/${code}/join`, {
+        method: 'POST',
+      });
+      setSelectedGame(joined);
+      setView('game');
+      socketRef.current?.emit('game:sync', { code: joined.code });
+      await refreshLobby();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Partie konnte nicht beigetreten werden');
+    }
+  }
+
+  async function searchUsers(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      const response = await requestJson<{ users: SocialUser[] }>(
+        `/users/search?q=${encodeURIComponent(searchQuery)}`,
+      );
+      setSearchResults(response.users);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Benutzersuche fehlgeschlagen');
+    }
+  }
+
+  async function sendFriendRequest(username: string) {
+    try {
+      await requestJson('/friends/requests', {
+        method: 'POST',
+        body: JSON.stringify({ username }),
+      });
+      await refreshFriends();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Freundschaftsanfrage fehlgeschlagen');
+    }
+  }
+
+  async function respondToRequest(id: string, action: 'accept' | 'reject') {
+    try {
+      await requestJson(`/friends/requests/${id}/${action}`, { method: 'POST', body: '{}' });
+      await refreshFriends();
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : 'Anfrage konnte nicht verarbeitet werden',
+      );
+    }
+  }
+
   function commitMove(move: Move) {
-    game.move(move);
-    setGameState(game.getState());
-    setMoveHistory(game.history());
+    if (selectedGame) {
+      socketRef.current?.emit('move:request', { code: selectedGame.code, ...move });
+    } else {
+      const nextGame = new ChessGame(gameState.fen);
+      const record = nextGame.move(move);
+      setGame(nextGame);
+      setGameState(nextGame.getState());
+      setMoveHistory((history) => [...history, record]);
+    }
     setPromotionMove(null);
     resetSelection();
   }
 
   function handleSelectSquare(square: Square) {
-    if (promotionMove || resignedBy || game.isGameOver()) return;
+    if (promotionMove || (selectedGame && selectedGame.status !== 'active')) return;
+    if (selectedGame && user) {
+      const ownColor =
+        selectedGame.whitePlayerId === user.id
+          ? 'white'
+          : selectedGame.blackPlayerId === user.id
+            ? 'black'
+            : null;
+      if (ownColor !== gameState.activeColor) return;
+    }
 
     if (selectedSquare && legalTargets.includes(square)) {
       const candidate = game.legalMoves(selectedSquare).find((move) => move.to === square);
       if (!candidate) return;
-
-      if (candidate.promotion) {
-        setPromotionMove({ from: selectedSquare, to: square });
-      } else {
-        commitMove({ from: selectedSquare, to: square });
-      }
+      if (candidate.promotion) setPromotionMove({ from: selectedSquare, to: square });
+      else commitMove({ from: selectedSquare, to: square });
       return;
     }
 
@@ -71,22 +307,26 @@ export function App() {
       resetSelection();
       return;
     }
-
     setSelectedSquare(square);
     setLegalTargets([...new Set(moves.map((move) => move.to))]);
   }
 
-  function handleResign() {
-    if (resignedBy || game.isGameOver()) return;
-    if (window.confirm('Möchtest du diese Partie wirklich aufgeben?')) {
-      setResignedBy(gameState.activeColor);
-      resetSelection();
-    }
-  }
+  if (loading) return <main className="centered-message">Verbindung wird hergestellt …</main>;
+  if (!user)
+    return (
+      <AuthScreen
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        form={authForm}
+        setForm={setAuthForm}
+        error={error}
+        onSubmit={submitAuth}
+      />
+    );
 
   const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
-  const resultLabel = resignedBy
-    ? `${resignedBy === 'white' ? 'Weiß' : 'Schwarz'} gibt auf`
+  const gameStatus = selectedGame
+    ? `${gameLabel(selectedGame)} · ${selectedGame.status}`
     : statusLabel(gameState.status);
 
   return (
@@ -94,75 +334,127 @@ export function App() {
       <header className="app-header">
         <div>
           <p className="eyebrow">3D ONLINE-SCHACH</p>
-          <h1>Lokale Partie</h1>
+          <h1>Multiplayer-Lobby</h1>
         </div>
-        <span className="status-pill">{resultLabel}</span>
+        <div className="header-actions">
+          <span className="status-pill">
+            {user.username} · {user.rating}
+          </span>
+          <button className="quiet-button" type="button" onClick={() => void logout()}>
+            Abmelden
+          </button>
+        </div>
       </header>
-      <section className="game-layout">
-        <div className="scene-card" aria-label="3D-Schachbrett">
-          <Canvas
-            camera={{ position: [0, 9.6, 11.8], fov: 46 }}
-            onContextMenu={(event) => event.preventDefault()}
-            shadows
-          >
-            <color attach="background" args={['#10151f']} />
-            <ChessScene
-              fen={gameState.fen}
-              highlightedSquares={legalTargets}
-              lastMove={moveHistory.at(-1)}
-              selectedSquare={selectedSquare}
-              onSelectSquare={handleSelectSquare}
-            />
-          </Canvas>
-          <div className="scene-overlay">
-            <strong>
-              {resignedBy || game.isGameOver()
-                ? resultLabel
-                : selectedSquare
-                  ? `${selectedSquare} ausgewählt`
-                  : `${turnLabel} am Zug`}
-            </strong>
-            <span>
-              {selectedSquare && !resignedBy && !game.isGameOver()
-                ? 'Grüne Felder sind mögliche Ziele.'
-                : resignedBy || game.isGameOver()
-                  ? 'Die Partie ist beendet.'
-                  : 'Wähle eine Figur aus.'}
-            </span>
-          </div>
+      {error ? (
+        <div className="error-banner" role="alert">
+          {error}
+          <button type="button" onClick={() => setError('')}>
+            ×
+          </button>
         </div>
-        <aside className="game-panel" aria-label="Partieinformationen">
-          <div className="panel-section">
-            <span className="panel-label">Status</span>
-            <strong>{resignedBy || game.isGameOver() ? resultLabel : `${turnLabel} am Zug`}</strong>
-            <code>{gameState.fen}</code>
-            <button
-              className="resign-button"
-              type="button"
-              disabled={Boolean(resignedBy) || game.isGameOver()}
-              onClick={handleResign}
+      ) : null}
+      <nav className="main-nav" aria-label="Hauptnavigation">
+        <button
+          className={view === 'lobby' ? 'nav-button active' : 'nav-button'}
+          type="button"
+          onClick={() => setView('lobby')}
+        >
+          Lobby
+        </button>
+        <button
+          className={view === 'friends' ? 'nav-button active' : 'nav-button'}
+          type="button"
+          onClick={() => {
+            setView('friends');
+            void refreshFriends();
+          }}
+        >
+          Freunde
+        </button>
+        {selectedGame ? (
+          <button
+            className={view === 'game' ? 'nav-button active' : 'nav-button'}
+            type="button"
+            onClick={() => setView('game')}
+          >
+            Partie {selectedGame.code}
+          </button>
+        ) : null}
+      </nav>
+      {view === 'lobby' ? (
+        <LobbyView
+          games={lobbyGames}
+          onRefresh={() => void refreshLobby()}
+          onCreate={(mode) => void createGame(mode)}
+          onJoin={(code) => void joinGame(code)}
+        />
+      ) : null}
+      {view === 'friends' ? (
+        <FriendsView
+          friends={friends}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchResults={searchResults}
+          onSearch={searchUsers}
+          onAdd={(username) => void sendFriendRequest(username)}
+          onRespond={(id, action) => void respondToRequest(id, action)}
+        />
+      ) : null}
+      {view === 'game' && selectedGame ? (
+        <section className="game-layout">
+          <div className="scene-card" aria-label="3D-Schachbrett">
+            <Canvas
+              camera={{ position: [0, 9.6, 11.8], fov: 46 }}
+              onContextMenu={(event) => event.preventDefault()}
+              shadows
             >
-              Aufgeben
+              <color attach="background" args={['#10151f']} />
+              <ChessScene
+                fen={gameState.fen}
+                highlightedSquares={legalTargets}
+                lastMove={moveHistory.at(-1)}
+                selectedSquare={selectedSquare}
+                onSelectSquare={handleSelectSquare}
+              />
+            </Canvas>
+            <div className="scene-overlay">
+              <strong>{gameStatus}</strong>
+              <span>
+                {selectedGame.status === 'active'
+                  ? `${turnLabel} am Zug`
+                  : 'Warte auf einen Gegner.'}
+              </span>
+            </div>
+          </div>
+          <aside className="game-panel" aria-label="Partieinformationen">
+            <div className="panel-section">
+              <span className="panel-label">Partie</span>
+              <strong>{selectedGame.code}</strong>
+              <span className="muted">{selectedGame.mode === 'ranked' ? 'Ranked' : 'Casual'}</span>
+              <code>{gameState.fen}</code>
+            </div>
+            <div className="panel-section move-history">
+              <span className="panel-label">Züge</span>
+              {moveHistory.length === 0 ? (
+                <span className="muted">Noch keine Züge.</span>
+              ) : (
+                moveHistory.map((move, index) => (
+                  <div className="move-row" key={`${move.san}-${index}`}>
+                    <span>
+                      {Math.floor(index / 2) + 1}
+                      {index % 2 === 0 ? '.' : '…'}
+                    </span>
+                    <strong>{move.san}</strong>
+                  </div>
+                ))
+              )}
+            </div>
+            <button className="quiet-button" type="button" onClick={() => setView('lobby')}>
+              Zurück zur Lobby
             </button>
-          </div>
-          <div className="panel-section move-history">
-            <span className="panel-label">Züge</span>
-            {moveHistory.length === 0 ? (
-              <span className="muted">Noch keine Züge.</span>
-            ) : (
-              moveHistory.map((move, index) => (
-                <div className="move-row" key={`${move.san}-${index}`}>
-                  <span>
-                    {Math.floor(index / 2) + 1}
-                    {index % 2 === 0 ? '.' : '…'}
-                  </span>
-                  <strong>{move.san}</strong>
-                </div>
-              ))
-            )}
-          </div>
-        </aside>
-      </section>
+          </aside>
+        </section>
+      ) : null}
       {promotionMove ? (
         <div className="promotion-dialog" role="dialog" aria-label="Bauernumwandlung">
           <strong>Umwandeln zu</strong>
@@ -180,5 +472,222 @@ export function App() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+function AuthScreen({
+  authMode,
+  setAuthMode,
+  form,
+  setForm,
+  error,
+  onSubmit,
+}: {
+  authMode: 'login' | 'register';
+  setAuthMode: (mode: 'login' | 'register') => void;
+  form: { username: string; email: string; password: string };
+  setForm: (form: { username: string; email: string; password: string }) => void;
+  error: string;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <main className="auth-shell">
+      <section className="auth-card">
+        <p className="eyebrow">3D ONLINE-SCHACH</p>
+        <h1>{authMode === 'login' ? 'Willkommen zurück' : 'Konto erstellen'}</h1>
+        <p className="muted">Spiele online, finde Freunde und tritt einer Lobby bei.</p>
+        {error ? (
+          <div className="error-banner" role="alert">
+            {error}
+          </div>
+        ) : null}
+        <form className="auth-form" onSubmit={onSubmit}>
+          <label>
+            Benutzername
+            <input
+              autoComplete="username"
+              required
+              minLength={3}
+              maxLength={24}
+              value={form.username}
+              onChange={(event) => setForm({ ...form, username: event.target.value })}
+            />
+          </label>
+          {authMode === 'register' ? (
+            <label>
+              E-Mail <span className="muted">(optional)</span>
+              <input
+                autoComplete="email"
+                type="email"
+                value={form.email}
+                onChange={(event) => setForm({ ...form, email: event.target.value })}
+              />
+            </label>
+          ) : null}
+          <label>
+            Passwort
+            <input
+              autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+              required
+              minLength={8}
+              type="password"
+              value={form.password}
+              onChange={(event) => setForm({ ...form, password: event.target.value })}
+            />
+          </label>
+          <button className="primary-button" type="submit">
+            {authMode === 'login' ? 'Anmelden' : 'Registrieren'}
+          </button>
+        </form>
+        <button
+          className="link-button"
+          type="button"
+          onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+        >
+          {authMode === 'login' ? 'Noch kein Konto? Registrieren' : 'Bereits registriert? Anmelden'}
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function LobbyView({
+  games,
+  onRefresh,
+  onCreate,
+  onJoin,
+}: {
+  games: GameSummary[];
+  onRefresh: () => void;
+  onCreate: (mode: GameMode) => void;
+  onJoin: (code: string) => void;
+}) {
+  return (
+    <section className="content-card">
+      <div className="section-heading">
+        <div>
+          <span className="panel-label">Live-Spiele</span>
+          <h2>Öffentliche Lobby</h2>
+        </div>
+        <button className="quiet-button" type="button" onClick={onRefresh}>
+          Aktualisieren
+        </button>
+      </div>
+      <div className="action-row">
+        <button className="primary-button" type="button" onClick={() => onCreate('casual')}>
+          Casual-Spiel erstellen
+        </button>
+        <button className="secondary-button" type="button" onClick={() => onCreate('ranked')}>
+          Ranked-Spiel erstellen
+        </button>
+      </div>
+      {games.length === 0 ? (
+        <p className="muted">Noch wartet niemand auf einen Gegner.</p>
+      ) : (
+        <div className="lobby-list">
+          {games.map((game) => (
+            <div className="lobby-row" key={game.code}>
+              <div>
+                <strong>{gameLabel(game)}</strong>
+                <span className="muted">5 Minuten · offen</span>
+              </div>
+              <button className="secondary-button" type="button" onClick={() => onJoin(game.code)}>
+                Beitreten
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FriendsView({
+  friends,
+  searchQuery,
+  setSearchQuery,
+  searchResults,
+  onSearch,
+  onAdd,
+  onRespond,
+}: {
+  friends: FriendsOverview | null;
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
+  searchResults: SocialUser[];
+  onSearch: (event: React.FormEvent<HTMLFormElement>) => void;
+  onAdd: (username: string) => void;
+  onRespond: (id: string, action: 'accept' | 'reject') => void;
+}) {
+  return (
+    <section className="social-grid">
+      <div className="content-card">
+        <div className="section-heading">
+          <div>
+            <span className="panel-label">Social</span>
+            <h2>Freundesliste</h2>
+          </div>
+        </div>
+        {friends?.friends.length ? (
+          <div className="user-list">
+            {friends.friends.map((friend) => (
+              <div className="user-row" key={friend.id}>
+                <span className={friend.online ? 'online-dot' : 'offline-dot'} />
+                <strong>{friend.username}</strong>
+                <span className="muted">{friend.rating}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Noch keine Freunde.</p>
+        )}
+        <h3>Eingehend</h3>
+        {friends?.incomingRequests.map((request) => (
+          <div className="user-row" key={request.id}>
+            <strong>{request.sender.username}</strong>
+            <button
+              className="tiny-button"
+              type="button"
+              onClick={() => onRespond(request.id, 'accept')}
+            >
+              Annehmen
+            </button>
+            <button
+              className="tiny-button danger"
+              type="button"
+              onClick={() => onRespond(request.id, 'reject')}
+            >
+              Ablehnen
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="content-card">
+        <span className="panel-label">Spieler finden</span>
+        <h2>Benutzersuche</h2>
+        <form className="search-row" onSubmit={onSearch}>
+          <input
+            placeholder="mindestens 2 Zeichen"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
+          <button className="secondary-button" type="submit">
+            Suchen
+          </button>
+        </form>
+        <div className="user-list">
+          {searchResults.map((result) => (
+            <div className="user-row" key={result.id}>
+              <span className={result.online ? 'online-dot' : 'offline-dot'} />
+              <strong>{result.username}</strong>
+              <span className="muted">{result.rating}</span>
+              <button className="tiny-button" type="button" onClick={() => onAdd(result.username)}>
+                + Freund
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

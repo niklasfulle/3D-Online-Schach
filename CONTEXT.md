@@ -22,6 +22,18 @@ _Avoid_: Match, Spielrunde
 
 ## Plattformbetrieb
 
+**Freund**:
+Ein User mit einer angenommenen Freundschaftsbeziehung zu einem anderen User; die Freundesliste zeigt zusätzlich die aktuelle Online-Präsenz.
+_Avoid_: Follower
+
+**Freundschaftsanfrage**:
+Eine gerichtete, ausstehende Anfrage zwischen zwei Usern, die angenommen, abgelehnt oder vom Absender zurückgezogen werden kann.
+_Avoid_: Einladung
+
+**Session**:
+Eine serverseitige, zeitlich begrenzte Authentifizierung eines Users über ein HttpOnly-Cookie.
+_Avoid_: Login-Token im Browser
+
 **Lobby**:
 Die öffentliche Auswahl wartender Partien und ihrer Spielbedingungen.
 _Avoid_: Raumliste

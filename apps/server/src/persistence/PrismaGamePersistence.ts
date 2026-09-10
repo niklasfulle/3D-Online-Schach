@@ -1,5 +1,5 @@
 import { ChessGame, STARTING_FEN, type MoveRecord } from '@chess3d/chess-core';
-import type { GameStatus, GameSummary } from '@chess3d/shared';
+import type { GameMode, GameStatus, GameSummary } from '@chess3d/shared';
 import type { PrismaClient } from '@prisma/client';
 
 import { pgnHeaders, type GameHistory, type GamePersistence } from '../game/GameManager.js';
@@ -23,6 +23,7 @@ export class PrismaGamePersistence implements GamePersistence {
       create: {
         id: summary.id,
         code: summary.code,
+        mode: summary.mode ?? 'casual',
         status: summary.status,
         initialFen: STARTING_FEN,
         currentFen: fen,
@@ -38,6 +39,7 @@ export class PrismaGamePersistence implements GamePersistence {
       },
       update: {
         code: summary.code,
+        mode: summary.mode ?? 'casual',
         status: summary.status,
         currentFen: fen,
         whiteTimeMs: summary.whiteRemainingMs,
@@ -105,6 +107,7 @@ export class PrismaGamePersistence implements GamePersistence {
     const game: GameSummary = {
       id: record.id,
       code: record.code,
+      mode: toGameMode(record.mode),
       status: toGameStatus(record.status),
       whitePlayerId: record.whitePlayer?.username,
       blackPlayerId: record.blackPlayer?.username,
@@ -151,6 +154,10 @@ export class PrismaGamePersistence implements GamePersistence {
 function toGameStatus(status: string): GameStatus {
   if (status === 'waiting' || status === 'active' || status === 'finished') return status;
   return 'finished';
+}
+
+function toGameMode(mode: string): GameMode {
+  return mode === 'ranked' ? 'ranked' : 'casual';
 }
 
 function toResult(result: string | null): GameSummary['result'] {

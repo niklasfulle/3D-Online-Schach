@@ -4,18 +4,21 @@ Browserbasierte 3D-Schachplattform mit React, Three.js, Fastify, Socket.IO, Post
 
 ## Aktueller Stand
 
-Der MVP-Unterbau ist umgesetzt:
+Der Multiplayer-MVP ist umgesetzt:
 
 - 3D-Schachbrett mit sechs unterscheidbaren, in Blender erzeugten Figurenmodellen
 - FEN-gesteuerte Figurenpositionen mit animierten Zügen, Kamera und Auswahl
 - lokale Schachregeln mit `chess.js`
 - private Online-Spielräume über Game-Codes
+- lokale Konten mit Session-Cookies, Login und Registrierung
+- öffentliche Lobby mit Casual-/Ranked-Spielen
+- Benutzersuche, Online-Präsenz und Freundschaftsanfragen
 - serverseitige Zugvalidierung und Socket.IO-Synchronisierung
 - Spieluhr, Timeout, Reconnect und State-Sync
 - Prisma-Persistenz für Games, Moves, FEN, Uhrwerte und Ergebnisse
-- versionierte PostgreSQL-Initialmigration
+- versionierte PostgreSQL-Migrationen für Games, Sessions und soziale Beziehungen
 
-PGN-Export und ladbare Spielhistorie sind als nächster Schritt in GitHub-Ticket [#29](https://github.com/niklasfulle/3D-Online-Schach/issues/29) aktiv.
+PGN-Export und ladbare Spielhistorie sind bereits über die Server-API verfügbar.
 
 ## Voraussetzungen
 
@@ -37,6 +40,8 @@ PostgreSQL starten:
 ```bash
 docker compose up -d postgres
 ```
+
+Für die lokale Entwicklung nutzt der Server standardmäßig `DATABASE_URL` auf die PostgreSQL-Instanz. Vor dem Start müssen die Datenbankmigrationen angewendet und der Prisma Client erzeugt werden.
 
 Prisma Client generieren und Migration ausführen:
 
@@ -63,6 +68,25 @@ GET /games/:code/pgn      # vollständige Partie als PGN-Download
 ```
 
 Der PGN-Export enthält Spieler- und Ergebnis-Header und kann wieder in den Chess-Core eingelesen werden.
+
+## Multiplayer-API
+
+Der Client verwendet serverseitige Session-Cookies (`chess3d_session`) und sendet Requests mit Credentials:
+
+```text
+POST /auth/register       # Konto erstellen
+POST /auth/login          # Session starten
+GET  /auth/me             # aktuelles Konto
+GET  /lobby               # wartende öffentliche Partien
+POST /lobby/games         # Casual- oder Ranked-Partie erstellen
+POST /lobby/games/:code/join
+GET  /users/search?q=...  # Benutzer suchen
+GET  /friends             # Freunde sowie eingehende/ausgehende Anfragen
+POST /friends/requests
+POST /friends/requests/:id/accept|reject|cancel
+```
+
+Die Echtzeit-Partie läuft über Socket.IO. Authentifizierte Browser verbinden sich mit `withCredentials`; der Server prüft das Session-Cookie vor dem Beitritt zu einem Spielraum.
 
 ## 3D-Figuren neu erzeugen
 

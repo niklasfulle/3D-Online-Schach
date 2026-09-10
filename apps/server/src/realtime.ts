@@ -4,6 +4,8 @@ import { Server } from 'socket.io';
 import type { Move } from '@chess3d/chess-core';
 
 import { GameTimeoutError, type GameManager } from './game/GameManager.js';
+import type { AuthProvider } from './auth/AuthService.js';
+import { readSessionToken } from './auth/sessionCookie.js';
 
 interface JoinPayload {
   code?: string;
@@ -17,16 +19,32 @@ interface MovePayload extends Move {
   code?: string;
 }
 
-export function registerRealtime(app: FastifyInstance, gameManager: GameManager): Server {
-  const io = new Server(app.server, { cors: { origin: true } });
+export function registerRealtime(
+  app: FastifyInstance,
+  gameManager: GameManager,
+  authProvider?: AuthProvider,
+): Server {
+  const io = new Server(app.server, { cors: { origin: true, credentials: true } });
 
-  io.on('connection', (socket) => {
-    const playerId =
-      typeof socket.handshake.auth.playerId === 'string' ? socket.handshake.auth.playerId : null;
+  io.use(async (socket, next) => {
+    const legacyPlayerId =
+      typeof socket.handshake.auth.playerId === 'string'
+        ? socket.handshake.auth.playerId
+        : undefined;
+    const user = authProvider
+      ? await authProvider.authenticate(readSessionToken(socket.handshake.headers.cookie))
+      : undefined;
+    const playerId = user?.id ?? legacyPlayerId;
     if (!playerId) {
-      socket.disconnect(true);
+      next(new Error('Authentication required'));
       return;
     }
+    socket.data.playerId = playerId;
+    next();
+  });
+
+  io.on('connection', (socket) => {
+    const playerId = socket.data.playerId as string;
 
     socket.on('game:create', async () => {
       try {
