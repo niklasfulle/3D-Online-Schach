@@ -331,130 +331,241 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">3D ONLINE-SCHACH</p>
-          <h1>Multiplayer-Lobby</h1>
-        </div>
-        <div className="header-actions">
-          <span className="status-pill">
-            {user.username} · {user.rating}
-          </span>
-          <button className="quiet-button" type="button" onClick={() => void logout()}>
-            Abmelden
-          </button>
-        </div>
-      </header>
-      {error ? (
-        <div className="error-banner" role="alert">
-          {error}
-          <button type="button" onClick={() => setError('')}>
-            ×
-          </button>
-        </div>
-      ) : null}
-      <nav className="main-nav" aria-label="Hauptnavigation">
-        <button
-          className={view === 'lobby' ? 'nav-button active' : 'nav-button'}
-          type="button"
-          onClick={() => setView('lobby')}
-        >
-          Lobby
-        </button>
-        <button
-          className={view === 'friends' ? 'nav-button active' : 'nav-button'}
-          type="button"
-          onClick={() => {
-            setView('friends');
-            void refreshFriends();
-          }}
-        >
-          Freunde
-        </button>
-        {selectedGame ? (
-          <button
-            className={view === 'game' ? 'nav-button active' : 'nav-button'}
-            type="button"
-            onClick={() => setView('game')}
-          >
-            Partie {selectedGame.code}
-          </button>
-        ) : null}
-      </nav>
-      {view === 'lobby' ? (
-        <LobbyView
-          games={lobbyGames}
-          onRefresh={() => void refreshLobby()}
-          onCreate={(mode) => void createGame(mode)}
-          onJoin={(code) => void joinGame(code)}
-        />
-      ) : null}
-      {view === 'friends' ? (
-        <FriendsView
-          friends={friends}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          searchResults={searchResults}
-          onSearch={searchUsers}
-          onAdd={(username) => void sendFriendRequest(username)}
-          onRespond={(id, action) => void respondToRequest(id, action)}
-        />
-      ) : null}
-      {view === 'game' && selectedGame ? (
-        <section className="game-layout">
-          <div className="scene-card" aria-label="3D-Schachbrett">
-            <Canvas
-              camera={{ position: [0, 9.6, 11.8], fov: 46 }}
-              onContextMenu={(event) => event.preventDefault()}
-              shadows
-            >
-              <color attach="background" args={['#10151f']} />
-              <ChessScene
-                fen={gameState.fen}
-                highlightedSquares={legalTargets}
-                lastMove={moveHistory.at(-1)}
-                selectedSquare={selectedSquare}
-                onSelectSquare={handleSelectSquare}
-              />
-            </Canvas>
-            <div className="scene-overlay">
-              <strong>{gameStatus}</strong>
-              <span>
-                {selectedGame.status === 'active'
-                  ? `${turnLabel} am Zug`
-                  : 'Warte auf einen Gegner.'}
-              </span>
+      <div className="dashboard-shell">
+        <header className="topbar">
+          <div className="brand-lockup">
+            <div className="brand-mark" aria-hidden="true">
+              ♞
+            </div>
+            <div>
+              <p className="eyebrow">3D ONLINE-SCHACH</p>
+              <strong className="brand-title">Chessboard</strong>
             </div>
           </div>
-          <aside className="game-panel" aria-label="Partieinformationen">
-            <div className="panel-section">
-              <span className="panel-label">Partie</span>
-              <strong>{selectedGame.code}</strong>
-              <span className="muted">{selectedGame.mode === 'ranked' ? 'Ranked' : 'Casual'}</span>
-              <code>{gameState.fen}</code>
+          <div className="header-actions">
+            <span className="live-chip">
+              <span className="live-dot" /> Online
+            </span>
+            <div className="profile-chip">
+              <span className="avatar">{user.username.slice(0, 1).toUpperCase()}</span>
+              <span>{user.username}</span>
+              <span className="profile-rating">{user.rating}</span>
             </div>
-            <div className="panel-section move-history">
-              <span className="panel-label">Züge</span>
-              {moveHistory.length === 0 ? (
-                <span className="muted">Noch keine Züge.</span>
-              ) : (
-                moveHistory.map((move, index) => (
-                  <div className="move-row" key={`${move.san}-${index}`}>
-                    <span>
-                      {Math.floor(index / 2) + 1}
-                      {index % 2 === 0 ? '.' : '…'}
-                    </span>
-                    <strong>{move.san}</strong>
-                  </div>
-                ))
-              )}
-            </div>
-            <button className="quiet-button" type="button" onClick={() => setView('lobby')}>
-              Zurück zur Lobby
+            <button className="quiet-button" type="button" onClick={() => void logout()}>
+              Abmelden
             </button>
+          </div>
+        </header>
+        <div className="dashboard-grid">
+          <aside className="sidebar">
+            <div>
+              <span className="sidebar-label">Arbeitsbereich</span>
+              <nav className="sidebar-nav" aria-label="Hauptnavigation">
+                <button
+                  className={view === 'lobby' ? 'nav-button active' : 'nav-button'}
+                  type="button"
+                  onClick={() => setView('lobby')}
+                >
+                  <span className="nav-icon" aria-hidden="true">
+                    ⌂
+                  </span>
+                  <span>Lobby</span>
+                  <span className="nav-count">{lobbyGames.length}</span>
+                </button>
+                <button
+                  className={view === 'friends' ? 'nav-button active' : 'nav-button'}
+                  type="button"
+                  onClick={() => {
+                    setView('friends');
+                    void refreshFriends();
+                  }}
+                >
+                  <span className="nav-icon" aria-hidden="true">
+                    ♙
+                  </span>
+                  <span>Freunde</span>
+                  <span className="nav-count">{friends?.friends.length ?? 0}</span>
+                </button>
+                {selectedGame ? (
+                  <button
+                    className={view === 'game' ? 'nav-button active' : 'nav-button'}
+                    type="button"
+                    onClick={() => setView('game')}
+                  >
+                    <span className="nav-icon" aria-hidden="true">
+                      ♜
+                    </span>
+                    <span>Aktive Partie</span>
+                    <span className="nav-live-dot" />
+                  </button>
+                ) : null}
+              </nav>
+            </div>
+            <div className="sidebar-note">
+              <span className="sidebar-label">Dein Profil</span>
+              <strong>{user.username}</strong>
+              <span className="muted">Wertung {user.rating}</span>
+              <div className="rating-bar">
+                <span
+                  style={{ width: `${Math.min(100, Math.max(8, (user.rating - 800) / 8))}%` }}
+                />
+              </div>
+            </div>
           </aside>
-        </section>
-      ) : null}
+          <section className="dashboard-main">
+            {error ? (
+              <div className="error-banner" role="alert" aria-live="polite">
+                <span>
+                  <strong>Verbindungshinweis</strong>
+                  {error}
+                </span>
+                <button aria-label="Hinweis schließen" type="button" onClick={() => setError('')}>
+                  ×
+                </button>
+              </div>
+            ) : null}
+            <div className="page-heading">
+              <div>
+                <span className="eyebrow">
+                  {view === 'game'
+                    ? 'DEINE PARTIE'
+                    : view === 'friends'
+                      ? 'COMMUNITY'
+                      : 'SPIELZENTRALE'}
+                </span>
+                <h1>
+                  {view === 'game'
+                    ? 'Am Brett'
+                    : view === 'friends'
+                      ? 'Deine Freunde'
+                      : 'Bereit für den nächsten Zug?'}
+                </h1>
+                <p>
+                  {view === 'game'
+                    ? 'Konzentriert bleiben. Jeder Zug zählt.'
+                    : view === 'friends'
+                      ? 'Finde Spieler, vernetze dich und bleib in Kontakt.'
+                      : 'Finde eine Partie oder eröffne deinen eigenen Raum.'}
+                </p>
+              </div>
+              <div className="heading-accent" aria-hidden="true">
+                ✦
+              </div>
+            </div>
+            {view === 'lobby' ? (
+              <LobbyView
+                games={lobbyGames}
+                onRefresh={() => void refreshLobby()}
+                onCreate={(mode) => void createGame(mode)}
+                onJoin={(code) => void joinGame(code)}
+              />
+            ) : null}
+            {view === 'friends' ? (
+              <FriendsView
+                friends={friends}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                searchResults={searchResults}
+                onSearch={searchUsers}
+                onAdd={(username) => void sendFriendRequest(username)}
+                onRespond={(id, action) => void respondToRequest(id, action)}
+              />
+            ) : null}
+            {view === 'game' && selectedGame ? (
+              <section className="game-layout">
+                <div className="scene-card" aria-label="3D-Schachbrett">
+                  <Canvas
+                    camera={{ position: [0, 9.6, 11.8], fov: 46 }}
+                    onContextMenu={(event) => event.preventDefault()}
+                    shadows
+                  >
+                    <color attach="background" args={['#10151f']} />
+                    <ChessScene
+                      fen={gameState.fen}
+                      highlightedSquares={legalTargets}
+                      lastMove={moveHistory.at(-1)}
+                      selectedSquare={selectedSquare}
+                      onSelectSquare={handleSelectSquare}
+                    />
+                  </Canvas>
+                  <div className="scene-overlay">
+                    <strong>{gameStatus}</strong>
+                    <span>
+                      {selectedGame.status === 'active'
+                        ? `${turnLabel} am Zug`
+                        : 'Warte auf einen Gegner.'}
+                    </span>
+                  </div>
+                </div>
+                <aside className="game-panel" aria-label="Partieinformationen">
+                  <div className="panel-section">
+                    <span className="panel-label">Partie</span>
+                    <strong>{selectedGame.code}</strong>
+                    <span className="muted">
+                      {selectedGame.mode === 'ranked' ? 'Ranked' : 'Casual'}
+                    </span>
+                    <code>{gameState.fen}</code>
+                  </div>
+                  <div className="panel-section move-history">
+                    <span className="panel-label">Züge</span>
+                    {moveHistory.length === 0 ? (
+                      <span className="muted">Noch keine Züge.</span>
+                    ) : (
+                      moveHistory.map((move, index) => (
+                        <div className="move-row" key={`${move.san}-${index}`}>
+                          <span>
+                            {Math.floor(index / 2) + 1}
+                            {index % 2 === 0 ? '.' : '…'}
+                          </span>
+                          <strong>{move.san}</strong>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <button className="quiet-button" type="button" onClick={() => setView('lobby')}>
+                    Zurück zur Lobby
+                  </button>
+                </aside>
+              </section>
+            ) : null}
+          </section>
+          <aside className="insights-panel">
+            <div className="insight-card profile-insight">
+              <div className="insight-heading">
+                <span>DEIN STATUS</span>
+                <span className="live-chip small">
+                  <span className="live-dot" /> Live
+                </span>
+              </div>
+              <div className="insight-avatar">{user.username.slice(0, 1).toUpperCase()}</div>
+              <strong>{user.username}</strong>
+              <span className="muted">Bereit für eine Partie?</span>
+              <div className="insight-stats">
+                <div>
+                  <strong>{user.rating}</strong>
+                  <span>Wertung</span>
+                </div>
+                <div>
+                  <strong>{friends?.friends.length ?? 0}</strong>
+                  <span>Freunde</span>
+                </div>
+              </div>
+            </div>
+            <div className="insight-card quick-match">
+              <span className="panel-label">Schnellstart</span>
+              <h3>Direkt ins Spiel</h3>
+              <p className="muted">Eröffne eine Casual-Partie für deinen nächsten Zug.</p>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => void createGame('casual')}
+              >
+                Partie erstellen <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      </div>
       {promotionMove ? (
         <div className="promotion-dialog" role="dialog" aria-label="Bauernumwandlung">
           <strong>Umwandeln zu</strong>
@@ -506,6 +617,7 @@ function AuthScreen({
             Benutzername
             <input
               autoComplete="username"
+              name="username"
               required
               minLength={3}
               maxLength={24}
@@ -518,6 +630,7 @@ function AuthScreen({
               E-Mail <span className="muted">(optional)</span>
               <input
                 autoComplete="email"
+                name="email"
                 type="email"
                 value={form.email}
                 onChange={(event) => setForm({ ...form, email: event.target.value })}
@@ -528,6 +641,7 @@ function AuthScreen({
             Passwort
             <input
               autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+              name="password"
               required
               minLength={8}
               type="password"
@@ -563,42 +677,99 @@ function LobbyView({
   onJoin: (code: string) => void;
 }) {
   return (
-    <section className="content-card">
-      <div className="section-heading">
+    <div className="lobby-content">
+      <section className="welcome-card">
         <div>
-          <span className="panel-label">Live-Spiele</span>
-          <h2>Öffentliche Lobby</h2>
+          <span className="panel-label">Dein nächster Zug</span>
+          <h2>Finde deine nächste Partie.</h2>
+          <p>Spiele entspannt gegen Freunde oder setze deine Wertung aufs Spiel.</p>
+          <div className="action-row">
+            <button className="primary-button" type="button" onClick={() => onCreate('casual')}>
+              Casual-Spiel erstellen <span aria-hidden="true">→</span>
+            </button>
+            <button className="ghost-button" type="button" onClick={() => onCreate('ranked')}>
+              Ranked spielen
+            </button>
+          </div>
         </div>
-        <button className="quiet-button" type="button" onClick={onRefresh}>
-          Aktualisieren
-        </button>
+        <div className="welcome-piece" aria-hidden="true">
+          ♞
+        </div>
+      </section>
+      <div className="dashboard-stats">
+        <div className="metric-card">
+          <span className="metric-icon blue" aria-hidden="true">
+            ◈
+          </span>
+          <div>
+            <span className="muted">Offene Partien</span>
+            <strong>{games.length}</strong>
+          </div>
+        </div>
+        <div className="metric-card">
+          <span className="metric-icon gold" aria-hidden="true">
+            ✦
+          </span>
+          <div>
+            <span className="muted">Spielmodi</span>
+            <strong>Casual &amp; Ranked</strong>
+          </div>
+        </div>
+        <div className="metric-card">
+          <span className="metric-icon green" aria-hidden="true">
+            ◉
+          </span>
+          <div>
+            <span className="muted">Serverstatus</span>
+            <strong>Online</strong>
+          </div>
+        </div>
       </div>
-      <div className="action-row">
-        <button className="primary-button" type="button" onClick={() => onCreate('casual')}>
-          Casual-Spiel erstellen
-        </button>
-        <button className="secondary-button" type="button" onClick={() => onCreate('ranked')}>
-          Ranked-Spiel erstellen
-        </button>
-      </div>
-      {games.length === 0 ? (
-        <p className="muted">Noch wartet niemand auf einen Gegner.</p>
-      ) : (
-        <div className="lobby-list">
-          {games.map((game) => (
-            <div className="lobby-row" key={game.code}>
-              <div>
-                <strong>{gameLabel(game)}</strong>
-                <span className="muted">5 Minuten · offen</span>
-              </div>
-              <button className="secondary-button" type="button" onClick={() => onJoin(game.code)}>
-                Beitreten
-              </button>
+      <section className="content-card lobby-card">
+        <div className="section-heading">
+          <div>
+            <span className="panel-label">Live-Spiele</span>
+            <h2>Öffentliche Lobby</h2>
+          </div>
+          <button className="quiet-button" type="button" onClick={onRefresh}>
+            <span aria-hidden="true">↻</span> Aktualisieren
+          </button>
+        </div>
+        {games.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon" aria-hidden="true">
+              ♟
             </div>
-          ))}
-        </div>
-      )}
-    </section>
+            <strong>Noch keine offenen Partien</strong>
+            <span className="muted">Eröffne ein Spiel und lade andere Spieler ein.</span>
+          </div>
+        ) : (
+          <div className="lobby-list">
+            {games.map((game) => (
+              <div className="lobby-row" key={game.code}>
+                <div className="game-mode-icon" aria-hidden="true">
+                  {game.mode === 'ranked' ? '♛' : '♙'}
+                </div>
+                <div>
+                  <strong>{gameLabel(game)}</strong>
+                  <span className="muted">5 Minuten · offen</span>
+                </div>
+                <span className="waiting-label">
+                  <span className="live-dot" /> Wartet
+                </span>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => onJoin(game.code)}
+                >
+                  Beitreten <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -667,7 +838,10 @@ function FriendsView({
         <h2>Benutzersuche</h2>
         <form className="search-row" onSubmit={onSearch}>
           <input
-            placeholder="mindestens 2 Zeichen"
+            autoComplete="off"
+            name="user-search"
+            placeholder="z. B. niklas…"
+            spellCheck={false}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
           />
