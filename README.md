@@ -53,6 +53,17 @@ pnpm dev
 
 Die lokale Datenbankverbindung wird über `DATABASE_URL` konfiguriert. Eine Vorlage liegt in [.env.example](.env.example).
 
+## Spielhistorie und PGN
+
+Gespeicherte Partien und ihre Züge können über die Server-API geladen werden:
+
+```text
+GET /games/:code/history  # Spiel, FEN und Move-Historie als JSON
+GET /games/:code/pgn      # vollständige Partie als PGN-Download
+```
+
+Der PGN-Export enthält Spieler- und Ergebnis-Header und kann wieder in den Chess-Core eingelesen werden.
+
 ## 3D-Figuren neu erzeugen
 
 Die fertigen GLB-Dateien liegen unter `apps/client/public/models/chess` und werden direkt mitgeliefert. Nach Änderungen am Generator können sie mit Blender neu gebaut werden:

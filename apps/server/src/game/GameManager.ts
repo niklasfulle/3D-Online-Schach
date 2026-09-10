@@ -1,6 +1,12 @@
 import { randomInt, randomUUID } from 'node:crypto';
 
-import { ChessGame, STARTING_FEN, type Move, type MoveRecord } from '@chess3d/chess-core';
+import {
+  ChessGame,
+  STARTING_FEN,
+  type Move,
+  type MoveRecord,
+  type PgnHeaders,
+} from '@chess3d/chess-core';
 import type { GameSummary, TimeControl } from '@chess3d/shared';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -20,6 +26,7 @@ export interface GamePersistence {
     fenAfterMove: string,
     moveNumber: number,
   ): Promise<void>;
+  loadHistory?: (code: string) => Promise<GameHistory | undefined>;
 }
 
 const NOOP_PERSISTENCE: GamePersistence = {
@@ -38,6 +45,31 @@ export interface GameSync {
   fen: string;
   game: GameSummary;
   moves: MoveRecord[];
+}
+
+export interface GameHistory {
+  game: GameSummary;
+  initialFen: string;
+  currentFen: string;
+  moves: MoveRecord[];
+  pgn: string;
+}
+
+export function resultToPgn(result: GameSummary['result']): string {
+  if (result === 'white') return '1-0';
+  if (result === 'black') return '0-1';
+  if (result === 'draw') return '1/2-1/2';
+  return '*';
+}
+
+export function pgnHeaders(summary: GameSummary): PgnHeaders {
+  return {
+    Event: '3D Online-Schach',
+    Site: '3D Online-Schach',
+    White: summary.whitePlayerId ?? 'White',
+    Black: summary.blackPlayerId ?? 'Black',
+    Result: resultToPgn(summary.result),
+  };
 }
 
 export class GameTimeoutError extends Error {
@@ -199,6 +231,12 @@ export class GameManager {
     };
   }
 
+  async getGameHistory(code: string): Promise<GameHistory | undefined> {
+    const game = this.getManagedGame(code);
+    if (game) return this.createHistory(game);
+    return this.persistence.loadHistory?.(code);
+  }
+
   async flushPersistence(): Promise<void> {
     await Promise.all(this.pendingPersistence);
     if (this.persistenceError) {
@@ -235,6 +273,19 @@ export class GameManager {
 
   private snapshot(game: ManagedGame): GameSummary {
     return { ...game.summary, ...this.clockSnapshot(game) };
+  }
+
+  private createHistory(game: ManagedGame): GameHistory {
+    const summary = this.snapshot(game);
+    const currentFen = game.chess.getState().fen;
+    const moves = game.chess.history();
+    return {
+      game: summary,
+      initialFen: STARTING_FEN,
+      currentFen,
+      moves,
+      pgn: game.chess.toPgn(pgnHeaders(summary)),
+    };
   }
 
   private clockSnapshot(

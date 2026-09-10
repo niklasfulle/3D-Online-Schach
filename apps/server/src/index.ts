@@ -62,6 +62,33 @@ export function buildApp(gameManager = new GameManager()): FastifyInstance {
     return reply.send(game);
   });
 
+  app.get<{ Params: { code: string } }>('/games/:code/history', async (request, reply) => {
+    try {
+      const history = await gameManager.getGameHistory(request.params.code);
+      if (!history) return reply.code(404).send({ error: 'Game history not found' });
+      return reply.send(history);
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to load game history',
+      });
+    }
+  });
+
+  app.get<{ Params: { code: string } }>('/games/:code/pgn', async (request, reply) => {
+    try {
+      const history = await gameManager.getGameHistory(request.params.code);
+      if (!history) return reply.code(404).send({ error: 'Game history not found' });
+      return reply
+        .type('application/x-chess-pgn')
+        .header('Content-Disposition', `attachment; filename="game-${history.game.code}.pgn"`)
+        .send(history.pgn);
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to export PGN',
+      });
+    }
+  });
+
   app.post<{
     Params: { code: string };
     Body: Move & { playerId?: string };

@@ -1,8 +1,8 @@
-import { STARTING_FEN, type MoveRecord } from '@chess3d/chess-core';
-import type { GameSummary } from '@chess3d/shared';
+import { ChessGame, STARTING_FEN, type MoveRecord } from '@chess3d/chess-core';
+import type { GameStatus, GameSummary } from '@chess3d/shared';
 import type { PrismaClient } from '@prisma/client';
 
-import type { GamePersistence } from '../game/GameManager.js';
+import { pgnHeaders, type GameHistory, type GamePersistence } from '../game/GameManager.js';
 
 export class PrismaGamePersistence implements GamePersistence {
   constructor(private readonly client: PrismaClient) {}
@@ -91,6 +91,50 @@ export class PrismaGamePersistence implements GamePersistence {
     });
   }
 
+  async loadHistory(code: string): Promise<GameHistory | undefined> {
+    const record = await this.client.game.findUnique({
+      where: { code: code.toUpperCase() },
+      include: {
+        blackPlayer: true,
+        moves: { orderBy: { moveNumber: 'asc' } },
+        whitePlayer: true,
+      },
+    });
+    if (!record) return undefined;
+
+    const game: GameSummary = {
+      id: record.id,
+      code: record.code,
+      status: toGameStatus(record.status),
+      whitePlayerId: record.whitePlayer?.username,
+      blackPlayerId: record.blackPlayer?.username,
+      timeControl: {
+        initialMs: record.whiteTimeMs,
+        incrementMs: record.incrementMs,
+      },
+      whiteRemainingMs: record.whiteTimeMs,
+      blackRemainingMs: record.blackTimeMs,
+      turnStartedAt: record.startedAt?.getTime(),
+      result: toResult(record.result),
+    };
+    const chess = new ChessGame(record.initialFen);
+    for (const move of record.moves) {
+      chess.move({
+        from: move.from as MoveRecord['from'],
+        to: move.to as MoveRecord['to'],
+        promotion: move.promotion as MoveRecord['promotion'],
+      });
+    }
+
+    return {
+      game,
+      initialFen: record.initialFen,
+      currentFen: record.currentFen,
+      moves: chess.history(),
+      pgn: chess.toPgn(pgnHeaders(game)),
+    };
+  }
+
   private async ensureUser(playerId: string | undefined): Promise<string | undefined> {
     if (!playerId) return undefined;
 
@@ -102,4 +146,14 @@ export class PrismaGamePersistence implements GamePersistence {
     });
     return user.id;
   }
+}
+
+function toGameStatus(status: string): GameStatus {
+  if (status === 'waiting' || status === 'active' || status === 'finished') return status;
+  return 'finished';
+}
+
+function toResult(result: string | null): GameSummary['result'] {
+  if (result === 'white' || result === 'black' || result === 'draw') return result;
+  return undefined;
 }

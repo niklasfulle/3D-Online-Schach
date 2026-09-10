@@ -26,6 +26,21 @@ describe('chess core', () => {
     expect(game.history()).toHaveLength(1);
   });
 
+  it('exports a game as PGN and can load the exported PGN again', () => {
+    const game = new ChessGame();
+    game.move({ from: 'e2', to: 'e4' });
+    game.move({ from: 'e7', to: 'e5' });
+    game.move({ from: 'g1', to: 'f3' });
+
+    const pgn = game.toPgn({ White: 'alice', Black: 'bob' });
+    const restored = ChessGame.fromPgn(pgn);
+
+    expect(pgn).toContain('[White "alice"]');
+    expect(pgn).toContain('1. e4 e5 2. Nf3');
+    expect(restored.getState().fen).toBe(game.getState().fen);
+    expect(restored.history().map((move) => move.san)).toEqual(['e4', 'e5', 'Nf3']);
+  });
+
   it('detects checkmate', () => {
     const game = new ChessGame();
 

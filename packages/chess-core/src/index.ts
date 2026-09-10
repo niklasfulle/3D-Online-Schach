@@ -26,6 +26,8 @@ export interface MoveRecord extends Move {
   captured?: PieceType;
 }
 
+export type PgnHeaders = Record<string, string>;
+
 export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 function toColor(color: 'w' | 'b'): Color {
@@ -53,6 +55,17 @@ export class ChessGame {
 
   constructor(fen = STARTING_FEN) {
     this.chess = new Chess(fen);
+  }
+
+  static fromPgn(pgn: string): ChessGame {
+    const game = new ChessGame();
+    game.chess.loadPgn(pgn);
+    return game;
+  }
+
+  toPgn(headers: PgnHeaders = {}): string {
+    for (const [key, value] of Object.entries(headers)) this.chess.header(key, value);
+    return this.chess.pgn();
   }
 
   getState(): GameState {
