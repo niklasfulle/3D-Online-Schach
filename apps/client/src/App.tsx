@@ -5,9 +5,10 @@ import { io, type Socket } from 'socket.io-client';
 import { ChessGame, type Move, type PromotionPiece } from '@chess3d/chess-core';
 import type { GameMode, GameSummary, Square } from '@chess3d/shared';
 
+import { resolveApiUrl } from './apiUrl';
 import { ChessScene } from './board/ChessScene';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001';
+const API_URL = resolveApiUrl(import.meta.env.VITE_API_URL, window.location);
 const PROMOTION_OPTIONS: PromotionPiece[] = ['q', 'r', 'b', 'n'];
 const PROMOTION_LABELS: Record<PromotionPiece, string> = {
   q: 'Dame',
