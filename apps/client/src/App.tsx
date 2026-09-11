@@ -7,6 +7,7 @@ import type { GameMode, GameSummary, Square } from '@chess3d/shared';
 
 import { resolveApiUrl } from './apiUrl';
 import { ChessScene } from './board/ChessScene';
+import { requestJson as requestApi } from './request';
 
 const API_URL = resolveApiUrl(import.meta.env.VITE_API_URL, window.location);
 const PROMOTION_OPTIONS: PromotionPiece[] = ['q', 'r', 'b', 'n'];
@@ -62,17 +63,6 @@ interface LobbyGame extends GameSummary {
   isOwner: boolean;
 }
 
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-  });
-  const body = (await response.json().catch(() => ({}))) as { error?: string } & T;
-  if (!response.ok) throw new Error(body.error ?? 'Anfrage fehlgeschlagen');
-  return body;
-}
-
 function statusLabel(status: ReturnType<ChessGame['getStatus']>) {
   switch (status) {
     case 'check':
@@ -125,16 +115,16 @@ export function App() {
   const socketRef = useRef<Socket | null>(null);
 
   const refreshLobby = useCallback(async () => {
-    const response = await requestJson<{ games: LobbyGame[] }>('/lobby');
+    const response = await requestApi<{ games: LobbyGame[] }>(API_URL, '/lobby');
     setLobbyGames(response.games);
   }, []);
 
   const refreshFriends = useCallback(async () => {
-    setFriends(await requestJson<FriendsOverview>('/friends'));
+    setFriends(await requestApi<FriendsOverview>(API_URL, '/friends'));
   }, []);
 
   useEffect(() => {
-    requestJson<{ user: AuthUser }>('/auth/me')
+    requestApi<{ user: AuthUser }>(API_URL, '/auth/me')
       .then(({ user: authenticatedUser }) => setUser(authenticatedUser))
       .catch(() => undefined)
       .finally(() => setLoading(false));
@@ -203,7 +193,7 @@ export function App() {
     setError('');
     try {
       const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
-      const response = await requestJson<{ user: AuthUser }>(endpoint, {
+      const response = await requestApi<{ user: AuthUser }>(API_URL, endpoint, {
         method: 'POST',
         body: JSON.stringify(authForm),
       });
@@ -215,7 +205,7 @@ export function App() {
   }
 
   async function logout() {
-    await requestJson('/auth/logout', { method: 'POST' });
+    await requestApi(API_URL, '/auth/logout', { method: 'POST' });
     setUser(null);
     setSelectedGame(null);
     setView('lobby');
@@ -230,7 +220,7 @@ export function App() {
 
   async function createGame(mode: GameMode) {
     try {
-      const created = await requestJson<GameSummary>('/lobby/games', {
+      const created = await requestApi<GameSummary>(API_URL, '/lobby/games', {
         method: 'POST',
         body: JSON.stringify({ mode }),
       });
@@ -249,7 +239,7 @@ export function App() {
     }
 
     try {
-      const joined = await requestJson<GameSummary>(`/lobby/games/${code}/join`, {
+      const joined = await requestApi<GameSummary>(API_URL, `/lobby/games/${code}/join`, {
         method: 'POST',
       });
       openGame(joined);
@@ -262,7 +252,8 @@ export function App() {
   async function searchUsers(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
-      const response = await requestJson<{ users: SocialUser[] }>(
+      const response = await requestApi<{ users: SocialUser[] }>(
+        API_URL,
         `/users/search?q=${encodeURIComponent(searchQuery)}`,
       );
       setSearchResults(response.users);
@@ -273,7 +264,7 @@ export function App() {
 
   async function sendFriendRequest(username: string) {
     try {
-      await requestJson('/friends/requests', {
+      await requestApi(API_URL, '/friends/requests', {
         method: 'POST',
         body: JSON.stringify({ username }),
       });
@@ -285,7 +276,10 @@ export function App() {
 
   async function respondToRequest(id: string, action: 'accept' | 'reject') {
     try {
-      await requestJson(`/friends/requests/${id}/${action}`, { method: 'POST', body: '{}' });
+      await requestApi(API_URL, `/friends/requests/${id}/${action}`, {
+        method: 'POST',
+        body: '{}',
+      });
       await refreshFriends();
     } catch (reason) {
       setError(
