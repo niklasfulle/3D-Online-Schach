@@ -26,6 +26,7 @@ import {
   type NotificationProvider,
 } from './notifications/NotificationService.js';
 import { PrismaSocialProvider, SocialError, type SocialProvider } from './social/SocialService.js';
+import { ExpiredGamesWorker } from './workers/ExpiredGamesWorker.js';
 
 export function buildApp(
   gameManager = new GameManager(),
@@ -443,6 +444,11 @@ async function start() {
   const authProvider = new PrismaAuthProvider(prisma);
   const app = buildApp(gameManager, authProvider);
   const realtime = registerRealtime(app, gameManager, authProvider);
+  const expiredGamesWorker = new ExpiredGamesWorker(gameManager, {
+    onError: (error) => app.log.error(error, 'Expired game cleanup failed'),
+  });
+  app.addHook('onClose', async () => expiredGamesWorker.stop());
+  expiredGamesWorker.start();
   const port = Number(process.env.PORT ?? 3001);
   const host = process.env.HOST ?? '127.0.0.1';
 
@@ -450,6 +456,7 @@ async function start() {
     await app.listen({ host, port });
   } catch (error) {
     app.log.error(error);
+    expiredGamesWorker.stop();
     realtime.close();
     process.exit(1);
   }
