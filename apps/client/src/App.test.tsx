@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
 
 const mocks = vi.hoisted(() => {
   const socket = {
@@ -51,6 +52,7 @@ const waitingGame = {
 
 afterEach(() => {
   cleanup();
+  window.history.replaceState({}, '', '/');
   vi.clearAllMocks();
 });
 
@@ -188,5 +190,72 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Am Brett' })).toBeTruthy();
     expect(screen.getByText('ABC123')).toBeTruthy();
     expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
+  });
+
+  it('copies a shareable link for the active game', async () => {
+    const activeGame = {
+      ...waitingGame,
+      status: 'active' as const,
+      blackPlayerId: 'opponent-1',
+    };
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/lobby/games') return activeGame;
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
+    await screen.findByRole('heading', { name: 'Am Brett' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Link kopieren' }));
+
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/game/ABC123')),
+    );
+    expect(screen.getByRole('button', { name: 'Link kopiert' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/game/ABC123');
+  });
+
+  it('opens and joins a waiting game from its invitation path', async () => {
+    window.history.replaceState({}, '', '/game/ABC123');
+    const invitedGame = {
+      ...waitingGame,
+      whitePlayerId: 'owner-1',
+    };
+    const joinedGame = {
+      ...waitingGame,
+      status: 'active' as const,
+      blackPlayerId: user.id,
+    };
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/games/ABC123') return invitedGame;
+      if (path === '/lobby/games/ABC123/join') return joinedGame;
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Am Brett' })).toBeTruthy();
+    expect(
+      mocks.requestJson.mock.calls.filter(([, path]) => path === '/lobby/games/ABC123/join'),
+    ).toHaveLength(1);
   });
 });

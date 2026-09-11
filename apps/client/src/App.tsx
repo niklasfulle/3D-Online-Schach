@@ -146,6 +146,19 @@ function canSelectSquare(
   return ownColor === activeColor;
 }
 
+function invitationCodeFromPath(pathname: string): string | null {
+  const match = /^\/game\/([a-z0-9]+)\/?$/i.exec(pathname);
+  return match?.[1]?.toUpperCase() ?? null;
+}
+
+function gamePath(code: string): string {
+  return `/game/${encodeURIComponent(code)}`;
+}
+
+function setGamePath(code: string | null): void {
+  globalThis.history?.replaceState({}, '', code ? gamePath(code) : '/');
+}
+
 interface GameViewProps {
   user: AuthUser;
   selectedGame: GameSummary;
@@ -157,6 +170,8 @@ interface GameViewProps {
   gameStatus: string;
   setView: (view: AppView) => void;
   handleSelectSquare: (square: Square) => void;
+  onCopyLink: () => void;
+  linkCopied: boolean;
 }
 
 function GameView({
@@ -170,6 +185,8 @@ function GameView({
   gameStatus,
   setView,
   handleSelectSquare,
+  onCopyLink,
+  linkCopied,
 }: Readonly<GameViewProps>) {
   return (
     <section className="game-view">
@@ -195,6 +212,9 @@ function GameView({
             <span className="live-dot" /> {selectedGame.status === 'active' ? 'Live' : 'Wartet'}
           </span>
           <span className="game-code-label">{gameStatus}</span>
+          <button className="secondary-button" type="button" onClick={onCopyLink}>
+            {linkCopied ? 'Link kopiert' : 'Link kopieren'}
+          </button>
         </div>
       </div>
       <div className="game-layout">
@@ -330,7 +350,10 @@ export function App() {
   const [legalTargets, setLegalTargets] = useState<Square[]>([]);
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
   const [promotionMove, setPromotionMove] = useState<Move | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const invitationAttemptRef = useRef<string | null>(null);
+  const inviteCode = invitationCodeFromPath(globalThis.location?.pathname ?? '');
 
   const refreshLobby = useCallback(async () => {
     const response = await requestApi<{ games: LobbyGame[] }>(API_URL, '/lobby');
@@ -366,10 +389,12 @@ export function App() {
     socket.on('game:started', (nextGame: GameSummary) => {
       setSelectedGame(nextGame);
       setView('game');
+      setGamePath(nextGame.code);
       socket.emit('game:sync', { code: nextGame.code });
     });
     socket.on('move:accepted', (accepted: AcceptedMove) => {
       setSelectedGame(accepted.game);
+      setGamePath(accepted.game.code);
       const nextGame = new ChessGame(accepted.fen);
       setGame(nextGame);
       setGameState(nextGame.getState());
@@ -391,6 +416,35 @@ export function App() {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (!user || !inviteCode) return;
+    if (invitationAttemptRef.current === inviteCode) return;
+    invitationAttemptRef.current = inviteCode;
+
+    async function openInvitation() {
+      try {
+        const invitedGame = await requestApi<GameSummary>(API_URL, `/games/${inviteCode}`);
+        const isParticipant =
+          invitedGame.whitePlayerId === user.id || invitedGame.blackPlayerId === user.id;
+        const nextGame =
+          invitedGame.status === 'waiting' && !isParticipant
+            ? await requestApi<GameSummary>(API_URL, `/lobby/games/${inviteCode}/join`, {
+                method: 'POST',
+              })
+            : invitedGame;
+
+        if (!isParticipant && invitedGame.status !== 'waiting') {
+          throw new Error('Du bist nicht Teil dieser Partie');
+        }
+        openGame(nextGame);
+      } catch (error_) {
+        setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht geöffnet werden');
+      }
+    }
+
+    void openInvitation();
+  }, [inviteCode, user]);
+
   function applyGameSync(sync: GameSync) {
     const nextGame = new ChessGame(sync.fen);
     setSelectedGame(sync.game);
@@ -398,6 +452,8 @@ export function App() {
     setGameState(nextGame.getState());
     setMoveHistory(sync.moves);
     setView('game');
+    setLinkCopied(false);
+    setGamePath(sync.game.code);
     resetSelection();
   }
 
@@ -427,13 +483,29 @@ export function App() {
     setUser(null);
     setSelectedGame(null);
     setView('lobby');
+    setLinkCopied(false);
+    setGamePath(null);
   }
 
   function openGame(nextGame: GameSummary) {
     setError('');
     setSelectedGame(nextGame);
     setView('game');
+    setLinkCopied(false);
+    setGamePath(nextGame.code);
     socketRef.current?.emit('game:sync', { code: nextGame.code });
+  }
+
+  async function copyGameLink() {
+    if (!selectedGame) return;
+    try {
+      await navigator.clipboard.writeText(
+        `${globalThis.location.origin}${gamePath(selectedGame.code)}`,
+      );
+      setLinkCopied(true);
+    } catch {
+      setError('Der Partie-Link konnte nicht kopiert werden');
+    }
   }
 
   async function createGame(mode: GameMode) {
@@ -699,6 +771,8 @@ export function App() {
                   gameStatus={gameStatus}
                   setView={setView}
                   handleSelectSquare={handleSelectSquare}
+                  onCopyLink={() => void copyGameLink()}
+                  linkCopied={linkCopied}
                 />
               ) : null}
             </section>

@@ -150,4 +150,40 @@ test.describe('Authentifizierung', () => {
     expect(dashboardBounds.width).toBe(dashboardBounds.viewportWidth);
     expect(dashboardBounds.height).toBeGreaterThanOrEqual(dashboardBounds.viewportHeight);
   });
+
+  test('öffnet eine Partie über den Einladungslink und tritt ihr bei', async ({
+    page,
+    browser,
+  }) => {
+    const owner = createCredentials();
+    const invitee = createCredentials();
+
+    await openLogin(page);
+    await switchToRegistration(page);
+    await page.getByLabel('Benutzername').fill(owner.username);
+    await page.getByLabel('Passwort').fill(owner.password);
+    await page.getByRole('button', { name: 'Registrieren', exact: true }).click();
+    await expectAuthenticated(page, owner.username);
+    await page.getByRole('button', { name: /Casual-Spiel erstellen/ }).click();
+    await expect(page.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
+
+    const invitationUrl = page.url();
+    expect(invitationUrl).toMatch(/\/game\/[A-Z0-9]+$/);
+
+    const inviteePage = await browser.newPage();
+    try {
+      await openLogin(inviteePage);
+      await switchToRegistration(inviteePage);
+      await inviteePage.getByLabel('Benutzername').fill(invitee.username);
+      await inviteePage.getByLabel('Passwort').fill(invitee.password);
+      await inviteePage.getByRole('button', { name: 'Registrieren', exact: true }).click();
+      await expectAuthenticated(inviteePage, invitee.username);
+
+      await inviteePage.goto(invitationUrl);
+      await expect(inviteePage.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
+      await expect(inviteePage.getByText('Schwarz', { exact: true })).toBeVisible();
+    } finally {
+      await inviteePage.close();
+    }
+  });
 });
