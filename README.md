@@ -20,6 +20,25 @@ Der Multiplayer-MVP ist umgesetzt:
 
 PGN-Export und ladbare Spielhistorie sind bereits über die Server-API verfügbar.
 
+## Produktansichten
+
+Die wichtigsten Oberflächen im aktuellen Stand:
+
+<p>
+  <img src="docs/images/auth-login.png" alt="Anmeldemaske" width="49%">
+  <img src="docs/images/dashboard-lobby.png" alt="Lobby-Dashboard" width="49%">
+</p>
+<p>
+  <img src="docs/images/dashboard-friends.png" alt="Freundesliste" width="49%">
+  <img src="docs/images/game-screen.png" alt="3D-Spielansicht" width="49%">
+</p>
+
+Die Screenshots können mit laufendem Client, Server und PostgreSQL neu erzeugt werden:
+
+```bash
+pnpm docs:screenshots
+```
+
 ## Voraussetzungen
 
 - Node.js
