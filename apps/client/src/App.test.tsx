@@ -191,6 +191,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Am Brett' })).toBeTruthy();
     expect(screen.getByText('ABC123')).toBeTruthy();
+    expect(document.querySelector('.app-shell')?.className).toContain('game-mode');
     expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
 
     const gameUpdatedHandler = mocks.socket.on.mock.calls.find(

@@ -873,7 +873,7 @@ export function App() {
     const pageHeading = pageHeadingFor(view);
 
     return (
-      <main className="app-shell">
+      <main className={view === 'game' ? 'app-shell game-mode' : 'app-shell'}>
         <div className="dashboard-shell">
           <header className="topbar">
             <div className="brand-lockup">

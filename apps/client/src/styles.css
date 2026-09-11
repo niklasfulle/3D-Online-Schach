@@ -1672,3 +1672,76 @@ input:focus-visible {
     gap: 0.35rem;
   }
 }
+
+/* Give the board the available viewport when a game is open. */
+.game-mode .dashboard-grid {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: calc(100dvh - 78px);
+}
+
+.game-mode .sidebar,
+.game-mode .insights-panel {
+  display: none;
+}
+
+.game-mode .page-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.game-mode .dashboard-main {
+  min-height: calc(100dvh - 78px);
+  padding: clamp(0.5rem, 1vw, 1rem);
+}
+
+.game-mode .game-view {
+  min-height: calc(100dvh - 78px - 2rem);
+}
+
+.game-mode .game-view .game-layout {
+  height: calc(100dvh - 140px);
+  min-height: 0;
+  align-items: stretch;
+}
+
+.game-mode .game-view .scene-card {
+  height: 100%;
+  min-height: 0;
+}
+
+.game-mode .board-canvas {
+  width: min(100%, calc(100dvh - 190px));
+  height: auto;
+  align-self: center;
+  justify-self: center;
+}
+
+.game-mode .game-view .game-panel {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 760px) {
+  .game-mode .dashboard-main {
+    padding: 0.5rem;
+  }
+
+  .game-mode .game-view {
+    min-height: 0;
+  }
+
+  .game-mode .game-view .game-layout {
+    height: auto;
+  }
+
+  .game-mode .board-canvas {
+    width: min(100%, calc(100dvh - 190px));
+  }
+}

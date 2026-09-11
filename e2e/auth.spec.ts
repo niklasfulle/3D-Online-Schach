@@ -168,6 +168,15 @@ test.describe('Authentifizierung', () => {
     await page.getByRole('button', { name: /Casual-Spiel erstellen/ }).click();
     await expect(page.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
 
+    await page.setViewportSize({ width: 640, height: 800 });
+    const compactBoard = await page.locator('.board-canvas').evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return { width: bounds.width, viewportWidth: window.innerWidth };
+    });
+    expect(compactBoard.width).toBeGreaterThan(500);
+    expect(compactBoard.width).toBeLessThanOrEqual(compactBoard.viewportWidth);
+    await page.setViewportSize({ width: 1280, height: 720 });
+
     const invitationUrl = page.url();
     expect(invitationUrl).toMatch(/\/game\/[A-Z0-9]+$/);
 
@@ -252,6 +261,7 @@ test.describe('Authentifizierung', () => {
       await page.getByRole('button', { name: 'Lobby' }).click();
       await page.getByRole('button', { name: /Casual-Spiel erstellen/ }).click();
       await expect(page.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
+      await page.getByRole('button', { name: 'Zurück zur Lobby' }).first().click();
       await page.getByRole('button', { name: /Freunde/ }).click();
       await expect(page.getByText(invitee.username, { exact: true }).last()).toBeVisible();
       await page.getByRole('button', { name: 'Einladen' }).click();
