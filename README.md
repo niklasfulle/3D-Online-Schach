@@ -1,6 +1,10 @@
 # 3D Online-Schach
 
-Browserbasierte 3D-Schachplattform mit React, Three.js, Fastify, Socket.IO, PostgreSQL und Prisma.
+Browserbasierte 3D-Schachplattform mit React, Tailwind CSS v4, Three.js, Fastify, Socket.IO, PostgreSQL und Prisma.
+
+## Frontend-Styling
+
+Tailwind CSS v4 wird über das offizielle Vite-Plugin eingebunden. Die Design-Tokens liegen in `apps/client/src/styles.css`; bestehende Komponentenstyles werden während der schrittweisen Migration in einer Tailwind-Component-Layer gehalten. Neue UI-Komponenten verwenden Tailwind-Utilities direkt.
 
 ## Aktueller Stand
 
