@@ -28,6 +28,13 @@ import {
 import { PrismaSocialProvider, SocialError, type SocialProvider } from './social/SocialService.js';
 import { AdminError, PrismaAdminProvider, type AdminProvider } from './admin/AdminService.js';
 import { ExpiredGamesWorker } from './workers/ExpiredGamesWorker.js';
+import {
+  DEFAULT_HISTORY_LIMIT,
+  HistoryError,
+  MAX_HISTORY_LIMIT,
+  PrismaHistoryProvider,
+  type HistoryProvider,
+} from './history/HistoryService.js';
 
 export function buildApp(
   gameManager = new GameManager(),
@@ -36,6 +43,7 @@ export function buildApp(
   notificationProvider: NotificationProvider = new PrismaNotificationProvider(prisma),
   chatProvider: ChatProvider = new PrismaChatProvider(prisma),
   adminProvider: AdminProvider = new PrismaAdminProvider(prisma),
+  historyProvider: HistoryProvider = new PrismaHistoryProvider(prisma),
 ): FastifyInstance {
   const app = Fastify({ logger: true });
 
@@ -385,6 +393,35 @@ export function buildApp(
     }
   });
 
+  app.get<{ Querystring: { limit?: string; cursor?: string } }>(
+    '/games/history',
+    async (request, reply) => {
+      const user = await requireUser(request, reply, authProvider);
+      if (!user) return;
+
+      const limit = parseHistoryLimit(request.query.limit);
+      if (limit === undefined) {
+        return reply
+          .code(400)
+          .send({ error: `limit must be an integer between 1 and ${MAX_HISTORY_LIMIT}` });
+      }
+
+      try {
+        return reply.send(
+          await historyProvider.listForUser(user.id, {
+            limit,
+            cursor: request.query.cursor,
+          }),
+        );
+      } catch (error) {
+        if (error instanceof HistoryError) {
+          return reply.code(error.statusCode).send({ error: error.message });
+        }
+        return reply.code(503).send({ error: 'History service unavailable' });
+      }
+    },
+  );
+
   app.post<{ Params: { code: string }; Body: { playerId?: string } }>(
     '/games/:code/join',
     async (request, reply) => {
@@ -523,6 +560,12 @@ function sendSocialError(reply: FastifyReply, error: unknown) {
 
 function isGameMode(value: string): value is GameMode {
   return value === 'casual' || value === 'ranked';
+}
+
+function parseHistoryLimit(value: string | undefined): number | undefined {
+  if (value === undefined) return DEFAULT_HISTORY_LIMIT;
+  const limit = Number(value);
+  return Number.isInteger(limit) && limit >= 1 && limit <= MAX_HISTORY_LIMIT ? limit : undefined;
 }
 
 function toLobbyGame(

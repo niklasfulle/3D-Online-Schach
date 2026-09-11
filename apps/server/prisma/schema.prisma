@@ -72,6 +72,8 @@ model Game {
   chatMessages    ChatMessage[]
 
   @@index([status, expiresAt])
+  @@index([whitePlayerId, status, finishedAt, id])
+  @@index([blackPlayerId, status, finishedAt, id])
 }
 
 model FriendRequest {

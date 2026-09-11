@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthError, type AuthProvider, type AuthResult } from './auth/AuthService.js';
 import type { AdminProvider } from './admin/AdminService.js';
 import { GameManager, type GamePersistence } from './game/GameManager.js';
+import type { HistoryPage, HistoryProvider } from './history/HistoryService.js';
 import { buildApp } from './index.js';
 import type { NotificationProvider } from './notifications/NotificationService.js';
 import {
@@ -86,6 +87,57 @@ describe('server HTTP routes', () => {
       ).statusCode,
     ).toBe(200);
     expect(authProvider.logout).toHaveBeenCalledWith(undefined);
+  });
+
+  it('protects and paginates the personal game history route', async () => {
+    const historyPage: HistoryPage = {
+      games: [
+        {
+          id: 'game-1',
+          code: 'ABC123',
+          mode: 'ranked',
+          result: 'white',
+          createdAt: '2026-09-11T09:00:00.000Z',
+          finishedAt: '2026-09-11T12:00:00.000Z',
+          whitePlayer: { id: user.id, username: user.username },
+          blackPlayer: { id: bob.id, username: bob.username },
+          moves: [],
+        },
+      ],
+      nextCursor: 'next-page',
+    };
+    const historyProvider: HistoryProvider = {
+      listForUser: vi.fn(async () => historyPage),
+    };
+    const authProvider = createAuthProvider(undefined);
+    app = buildApp(
+      new GameManager(),
+      authProvider,
+      createSocialProvider(),
+      createNotificationProvider(),
+      undefined,
+      undefined,
+      historyProvider,
+    );
+
+    expect((await app.inject({ method: 'GET', url: '/games/history' })).statusCode).toBe(401);
+
+    authProvider.authenticate = vi.fn(async () => user);
+    const response = await app.inject({
+      method: 'GET',
+      url: '/games/history?limit=1&cursor=next-page',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(historyPage);
+    expect(historyProvider.listForUser).toHaveBeenCalledWith(user.id, {
+      limit: 1,
+      cursor: 'next-page',
+    });
+
+    expect((await app.inject({ method: 'GET', url: '/games/history?limit=0' })).statusCode).toBe(
+      400,
+    );
   });
 
   it('protects admin user management and prevents self-demotion', async () => {
