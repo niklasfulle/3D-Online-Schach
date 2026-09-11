@@ -77,17 +77,18 @@ describe('App', () => {
     render(<App />);
     await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
 
-    const themeSelect = screen.getByRole('combobox', { name: 'Darstellung' });
-    fireEvent.change(themeSelect, { target: { value: 'light' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Darstellung' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hell' }));
     expect(localStorage.getItem('chess3d.theme')).toBe('light');
     expect(document.documentElement.dataset.theme).toBe('light');
 
-    const languageSelect = screen.getByRole('combobox', { name: 'Sprache' });
-    fireEvent.change(languageSelect, { target: { value: 'en' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sprache' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Englisch' }));
 
     expect(localStorage.getItem('chess3d.language')).toBe('en');
-    expect(screen.getByRole('combobox', { name: 'Language' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'English' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Language' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Language' }));
+    expect(screen.getByRole('menuitem', { name: 'English' })).toBeTruthy();
     expect(await screen.findByRole('heading', { name: 'Ready for your next move?' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Public lobby' })).toBeTruthy();
     expect(screen.getByText('Find your next game.')).toBeTruthy();

@@ -127,9 +127,11 @@ test.describe('Authentifizierung', () => {
     const credentials = createCredentials();
 
     await openLogin(page);
-    await page.getByRole('combobox', { name: 'Darstellung' }).selectOption('light');
+    await page.getByRole('button', { name: 'Darstellung' }).click();
+    await page.getByRole('menuitem', { name: 'Hell' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    await page.getByRole('combobox', { name: 'Sprache' }).selectOption('en');
+    await page.getByRole('button', { name: 'Sprache' }).click();
+    await page.getByRole('menuitem', { name: 'Englisch' }).click();
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'No account yet? Register' })).toBeVisible();
 
@@ -141,12 +143,12 @@ test.describe('Authentifizierung', () => {
 
     await expect(page.getByRole('heading', { name: 'Ready for your next move?' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Public lobby' })).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
-    await expect(page.getByRole('combobox', { name: 'Theme' })).toHaveValue('light');
+    await expect(page.getByRole('button', { name: 'Language' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Theme' })).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Ready for your next move?' })).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
+    await expect(page.getByRole('button', { name: 'Language' })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   });
 

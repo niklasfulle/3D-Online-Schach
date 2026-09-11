@@ -156,6 +156,116 @@ function gameStatusLabel(status: GameSummary['status'], t: Translator) {
   return t('status.finished');
 }
 
+function LanguageMenu({
+  language,
+  onChange,
+  t,
+}: Readonly<{
+  language: Language;
+  onChange: (language: Language) => void;
+  t: Translator;
+}>) {
+  const [open, setOpen] = useState(false);
+
+  function selectLanguage(nextLanguage: Language) {
+    onChange(nextLanguage);
+    setOpen(false);
+  }
+
+  return (
+    <div className="icon-menu">
+      <button
+        className="icon-menu-trigger"
+        type="button"
+        aria-label={t('language.label')}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        title={t('language.label')}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span aria-hidden="true">🌐</span>
+      </button>
+      {open ? (
+        <div className="icon-menu-panel" role="menu" aria-label={t('language.label')}>
+          <button
+            className={language === 'de' ? 'icon-menu-option active' : 'icon-menu-option'}
+            type="button"
+            role="menuitem"
+            aria-pressed={language === 'de'}
+            onClick={() => selectLanguage('de')}
+          >
+            {t('language.de')}
+          </button>
+          <button
+            className={language === 'en' ? 'icon-menu-option active' : 'icon-menu-option'}
+            type="button"
+            role="menuitem"
+            aria-pressed={language === 'en'}
+            onClick={() => selectLanguage('en')}
+          >
+            {t('language.en')}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ThemeMenu({
+  theme,
+  onChange,
+  t,
+}: Readonly<{
+  theme: Theme;
+  onChange: (theme: Theme) => void;
+  t: Translator;
+}>) {
+  const [open, setOpen] = useState(false);
+
+  function selectTheme(nextTheme: Theme) {
+    onChange(nextTheme);
+    setOpen(false);
+  }
+
+  return (
+    <div className="icon-menu">
+      <button
+        className="icon-menu-trigger"
+        type="button"
+        aria-label={t('theme.label')}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        title={t('theme.label')}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
+      </button>
+      {open ? (
+        <div className="icon-menu-panel" role="menu" aria-label={t('theme.label')}>
+          <button
+            className={theme === 'dark' ? 'icon-menu-option active' : 'icon-menu-option'}
+            type="button"
+            role="menuitem"
+            aria-pressed={theme === 'dark'}
+            onClick={() => selectTheme('dark')}
+          >
+            {t('theme.dark')}
+          </button>
+          <button
+            className={theme === 'light' ? 'icon-menu-option active' : 'icon-menu-option'}
+            type="button"
+            role="menuitem"
+            aria-pressed={theme === 'light'}
+            onClick={() => selectTheme('light')}
+          >
+            {t('theme.light')}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function formatClock(milliseconds: number) {
   const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -1154,28 +1264,8 @@ export function App() {
               </div>
             </div>
             <div className="header-actions">
-              <label className="theme-switcher">
-                <span className="sr-only">{t('theme.label')}</span>
-                <select
-                  aria-label={t('theme.label')}
-                  value={theme}
-                  onChange={(event) => setTheme(event.target.value as Theme)}
-                >
-                  <option value="dark">{t('theme.dark')}</option>
-                  <option value="light">{t('theme.light')}</option>
-                </select>
-              </label>
-              <label className="language-switcher">
-                <span className="sr-only">{t('language.label')}</span>
-                <select
-                  aria-label={t('language.label')}
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value as Language)}
-                >
-                  <option value="de">{t('language.de')}</option>
-                  <option value="en">{t('language.en')}</option>
-                </select>
-              </label>
+              <ThemeMenu theme={theme} onChange={setTheme} t={t} />
+              <LanguageMenu language={language} onChange={setLanguage} t={t} />
               <span className="live-chip">
                 <span className="live-dot" /> {t('header.online')}
               </span>
@@ -1525,28 +1615,10 @@ function AuthScreen({
 }>) {
   return (
     <main className="auth-shell" data-theme={theme}>
-      <label className="language-switcher auth-language-switcher">
-        <span className="sr-only">{t('language.label')}</span>
-        <select
-          aria-label={t('language.label')}
-          value={language}
-          onChange={(event) => onLanguageChange(event.target.value as Language)}
-        >
-          <option value="de">{t('language.de')}</option>
-          <option value="en">{t('language.en')}</option>
-        </select>
-      </label>
-      <label className="theme-switcher auth-theme-switcher">
-        <span className="sr-only">{t('theme.label')}</span>
-        <select
-          aria-label={t('theme.label')}
-          value={theme}
-          onChange={(event) => onThemeChange(event.target.value as Theme)}
-        >
-          <option value="dark">{t('theme.dark')}</option>
-          <option value="light">{t('theme.light')}</option>
-        </select>
-      </label>
+      <div className="auth-icon-menus">
+        <ThemeMenu theme={theme} onChange={onThemeChange} t={t} />
+        <LanguageMenu language={language} onChange={onLanguageChange} t={t} />
+      </div>
       <section className="auth-card">
         <p className="eyebrow">3D ONLINE-SCHACH</p>
         <h1>{authMode === 'login' ? t('auth.welcome') : t('auth.createAccount')}</h1>

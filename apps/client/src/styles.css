@@ -264,6 +264,7 @@ h1 {
 
 .centered-message,
 .auth-shell {
+  position: relative;
   display: grid;
   min-height: 100vh;
   place-items: center;
@@ -823,38 +824,71 @@ input:focus-visible {
   font-weight: 600;
 }
 
-.language-switcher select {
-  min-width: 7.2rem;
-  border: 1px solid #385170;
-  border-radius: 0.5rem;
-  padding: 0.45rem 0.6rem;
-  background: #17243a;
-  color: #d8e7ff;
-  cursor: pointer;
-  font-size: 0.78rem;
+.icon-menu {
+  position: relative;
 }
 
-.theme-switcher select {
-  min-width: 6.3rem;
+.icon-menu-trigger {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
   border: 1px solid var(--border-strong);
-  border-radius: 0.5rem;
-  padding: 0.45rem 0.6rem;
+  border-radius: 0.7rem;
   background: var(--surface-muted);
   color: var(--accent-soft);
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 1.05rem;
 }
 
-.auth-language-switcher {
+.icon-menu-trigger:hover,
+.icon-menu-trigger[aria-expanded='true'] {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.icon-menu-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  display: grid;
+  min-width: 8rem;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  box-shadow: 0 16px 35px rgb(0 0 0 / 22%);
+}
+
+.icon-menu-option {
+  border: 0;
+  border-radius: 0.45rem;
+  padding: 0.5rem 0.65rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.icon-menu-option:hover,
+.icon-menu-option.active {
+  background: var(--surface-muted);
+  color: var(--text-strong);
+}
+
+.auth-icon-menus {
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
 }
 
-.auth-theme-switcher {
-  position: absolute;
-  top: 1.5rem;
-  left: 1.5rem;
+.auth-icon-menus .icon-menu-panel {
+  right: auto;
+  left: 0;
 }
 
 .avatar,
@@ -1512,11 +1546,21 @@ input:focus-visible {
 }
 
 :root[data-theme='light'] input,
-:root[data-theme='light'] .language-switcher select,
-:root[data-theme='light'] .theme-switcher select {
+:root[data-theme='light'] .icon-menu-trigger,
+:root[data-theme='light'] .icon-menu-panel {
   border-color: var(--border-strong);
   background: #fff;
   color: var(--text);
+}
+
+:root[data-theme='light'] .icon-menu-option {
+  color: var(--text-muted);
+}
+
+:root[data-theme='light'] .icon-menu-option:hover,
+:root[data-theme='light'] .icon-menu-option.active {
+  background: #dceaf8;
+  color: var(--text-strong);
 }
 
 :root[data-theme='light'] .secondary-button,
