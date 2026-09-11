@@ -181,6 +181,9 @@ export type TranslationKey =
   | 'lobby.emptyDescription'
   | 'lobby.open'
   | 'lobby.join'
+  | 'lobby.unavailableTitle'
+  | 'lobby.unavailableDescription'
+  | 'lobby.closeNotice'
   | 'lobby.delete'
   | 'lobby.deleteGame'
   | 'lobby.deleteSuffix'
@@ -427,6 +430,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'lobby.emptyDescription': 'Eröffne ein Spiel und lade andere Spieler ein.',
     'lobby.open': 'Öffnen',
     'lobby.join': 'Beitreten',
+    'lobby.unavailableTitle': 'Lobby nicht verfügbar',
+    'lobby.unavailableDescription': 'Die Lobby mit dem Code {code} ist nicht mehr verfügbar.',
+    'lobby.closeNotice': 'Hinweis schließen',
     'lobby.delete': 'Löschen',
     'lobby.deleteGame': 'Partie',
     'lobby.deleteSuffix': 'löschen',
@@ -669,6 +675,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'lobby.emptyDescription': 'Open a game and invite other players.',
     'lobby.open': 'Open',
     'lobby.join': 'Join',
+    'lobby.unavailableTitle': 'Lobby unavailable',
+    'lobby.unavailableDescription': 'The lobby with code {code} is no longer available.',
+    'lobby.closeNotice': 'Close notice',
     'lobby.delete': 'Delete',
     'lobby.deleteGame': 'Game',
     'lobby.deleteSuffix': 'delete',

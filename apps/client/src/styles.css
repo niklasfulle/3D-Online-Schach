@@ -445,6 +445,43 @@ button {
   cursor: pointer;
 }
 
+.lobby-unavailable-popover {
+  position: fixed;
+  z-index: 20;
+  top: 5.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  width: min(24rem, calc(100vw - 2rem));
+  padding: 1rem 1.1rem;
+  border: 1px solid #8e4654;
+  border-radius: 0.85rem;
+  background: #3d202b;
+  box-shadow: 0 18px 45px rgb(0 0 0 / 24%);
+  color: #ffdce3;
+}
+
+.lobby-unavailable-popover strong {
+  display: block;
+  color: #ffd8dd;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.lobby-unavailable-popover p {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.lobby-unavailable-popover .quiet-button {
+  flex: 0 0 auto;
+  padding: 0.1rem 0.25rem;
+  color: inherit;
+}
+
 .section-heading {
   display: flex;
   align-items: flex-start;
@@ -1817,6 +1854,13 @@ input:focus-visible {
     justify-content: flex-start;
     gap: 0.7rem;
   }
+
+  .lobby-unavailable-popover {
+    top: 1rem;
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+  }
 }
 
 /* Light theme surface overrides. The board keeps its dedicated 3D palette. */
@@ -1947,6 +1991,16 @@ input:focus-visible {
   border-color: #d38a96;
   background: #fff0f2;
   color: #8b3043;
+}
+
+:root[data-theme='light'] .lobby-unavailable-popover {
+  border-color: #d38a96;
+  background: #fff0f2;
+  color: #8b3043;
+}
+
+:root[data-theme='light'] .lobby-unavailable-popover strong {
+  color: #6f2334;
 }
 
 :root[data-theme='light'] .game-view .scene-card {

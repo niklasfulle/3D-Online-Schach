@@ -629,6 +629,28 @@ describe('App', () => {
     ).toHaveLength(1);
   });
 
+  it('redirects unavailable game links to the lobby and shows a code popover', async () => {
+    window.history.replaceState({}, '', '/game/EXPIRED1');
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/games/EXPIRED1') throw new Error('Request failed with status 404');
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    expect(window.location.pathname).toBe('/');
+    expect(await screen.findByRole('dialog', { name: 'Lobby nicht verfügbar' })).toBeTruthy();
+    expect(screen.getByText(/EXPIRED1/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hinweis schließen' }));
+    expect(screen.queryByRole('dialog', { name: 'Lobby nicht verfügbar' })).toBeNull();
+  });
+
   it('shows notifications and links a game invitation to the game', async () => {
     const notification = {
       id: 'notification-1',

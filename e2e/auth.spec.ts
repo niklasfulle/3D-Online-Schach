@@ -273,6 +273,26 @@ test.describe('Authentifizierung', () => {
     }
   });
 
+  test('leitet einen nicht mehr verfügbaren Partielink zur Lobby zurück', async ({
+    page,
+    request,
+  }) => {
+    const credentials = createCredentials();
+    await registerUser(request, credentials);
+
+    await openLogin(page);
+    await page.getByLabel('Benutzername').fill(credentials.username);
+    await page.getByLabel('Passwort').fill(credentials.password);
+    await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+    await expectAuthenticated(page, credentials.username);
+
+    await page.goto('/game/EXPIRED1');
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('dialog', { name: 'Lobby nicht verfügbar' })).toBeVisible();
+    await expect(page.locator('.lobby-unavailable-popover')).toContainText('EXPIRED1');
+  });
+
   test('liefert Freundschafts- und Spieleinladungen als Benachrichtigungen', async ({
     page,
     browser,

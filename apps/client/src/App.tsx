@@ -813,6 +813,7 @@ export function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const [unavailableLobbyCode, setUnavailableLobbyCode] = useState<string | null>(null);
   const [view, setView] = useState<AppView>('lobby');
   const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
   const [historyGames, setHistoryGames] = useState<HistoryGame[]>([]);
@@ -996,18 +997,19 @@ export function App() {
   useEffect(() => {
     if (!user || !inviteCode) return;
     const currentUser = user;
+    const requestedInviteCode = inviteCode;
     if (invitationAttemptRef.current === inviteCode) return;
     invitationAttemptRef.current = inviteCode;
 
     async function openInvitation() {
       try {
-        const invitedGame = await requestApi<GameSummary>(API_URL, `/games/${inviteCode}`);
+        const invitedGame = await requestApi<GameSummary>(API_URL, `/games/${requestedInviteCode}`);
         const isParticipant =
           invitedGame.whitePlayerId === currentUser.id ||
           invitedGame.blackPlayerId === currentUser.id;
         const nextGame =
           invitedGame.status === 'waiting' && !isParticipant
-            ? await requestApi<GameSummary>(API_URL, `/lobby/games/${inviteCode}/join`, {
+            ? await requestApi<GameSummary>(API_URL, `/lobby/games/${requestedInviteCode}/join`, {
                 method: 'POST',
               })
             : invitedGame;
@@ -1017,7 +1019,7 @@ export function App() {
         }
         openGame(nextGame);
       } catch (error_) {
-        setError(error_ instanceof Error ? error_.message : t('error.gameOpen'));
+        handleUnavailableLobby(requestedInviteCode);
       }
     }
 
@@ -1091,6 +1093,8 @@ export function App() {
 
   function openGame(nextGame: GameSummary) {
     setError('');
+    setUnavailableLobbyCode(null);
+    invitationAttemptRef.current = nextGame.code;
     setSelectedGame(nextGame);
     selectedGameCodeRef.current = nextGame.code;
     setSpectatorMode(false);
@@ -1101,6 +1105,18 @@ export function App() {
     setChatDraft('');
     void refreshChat(nextGame.code).catch(() => undefined);
     socketRef.current?.emit('game:sync', { code: nextGame.code });
+  }
+
+  function handleUnavailableLobby(code: string) {
+    setSelectedGame(null);
+    selectedGameCodeRef.current = null;
+    setSpectatorMode(false);
+    setView('lobby');
+    setChatMessages([]);
+    setChatDraft('');
+    setUnavailableLobbyCode(code);
+    setError('');
+    setGamePath(null);
   }
 
   function openSpectatorGame(sync: GameSync) {
@@ -1657,6 +1673,13 @@ export function App() {
               </div>
             </aside>
             <section className="dashboard-main">
+              {unavailableLobbyCode ? (
+                <LobbyUnavailablePopover
+                  code={unavailableLobbyCode}
+                  onClose={() => setUnavailableLobbyCode(null)}
+                  t={t}
+                />
+              ) : null}
               {error ? (
                 <div className="error-banner" role="alert" aria-live="polite">
                   <span>
@@ -1859,6 +1882,33 @@ function AppFooter({ t }: Readonly<{ t: Translator }>) {
         <a href="/impressum">{t('footer.imprint')}</a>
       </nav>
     </footer>
+  );
+}
+
+function LobbyUnavailablePopover({
+  code,
+  onClose,
+  t,
+}: Readonly<{ code: string; onClose: () => void; t: Translator }>) {
+  return (
+    <div
+      className="lobby-unavailable-popover"
+      role="dialog"
+      aria-label={t('lobby.unavailableTitle')}
+    >
+      <div>
+        <strong>{t('lobby.unavailableTitle')}</strong>
+        <p>{t('lobby.unavailableDescription').replace('{code}', code)}</p>
+      </div>
+      <button
+        aria-label={t('lobby.closeNotice')}
+        className="quiet-button"
+        type="button"
+        onClick={onClose}
+      >
+        ×
+      </button>
+    </div>
   );
 }
 
