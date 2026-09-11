@@ -109,8 +109,20 @@ Die Kamerabewegung ist auf einen Bereich rund um das Schachbrett begrenzt.
 ```bash
 pnpm typecheck
 pnpm test
+pnpm coverage
 pnpm lint
 pnpm build
+```
+
+`pnpm coverage` erzeugt für Client, Server und Packages jeweils `coverage/lcov.info`.
+Die SonarQube-Konfiguration liest diese Reports automatisch ein. Die WebGL-Renderfläche
+(`ChessScene.tsx`) und der reine Vite-Einstieg (`main.tsx`) sind als Browser-/Rendering-
+Integrationsgrenzen aus der Coverage-Kennzahl ausgenommen; die fachliche Client-Logik
+bleibt testpflichtig. Für eine Analyse mit Quality Gate wird ein gültiger `SONAR_TOKEN`
+benötigt:
+
+```powershell
+.\sonar.ps1 -SonarHostUrl "http://sonarqube:9000" -Token $env:SONAR_TOKEN -ProjectKey "3D-Online-Schach"
 ```
 
 ## Projektstruktur

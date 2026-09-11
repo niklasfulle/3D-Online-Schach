@@ -10,13 +10,7 @@ export class PrismaGamePersistence implements GamePersistence {
   async saveGame(summary: GameSummary, fen: string): Promise<void> {
     const whitePlayerId = await this.ensureUser(summary.whitePlayerId);
     const blackPlayerId = await this.ensureUser(summary.blackPlayerId);
-    const winnerId = await this.ensureUser(
-      summary.result === 'white'
-        ? summary.whitePlayerId
-        : summary.result === 'black'
-          ? summary.blackPlayerId
-          : undefined,
-    );
+    const winnerId = await this.ensureUser(winnerPlayerId(summary));
 
     await this.client.game.upsert({
       where: { id: summary.id },
@@ -149,6 +143,12 @@ export class PrismaGamePersistence implements GamePersistence {
     });
     return user.id;
   }
+}
+
+function winnerPlayerId(summary: GameSummary): string | undefined {
+  if (summary.result === 'white') return summary.whitePlayerId;
+  if (summary.result === 'black') return summary.blackPlayerId;
+  return undefined;
 }
 
 function toGameStatus(status: string): GameStatus {

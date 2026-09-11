@@ -167,13 +167,7 @@ export class GameManager {
 
     const playedMove = game.chess.move(move);
     const nextState = game.chess.getState();
-    const result = game.chess.isGameOver()
-      ? nextState.status === 'checkmate'
-        ? nextState.activeColor === 'white'
-          ? 'black'
-          : 'white'
-        : 'draw'
-      : undefined;
+    const result = moveResult(game.chess.isGameOver(), nextState.status, nextState.activeColor);
     const movedRemainingMs = remainingMs + game.summary.timeControl.incrementMs;
     const nextTurnStartedAt = game.chess.isGameOver() ? undefined : this.now();
 
@@ -332,4 +326,14 @@ export class GameManager {
       () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)],
     ).join('');
   }
+}
+
+function moveResult(
+  isGameOver: boolean,
+  status: ReturnType<ChessGame['getState']>['status'],
+  activeColor: ReturnType<ChessGame['getState']>['activeColor'],
+): AcceptedMove['result'] {
+  if (!isGameOver) return undefined;
+  if (status !== 'checkmate') return 'draw';
+  return activeColor === 'white' ? 'black' : 'white';
 }

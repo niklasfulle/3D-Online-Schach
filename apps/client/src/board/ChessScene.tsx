@@ -73,11 +73,7 @@ const SquareTile = memo(function SquareTile({
   return (
     <mesh position={[x, 0.08, z]} onClick={handleClick} receiveShadow>
       <boxGeometry args={[0.98, 0.16, 0.98]} />
-      <meshStandardMaterial
-        color={
-          selected ? SELECTED_TILE : highlighted ? '#7cbf75' : isLight ? LIGHT_TILE : DARK_TILE
-        }
-      />
+      <meshStandardMaterial color={tileColor(selected, highlighted, isLight)} />
     </mesh>
   );
 });
@@ -136,12 +132,18 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-export interface ChessSceneProps {
+export type ChessSceneProps = Readonly<{
   fen: string;
   highlightedSquares: readonly Square[];
   lastMove?: Move;
   selectedSquare: Square | null;
   onSelectSquare: (square: Square) => void;
+}>;
+
+function tileColor(selected: boolean, highlighted: boolean, isLight: boolean): string {
+  if (selected) return SELECTED_TILE;
+  if (highlighted) return '#7cbf75';
+  return isLight ? LIGHT_TILE : DARK_TILE;
 }
 
 export function ChessScene({

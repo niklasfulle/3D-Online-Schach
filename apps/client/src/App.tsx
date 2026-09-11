@@ -9,7 +9,7 @@ import { resolveApiUrl } from './apiUrl';
 import { ChessScene } from './board/ChessScene';
 import { requestJson as requestApi } from './request';
 
-const API_URL = resolveApiUrl(import.meta.env.VITE_API_URL, window.location);
+const API_URL = resolveApiUrl(import.meta.env.VITE_API_URL, globalThis.location);
 const PROMOTION_OPTIONS: PromotionPiece[] = ['q', 'r', 'b', 'n'];
 const PROMOTION_LABELS: Record<PromotionPiece, string> = {
   q: 'Dame',
@@ -132,11 +132,11 @@ export function App() {
 
   useEffect(() => {
     if (!user) return;
-    void refreshLobby().catch((reason: unknown) =>
-      setError(reason instanceof Error ? reason.message : 'Lobby konnte nicht geladen werden'),
+    void refreshLobby().catch((error_: unknown) =>
+      setError(error_ instanceof Error ? error_.message : 'Lobby konnte nicht geladen werden'),
     );
-    void refreshFriends().catch((reason: unknown) =>
-      setError(reason instanceof Error ? reason.message : 'Freunde konnten nicht geladen werden'),
+    void refreshFriends().catch((error_: unknown) =>
+      setError(error_ instanceof Error ? error_.message : 'Freunde konnten nicht geladen werden'),
     );
   }, [refreshFriends, refreshLobby, user]);
 
@@ -188,7 +188,7 @@ export function App() {
     setLegalTargets([]);
   }
 
-  async function submitAuth(event: React.FormEvent<HTMLFormElement>) {
+  async function submitAuth(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     try {
@@ -199,8 +199,8 @@ export function App() {
       });
       setUser(response.user);
       setAuthForm({ username: '', email: '', password: '' });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Authentifizierung fehlgeschlagen');
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : 'Authentifizierung fehlgeschlagen');
     }
   }
 
@@ -226,8 +226,8 @@ export function App() {
       });
       openGame(created);
       await refreshLobby();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Partie konnte nicht erstellt werden');
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht erstellt werden');
     }
   }
 
@@ -244,12 +244,12 @@ export function App() {
       });
       openGame(joined);
       await refreshLobby();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Partie konnte nicht beigetreten werden');
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht beigetreten werden');
     }
   }
 
-  async function searchUsers(event: React.FormEvent<HTMLFormElement>) {
+  async function searchUsers(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       const response = await requestApi<{ users: SocialUser[] }>(
@@ -257,8 +257,8 @@ export function App() {
         `/users/search?q=${encodeURIComponent(searchQuery)}`,
       );
       setSearchResults(response.users);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Benutzersuche fehlgeschlagen');
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : 'Benutzersuche fehlgeschlagen');
     }
   }
 
@@ -269,8 +269,8 @@ export function App() {
         body: JSON.stringify({ username }),
       });
       await refreshFriends();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Freundschaftsanfrage fehlgeschlagen');
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : 'Freundschaftsanfrage fehlgeschlagen');
     }
   }
 
@@ -281,9 +281,9 @@ export function App() {
         body: '{}',
       });
       await refreshFriends();
-    } catch (reason) {
+    } catch (error_) {
       setError(
-        reason instanceof Error ? reason.message : 'Anfrage konnte nicht verarbeitet werden',
+        error_ instanceof Error ? error_.message : 'Anfrage konnte nicht verarbeitet werden',
       );
     }
   }
@@ -305,12 +305,9 @@ export function App() {
   function handleSelectSquare(square: Square) {
     if (promotionMove || (selectedGame && selectedGame.status !== 'active')) return;
     if (selectedGame && user) {
-      const ownColor =
-        selectedGame.whitePlayerId === user.id
-          ? 'white'
-          : selectedGame.blackPlayerId === user.id
-            ? 'black'
-            : null;
+      let ownColor: 'white' | 'black' | null = null;
+      if (selectedGame.whitePlayerId === user.id) ownColor = 'white';
+      else if (selectedGame.blackPlayerId === user.id) ownColor = 'black';
       if (ownColor !== gameState.activeColor) return;
     }
 
@@ -683,7 +680,7 @@ export function App() {
         </div>
       </div>
       {promotionMove ? (
-        <div className="promotion-dialog" role="dialog" aria-label="Bauernumwandlung">
+        <dialog open className="promotion-dialog" aria-label="Bauernumwandlung">
           <strong>Umwandeln zu</strong>
           <div className="promotion-actions">
             {PROMOTION_OPTIONS.map((promotion) => (
@@ -696,7 +693,7 @@ export function App() {
               </button>
             ))}
           </div>
-        </div>
+        </dialog>
       ) : null}
     </main>
   );
@@ -709,14 +706,14 @@ function AuthScreen({
   setForm,
   error,
   onSubmit,
-}: {
+}: Readonly<{
   authMode: 'login' | 'register';
   setAuthMode: (mode: 'login' | 'register') => void;
   form: { username: string; email: string; password: string };
   setForm: (form: { username: string; email: string; password: string }) => void;
   error: string;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-}) {
+  onSubmit: (event: React.SyntheticEvent<HTMLFormElement>) => void;
+}>) {
   return (
     <main className="auth-shell">
       <section className="auth-card">
@@ -730,7 +727,7 @@ function AuthScreen({
         ) : null}
         <form className="auth-form" onSubmit={onSubmit}>
           <label>
-            Benutzername
+            <span>Benutzername</span>
             <input
               autoComplete="username"
               name="username"
@@ -754,7 +751,7 @@ function AuthScreen({
             </label>
           ) : null}
           <label>
-            Passwort
+            <span>Passwort</span>
             <input
               autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
               name="password"
@@ -786,12 +783,12 @@ function LobbyView({
   onRefresh,
   onCreate,
   onJoin,
-}: {
+}: Readonly<{
   games: LobbyGame[];
   onRefresh: () => void;
   onCreate: (mode: GameMode) => void;
   onJoin: (code: string) => void;
-}) {
+}>) {
   return (
     <div className="lobby-content">
       <section className="welcome-card">
@@ -898,15 +895,15 @@ function FriendsView({
   onSearch,
   onAdd,
   onRespond,
-}: {
+}: Readonly<{
   friends: FriendsOverview | null;
   searchQuery: string;
   setSearchQuery: (value: string) => void;
   searchResults: SocialUser[];
-  onSearch: (event: React.FormEvent<HTMLFormElement>) => void;
+  onSearch: (event: React.SyntheticEvent<HTMLFormElement>) => void;
   onAdd: (username: string) => void;
   onRespond: (id: string, action: 'accept' | 'reject') => void;
-}) {
+}>) {
   return (
     <section className="social-grid">
       <div className="content-card">

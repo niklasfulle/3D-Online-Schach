@@ -151,7 +151,7 @@ export class PrismaSocialProvider implements SocialProvider {
     const updated = await this.client.friendRequest.update({
       where: { id: request.id },
       data: {
-        status: action === 'accept' ? 'accepted' : action === 'reject' ? 'rejected' : 'cancelled',
+        status: requestStatusForAction(action),
         respondedAt: this.now(),
       },
       include: { receiver: true, sender: true },
@@ -186,6 +186,12 @@ export class PrismaSocialProvider implements SocialProvider {
       receiver: this.toUser(request.receiver),
     };
   }
+}
+
+function requestStatusForAction(action: 'accept' | 'reject' | 'cancel'): string {
+  if (action === 'accept') return 'accepted';
+  if (action === 'reject') return 'rejected';
+  return 'cancelled';
 }
 
 function toRequestStatus(status: string): FriendRequestView['status'] {

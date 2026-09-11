@@ -50,7 +50,7 @@ export function registerRealtime(
       try {
         const game = gameManager.createGame(playerId);
         await gameManager.flushPersistence();
-        void socket.join(game.code);
+        await socket.join(game.code);
         socket.emit('game:created', game);
       } catch (error) {
         socket.emit('game:error', {
@@ -68,7 +68,7 @@ export function registerRealtime(
       try {
         const game = gameManager.joinGame(payload.code, playerId);
         await gameManager.flushPersistence();
-        void socket.join(game.code);
+        await socket.join(game.code);
         io.to(game.code).emit('game:started', game);
       } catch (error) {
         socket.emit('game:error', {
@@ -86,7 +86,7 @@ export function registerRealtime(
       try {
         const sync = gameManager.getGameSync(payload.code, playerId);
         await gameManager.flushPersistence();
-        void socket.join(payload.code.toUpperCase());
+        await socket.join(payload.code.toUpperCase());
         socket.emit('game:state', sync);
       } catch (error) {
         socket.emit('game:error', {

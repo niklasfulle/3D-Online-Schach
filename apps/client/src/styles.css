@@ -1,6 +1,7 @@
 :root {
+  color-scheme: dark;
   color: #eef2f7;
-  background: #0b0f16;
+  background: #080d16;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,11 +14,14 @@
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: hidden;
+  background: #080d16;
 }
 
 button,
 input {
   font: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app-shell {
@@ -432,33 +436,10 @@ button {
   }
 }
 
-/* Modern dashboard layer */
-:root {
-  color-scheme: dark;
-  background: #080d16;
-}
-
-body {
-  overflow-x: hidden;
-  background: #080d16;
-}
-
-button,
-input {
-  -webkit-tap-highlight-color: transparent;
-}
-
 button:focus-visible,
 input:focus-visible {
   outline: 2px solid #79b8ff;
   outline-offset: 3px;
-}
-
-.app-shell {
-  display: block;
-  min-height: 100vh;
-  padding: 0;
-  background: radial-gradient(circle at 76% -12%, #1d3556 0, #0c1422 28%, #080d16 63%);
 }
 
 .dashboard-shell {
@@ -490,8 +471,6 @@ input:focus-visible {
 .live-chip,
 .insight-heading,
 .insight-stats,
-.section-heading,
-.lobby-row,
 .metric-card,
 .action-row,
 .search-row {
@@ -885,7 +864,7 @@ input:focus-visible {
   min-height: 230px;
 }
 
-.section-heading {
+.dashboard-main .section-heading {
   justify-content: space-between;
   gap: 1rem;
 }
@@ -897,13 +876,13 @@ input:focus-visible {
   letter-spacing: -0.025em;
 }
 
-.lobby-list,
-.user-list {
+.dashboard-main .lobby-list,
+.dashboard-main .user-list {
   margin-top: 1rem;
 }
 
-.lobby-row,
-.user-row {
+.dashboard-main .lobby-row,
+.dashboard-main .user-row {
   border-color: rgb(111 151 201 / 14%);
   background: rgb(23 35 53 / 54%);
 }
@@ -964,7 +943,7 @@ input:focus-visible {
   font-size: 1.35rem;
 }
 
-.social-grid {
+.dashboard-main .social-grid {
   width: auto;
   max-width: none;
   margin: 0;

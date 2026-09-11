@@ -27,7 +27,7 @@ export function pieceRotationY(type: PieceType, color: PieceColor): number {
 
 export function piecesFromFen(fen: string): PieceDefinition[] {
   const board = fen.split(' ')[0];
-  const fenRanks = board?.split('/');
+  const fenRanks = board.split('/');
   if (!fenRanks || fenRanks.length !== 8) throw new Error('Invalid FEN board');
 
   return fenRanks.flatMap((fenRank, rankIndex) => {
