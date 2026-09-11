@@ -23,6 +23,8 @@ model User {
   sessions       Session[]
   sentFriendRequests     FriendRequest[] @relation("FriendRequestSender")
   receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
+  notifications          Notification[]  @relation("NotificationRecipient")
+  sentNotifications      Notification[]  @relation("NotificationActor")
 }
 
 model Session {
@@ -104,4 +106,21 @@ model GameInvitation {
   status      String
   createdAt   DateTime @default(now())
   createdBy   User     @relation("InvitationCreator", fields: [createdById], references: [id])
+}
+
+model Notification {
+  id              String   @id @default(cuid())
+  recipientId     String
+  actorId         String?
+  type            String
+  title           String
+  message         String
+  gameCode        String?
+  friendRequestId String?
+  readAt          DateTime?
+  createdAt       DateTime @default(now())
+  recipient       User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor           User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, readAt, createdAt])
 }

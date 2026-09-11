@@ -54,6 +54,18 @@ interface FriendsOverview {
   outgoingRequests: FriendRequest[];
 }
 
+interface NotificationItem {
+  id: string;
+  type: 'friend_request' | 'game_invitation';
+  title: string;
+  message: string;
+  gameCode?: string;
+  friendRequestId?: string;
+  read: boolean;
+  createdAt: string;
+  actor?: SocialUser;
+}
+
 interface MoveRecord extends Move {
   san: string;
 }
@@ -341,6 +353,8 @@ export function App() {
   const [view, setView] = useState<AppView>('lobby');
   const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
   const [friends, setFriends] = useState<FriendsOverview | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SocialUser[]>([]);
   const [selectedGame, setSelectedGame] = useState<GameSummary | null>(null);
@@ -364,6 +378,14 @@ export function App() {
     setFriends(await requestApi<FriendsOverview>(API_URL, '/friends'));
   }, []);
 
+  const refreshNotifications = useCallback(async () => {
+    const response = await requestApi<{ notifications: NotificationItem[] }>(
+      API_URL,
+      '/notifications',
+    );
+    setNotifications(response.notifications);
+  }, []);
+
   useEffect(() => {
     requestApi<{ user: AuthUser }>(API_URL, '/auth/me')
       .then(({ user: authenticatedUser }) => setUser(authenticatedUser))
@@ -379,7 +401,8 @@ export function App() {
     void refreshFriends().catch((error_: unknown) =>
       setError(error_ instanceof Error ? error_.message : 'Freunde konnten nicht geladen werden'),
     );
-  }, [refreshFriends, refreshLobby, user]);
+    void refreshNotifications().catch(() => undefined);
+  }, [refreshFriends, refreshLobby, refreshNotifications, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -416,16 +439,18 @@ export function App() {
     };
   }, [user]);
 
-  useEffect(() => {
-    if (!user || !inviteCode) return;
-    if (invitationAttemptRef.current === inviteCode) return;
+    useEffect(() => {
+      if (!user || !inviteCode) return;
+      const currentUser = user;
+      if (invitationAttemptRef.current === inviteCode) return;
     invitationAttemptRef.current = inviteCode;
 
     async function openInvitation() {
       try {
-        const invitedGame = await requestApi<GameSummary>(API_URL, `/games/${inviteCode}`);
-        const isParticipant =
-          invitedGame.whitePlayerId === user.id || invitedGame.blackPlayerId === user.id;
+          const invitedGame = await requestApi<GameSummary>(API_URL, `/games/${inviteCode}`);
+          const isParticipant =
+            invitedGame.whitePlayerId === currentUser.id ||
+            invitedGame.blackPlayerId === currentUser.id;
         const nextGame =
           invitedGame.status === 'waiting' && !isParticipant
             ? await requestApi<GameSummary>(API_URL, `/lobby/games/${inviteCode}/join`, {
@@ -578,6 +603,40 @@ export function App() {
     }
   }
 
+  async function inviteFriend(username: string) {
+    if (!selectedGame) return;
+    try {
+      await requestApi(API_URL, `/games/${selectedGame.code}/invitations`, {
+        method: 'POST',
+        body: JSON.stringify({ username }),
+      });
+      setError('Einladung wurde gesendet');
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : 'Einladung konnte nicht gesendet werden');
+    }
+  }
+
+  async function markNotificationRead(notification: NotificationItem) {
+    if (!notification.read) {
+      try {
+        const updated = await requestApi<NotificationItem>(
+          API_URL,
+          `/notifications/${notification.id}/read`,
+          { method: 'POST' },
+        );
+        setNotifications((items) =>
+          items.map((item) => (item.id === updated.id ? { ...item, read: true } : item)),
+        );
+      } catch (error_) {
+        setError(
+          error_ instanceof Error
+            ? error_.message
+            : 'Benachrichtigung konnte nicht aktualisiert werden',
+        );
+      }
+    }
+  }
+
   function commitMove(move: Move) {
     if (selectedGame) {
       socketRef.current?.emit('move:request', { code: selectedGame.code, ...move });
@@ -652,6 +711,69 @@ export function App() {
               <span className="live-chip">
                 <span className="live-dot" /> Online
               </span>
+              <div className="notification-wrapper">
+                <button
+                  className="notification-button"
+                  type="button"
+                  aria-label={`Benachrichtigungen (${notifications.filter((item) => !item.read).length})`}
+                  onClick={() => setNotificationsOpen((open) => !open)}
+                >
+                  ♢
+                  {notifications.some((item) => !item.read) ? (
+                    <span className="notification-count">
+                      {notifications.filter((item) => !item.read).length}
+                    </span>
+                  ) : null}
+                </button>
+                {notificationsOpen ? (
+                  <div className="notification-panel" role="region" aria-label="Benachrichtigungen">
+                    <div className="notification-panel-header">
+                      <strong>Benachrichtigungen</strong>
+                      <button
+                        className="quiet-button"
+                        type="button"
+                        onClick={() => void refreshNotifications()}
+                      >
+                        Aktualisieren
+                      </button>
+                    </div>
+                    {notifications.length ? (
+                      <div className="notification-list">
+                        {notifications.map((notification) =>
+                          notification.gameCode ? (
+                            <a
+                              className={
+                                notification.read ? 'notification-item' : 'notification-item unread'
+                              }
+                              href={gamePath(notification.gameCode)}
+                              key={notification.id}
+                              onClick={() => void markNotificationRead(notification)}
+                            >
+                              <strong>{notification.title}</strong>
+                              <span>{notification.message}</span>
+                              <span className="notification-action">Partie öffnen</span>
+                            </a>
+                          ) : (
+                            <button
+                              className={
+                                notification.read ? 'notification-item' : 'notification-item unread'
+                              }
+                              key={notification.id}
+                              type="button"
+                              onClick={() => void markNotificationRead(notification)}
+                            >
+                              <strong>{notification.title}</strong>
+                              <span>{notification.message}</span>
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    ) : (
+                      <p className="muted">Keine neuen Benachrichtigungen.</p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
               <div className="profile-chip">
                 <span className="avatar">{user.username.slice(0, 1).toUpperCase()}</span>
                 <span>{user.username}</span>
@@ -751,12 +873,16 @@ export function App() {
               {view === 'friends' ? (
                 <FriendsView
                   friends={friends}
+                  canInvite={Boolean(
+                    selectedGame?.status === 'waiting' && selectedGame.whitePlayerId === user.id,
+                  )}
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
                   searchResults={searchResults}
                   onSearch={searchUsers}
                   onAdd={(username) => void sendFriendRequest(username)}
                   onRespond={(id, action) => void respondToRequest(id, action)}
+                  onInvite={(username) => void inviteFriend(username)}
                 />
               ) : null}
               {view === 'game' && selectedGame ? (
@@ -1026,20 +1152,24 @@ function LobbyView({
 
 function FriendsView({
   friends,
+  canInvite,
   searchQuery,
   setSearchQuery,
   searchResults,
   onSearch,
   onAdd,
   onRespond,
+  onInvite,
 }: Readonly<{
   friends: FriendsOverview | null;
+  canInvite: boolean;
   searchQuery: string;
   setSearchQuery: (value: string) => void;
   searchResults: SocialUser[];
   onSearch: (event: React.SyntheticEvent<HTMLFormElement>) => void;
   onAdd: (username: string) => void;
   onRespond: (id: string, action: 'accept' | 'reject') => void;
+  onInvite: (username: string) => void;
 }>) {
   return (
     <section className="social-grid">
@@ -1057,6 +1187,15 @@ function FriendsView({
                 <span className={friend.online ? 'online-dot' : 'offline-dot'} />
                 <strong>{friend.username}</strong>
                 <span className="muted">{friend.rating}</span>
+                {canInvite ? (
+                  <button
+                    className="tiny-button"
+                    type="button"
+                    onClick={() => onInvite(friend.username)}
+                  >
+                    Einladen
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>

@@ -19,12 +19,18 @@ import { GameManager, GameTimeoutError } from './game/GameManager.js';
 import { prisma } from './db/client.js';
 import { PrismaGamePersistence } from './persistence/PrismaGamePersistence.js';
 import { registerRealtime } from './realtime.js';
+import {
+  NotificationError,
+  PrismaNotificationProvider,
+  type NotificationProvider,
+} from './notifications/NotificationService.js';
 import { PrismaSocialProvider, SocialError, type SocialProvider } from './social/SocialService.js';
 
 export function buildApp(
   gameManager = new GameManager(),
   authProvider: AuthProvider = new PrismaAuthProvider(prisma),
   socialProvider: SocialProvider = new PrismaSocialProvider(prisma),
+  notificationProvider: NotificationProvider = new PrismaNotificationProvider(prisma),
 ): FastifyInstance {
   const app = Fastify({ logger: true });
 
@@ -90,9 +96,13 @@ export function buildApp(
     if (!username) return reply.code(400).send({ error: 'username is required' });
 
     try {
-      return reply.code(201).send(await socialProvider.sendRequest(user.id, username));
+      const requestView = await socialProvider.sendRequest(user.id, username);
+      await notificationProvider.createFriendRequestNotification(requestView);
+      return reply.code(201).send(requestView);
     } catch (error) {
-      return sendSocialError(reply, error);
+      return error instanceof NotificationError
+        ? sendNotificationError(reply, error)
+        : sendSocialError(reply, error);
     }
   });
 
@@ -114,6 +124,28 @@ export function buildApp(
       }
     });
   }
+
+  app.get('/notifications', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+
+    try {
+      return reply.send({ notifications: await notificationProvider.list(user.id) });
+    } catch (error) {
+      return sendNotificationError(reply, error);
+    }
+  });
+
+  app.post<{ Params: { id: string } }>('/notifications/:id/read', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+
+    try {
+      return reply.send(await notificationProvider.markRead(user.id, request.params.id));
+    } catch (error) {
+      return sendNotificationError(reply, error);
+    }
+  });
 
   app.get('/lobby', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
@@ -163,6 +195,30 @@ export function buildApp(
         .send({ error: error instanceof Error ? error.message : 'Unable to join game' });
     }
   });
+
+  app.post<{ Params: { code: string }; Body: { username?: string } }>(
+    '/games/:code/invitations',
+    async (request, reply) => {
+      const user = await requireUser(request, reply, authProvider);
+      if (!user) return;
+      const username = request.body?.username?.trim();
+      if (!username) return reply.code(400).send({ error: 'username is required' });
+
+      const game = gameManager.getGame(request.params.code);
+      if (!game) return reply.code(404).send({ error: 'Game not found' });
+      if (game.status !== 'waiting') return reply.code(409).send({ error: 'Game is not waiting' });
+      if (game.whitePlayerId !== user.id)
+        return reply.code(403).send({ error: 'Only the owner can invite players' });
+
+      try {
+        return reply
+          .code(201)
+          .send(await notificationProvider.createGameInvitation(user.id, username, game.code));
+      } catch (error) {
+        return sendNotificationError(reply, error);
+      }
+    },
+  );
 
   app.get('/health', async () => ({ status: 'ok', service: 'chess3d-server' }));
 
@@ -342,6 +398,12 @@ async function start() {
     realtime.close();
     process.exit(1);
   }
+}
+
+function sendNotificationError(reply: FastifyReply, error: unknown) {
+  if (error instanceof NotificationError)
+    return reply.code(error.statusCode).send({ error: error.message });
+  return reply.code(503).send({ error: 'Notification service unavailable' });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

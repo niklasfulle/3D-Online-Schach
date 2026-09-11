@@ -2,6 +2,20 @@ import { defineConfig, devices } from '@playwright/test';
 
 const clientUrl = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 const serverUrl = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:3001';
+const webServers = [
+  {
+    command: 'pnpm --filter @chess3d/server dev',
+    url: `${serverUrl}/health`,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+  {
+    command: 'pnpm --filter @chess3d/client dev -- --host 127.0.0.1',
+    url: clientUrl,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+] as const;
 
 export default defineConfig({
   testDir: './e2e',
@@ -23,18 +37,5 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: [
-    {
-      command: 'pnpm --filter @chess3d/server dev',
-      url: `${serverUrl}/health`,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-    },
-    {
-      command: 'pnpm --filter @chess3d/client dev -- --host 127.0.0.1',
-      url: clientUrl,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-    },
-  ],
+  webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER ? undefined : webServers,
 });

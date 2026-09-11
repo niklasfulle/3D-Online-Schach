@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthError, type AuthProvider, type AuthResult } from './auth/AuthService.js';
 import { GameManager, type GamePersistence } from './game/GameManager.js';
 import { buildApp } from './index.js';
+import type { NotificationProvider } from './notifications/NotificationService.js';
 import {
   SocialError,
   type FriendRequestView,
@@ -38,7 +39,7 @@ describe('server HTTP routes', () => {
     const authResult: AuthResult = { user, sessionToken: 'session-token' };
     const authProvider = createAuthProvider(user, authResult);
     const socialProvider = createSocialProvider();
-    app = buildApp(new GameManager(), authProvider, socialProvider);
+    app = buildApp(new GameManager(), authProvider, socialProvider, createNotificationProvider());
 
     const register = await app.inject({
       method: 'POST',
@@ -107,7 +108,7 @@ describe('server HTTP routes', () => {
     socialProvider.respondToRequest = vi.fn(async () => {
       throw new Error('request service offline');
     });
-    app = buildApp(new GameManager(), failingAuth, socialProvider);
+    app = buildApp(new GameManager(), failingAuth, socialProvider, createNotificationProvider());
 
     expect(
       (
@@ -154,7 +155,7 @@ describe('server HTTP routes', () => {
   it('handles lobby and legacy game endpoints', async () => {
     const manager = new GameManager();
     const authProvider = createAuthProvider(user);
-    app = buildApp(manager, authProvider, createSocialProvider());
+    app = buildApp(manager, authProvider, createSocialProvider(), createNotificationProvider());
 
     expect(
       (
@@ -235,6 +236,7 @@ describe('server HTTP routes', () => {
       new GameManager(undefined, persistence),
       createAuthProvider(user),
       createSocialProvider(),
+      createNotificationProvider(),
     );
 
     expect((await app.inject({ method: 'GET', url: '/games/missing/history' })).statusCode).toBe(
@@ -262,5 +264,28 @@ function createSocialProvider(): SocialProvider {
     getFriendsOverview: vi.fn(async () => overview),
     sendRequest: vi.fn(async () => request),
     respondToRequest: vi.fn(async () => request),
+  };
+}
+
+function createNotificationProvider(): NotificationProvider {
+  return {
+    list: vi.fn(async () => []),
+    markRead: vi.fn(async () => ({
+      id: 'notification-1',
+      type: 'friend_request' as const,
+      title: 'Neue Freundschaftsanfrage',
+      message: 'alice möchte dich als Freund hinzufügen.',
+      read: true,
+      createdAt: '2026-09-11T12:00:00.000Z',
+    })),
+    createFriendRequestNotification: vi.fn(async () => undefined),
+    createGameInvitation: vi.fn(async () => ({
+      id: 'notification-2',
+      type: 'game_invitation' as const,
+      title: 'Einladung zu einer Partie',
+      message: 'Du wurdest zu einer Partie eingeladen.',
+      read: false,
+      createdAt: '2026-09-11T12:00:00.000Z',
+    })),
   };
 }

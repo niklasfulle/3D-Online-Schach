@@ -186,4 +186,61 @@ test.describe('Authentifizierung', () => {
       await inviteePage.close();
     }
   });
+
+  test('liefert Freundschafts- und Spieleinladungen als Benachrichtigungen', async ({
+    page,
+    browser,
+  }) => {
+    const owner = createCredentials();
+    const invitee = createCredentials();
+    const inviteePage = await browser.newPage();
+
+    try {
+      await openLogin(inviteePage);
+      await switchToRegistration(inviteePage);
+      await inviteePage.getByLabel('Benutzername').fill(invitee.username);
+      await inviteePage.getByLabel('Passwort').fill(invitee.password);
+      await inviteePage.getByRole('button', { name: 'Registrieren', exact: true }).click();
+      await expectAuthenticated(inviteePage, invitee.username);
+
+      await openLogin(page);
+      await switchToRegistration(page);
+      await page.getByLabel('Benutzername').fill(owner.username);
+      await page.getByLabel('Passwort').fill(owner.password);
+      await page.getByRole('button', { name: 'Registrieren', exact: true }).click();
+      await expectAuthenticated(page, owner.username);
+
+      await page.getByRole('button', { name: /Freunde/ }).click();
+      await page.getByPlaceholder('z. B. niklas…').fill(invitee.username);
+      await page.getByRole('button', { name: 'Suchen' }).click();
+      await expect(page.getByText(invitee.username, { exact: true }).last()).toBeVisible();
+      await page.getByRole('button', { name: '+ Freund' }).click();
+
+      await inviteePage.reload();
+      await expect(
+        inviteePage.getByRole('button', { name: /Benachrichtigungen \(1\)/ }),
+      ).toBeVisible();
+      await inviteePage.getByRole('button', { name: /Benachrichtigungen/ }).click();
+      await expect(inviteePage.getByText('Neue Freundschaftsanfrage')).toBeVisible();
+      await inviteePage.getByRole('button', { name: /Freunde/ }).click();
+      await inviteePage.getByRole('button', { name: 'Annehmen' }).click();
+
+      await page.getByRole('button', { name: 'Lobby' }).click();
+      await page.getByRole('button', { name: /Casual-Spiel erstellen/ }).click();
+      await expect(page.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
+      await page.getByRole('button', { name: /Freunde/ }).click();
+      await expect(page.getByText(invitee.username, { exact: true }).last()).toBeVisible();
+      await page.getByRole('button', { name: 'Einladen' }).click();
+
+      await inviteePage.reload();
+      await inviteePage.getByRole('button', { name: /Benachrichtigungen \(2\)/ }).click();
+      await expect(inviteePage.getByText('Einladung zu einer Partie')).toBeVisible();
+      await expect(inviteePage.getByRole('link', { name: /Partie öffnen/ })).toHaveAttribute(
+        'href',
+        /\/game\/[A-Z0-9]+/,
+      );
+    } finally {
+      await inviteePage.close();
+    }
+  });
 });

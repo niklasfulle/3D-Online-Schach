@@ -9,6 +9,7 @@ import type {
   SocialProvider,
   SocialUser,
 } from './SocialService.js';
+import type { NotificationProvider } from '../notifications/NotificationService.js';
 
 const user = { id: 'user-1', username: 'alice', rating: 1200 };
 const bob: SocialUser = { id: 'user-2', username: 'bob', rating: 1200, online: true };
@@ -44,7 +45,13 @@ describe('social and lobby API', () => {
 
   it('connects authenticated users to friends and lobby actions', async () => {
     const socialProvider = createSocialProvider();
-    app = buildApp(new GameManager(), createAuthProvider(user), socialProvider);
+    const notificationProvider = createNotificationProvider();
+    app = buildApp(
+      new GameManager(),
+      createAuthProvider(user),
+      socialProvider,
+      notificationProvider,
+    );
 
     const friends = await app.inject({ method: 'GET', url: '/friends' });
     expect(friends.statusCode).toBe(200);
@@ -57,6 +64,7 @@ describe('social and lobby API', () => {
     });
     expect(friendRequest.statusCode).toBe(201);
     expect(socialProvider.sendRequest).toHaveBeenCalledWith('user-1', 'bob');
+    expect(notificationProvider.createFriendRequestNotification).toHaveBeenCalledWith(request);
 
     const game = await app.inject({
       method: 'POST',
@@ -70,6 +78,23 @@ describe('social and lobby API', () => {
     expect(lobby.statusCode).toBe(200);
     expect(lobby.json().games).toHaveLength(1);
     expect(lobby.json().games[0].whitePlayerId).toBeUndefined();
+
+    const invitation = await app.inject({
+      method: 'POST',
+      url: `/games/${game.json().code}/invitations`,
+      payload: { username: 'bob' },
+    });
+    expect(invitation.statusCode).toBe(201);
+    expect(notificationProvider.createGameInvitation).toHaveBeenCalledWith(
+      'user-1',
+      'bob',
+      game.json().code,
+    );
+
+    expect((await app.inject({ method: 'GET', url: '/notifications' })).statusCode).toBe(200);
+    expect(
+      (await app.inject({ method: 'POST', url: '/notifications/notification-1/read' })).statusCode,
+    ).toBe(200);
   });
 });
 
@@ -90,5 +115,32 @@ function createSocialProvider(): SocialProvider & {
     getFriendsOverview: vi.fn(async () => overview),
     sendRequest: vi.fn(async () => request),
     respondToRequest: vi.fn(async () => request),
+  };
+}
+
+function createNotificationProvider(): NotificationProvider & {
+  createFriendRequestNotification: ReturnType<typeof vi.fn>;
+  createGameInvitation: ReturnType<typeof vi.fn>;
+} {
+  return {
+    list: vi.fn(async () => []),
+    markRead: vi.fn(async () => ({
+      id: 'notification-1',
+      type: 'friend_request' as const,
+      title: 'Neue Freundschaftsanfrage',
+      message: 'alice möchte dich als Freund hinzufügen.',
+      read: true,
+      createdAt: '2026-09-11T10:00:00.000Z',
+    })),
+    createFriendRequestNotification: vi.fn(async () => undefined),
+    createGameInvitation: vi.fn(async () => ({
+      id: 'notification-2',
+      type: 'game_invitation' as const,
+      title: 'Einladung zu einer Partie',
+      message: 'Du wurdest zu einer Partie eingeladen.',
+      gameCode: 'ABC123',
+      read: false,
+      createdAt: '2026-09-11T10:00:00.000Z',
+    })),
   };
 }

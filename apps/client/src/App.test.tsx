@@ -258,4 +258,64 @@ describe('App', () => {
       mocks.requestJson.mock.calls.filter(([, path]) => path === '/lobby/games/ABC123/join'),
     ).toHaveLength(1);
   });
+
+  it('shows notifications and links a game invitation to the game', async () => {
+    const notification = {
+      id: 'notification-1',
+      type: 'game_invitation',
+      title: 'Einladung zu einer Partie',
+      message: 'Mara hat dich eingeladen.',
+      gameCode: 'ABC123',
+      read: false,
+      createdAt: '2026-09-11T10:00:00.000Z',
+      actor: { id: 'friend-1', username: 'Mara', rating: 1250, online: true },
+    };
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [notification] };
+      if (path === '/notifications/notification-1/read') return { ...notification, read: true };
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Benachrichtigungen/ }));
+
+    expect(await screen.findByText('Einladung zu einer Partie')).toBeTruthy();
+    const invitationLink = screen.getByRole('link', { name: /Partie öffnen/ });
+    expect(invitationLink.getAttribute('href')).toBe('/game/ABC123');
+  });
+
+  it('invites a friend from an own waiting game', async () => {
+    const friend = { id: 'friend-1', username: 'Mara', rating: 1250, online: true };
+    const ownWaitingGame = { ...waitingGame, whitePlayerId: user.id };
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return { ...emptyFriends, friends: [friend] };
+      if (path === '/lobby/games') return ownWaitingGame;
+      if (path === '/games/ABC123/invitations') return { id: 'notification-2' };
+      if (path === '/notifications') return { notifications: [] };
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
+    await screen.findByRole('heading', { name: 'Am Brett' });
+    fireEvent.click(screen.getByRole('button', { name: /Freunde/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Einladen' }));
+
+    await waitFor(() =>
+      expect(mocks.requestJson).toHaveBeenCalledWith(
+        expect.any(String),
+        '/games/ABC123/invitations',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ username: 'Mara' }) }),
+      ),
+    );
+  });
 });
