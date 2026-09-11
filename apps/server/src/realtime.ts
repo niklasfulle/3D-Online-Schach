@@ -37,6 +37,9 @@ export function registerRealtime(
   chatProvider: ChatProvider = new PrismaChatProvider(prisma),
 ): Server {
   const io = new Server(app.server, { cors: { origin: true, credentials: true } });
+  gameManager.onGameUpdate((game) => {
+    io.to(game.code).emit('game:updated', game);
+  });
 
   io.use(async (socket, next) => {
     const legacyPlayerId =

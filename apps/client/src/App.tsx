@@ -467,6 +467,7 @@ export function App() {
   const [spectatorMode, setSpectatorMode] = useState(false);
   const [spectatorLinkCopied, setSpectatorLinkCopied] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const selectedGameCodeRef = useRef<string | null>(null);
   const invitationAttemptRef = useRef<string | null>(null);
   const inviteCode = invitationCodeFromPath(globalThis.location?.pathname ?? '');
   const spectatorCode = spectatorCodeFromPath(globalThis.location?.pathname ?? '');
@@ -515,6 +516,10 @@ export function App() {
   }, [refreshFriends, refreshLobby, refreshNotifications, user]);
 
   useEffect(() => {
+    selectedGameCodeRef.current = selectedGame?.code ?? null;
+  }, [selectedGame]);
+
+  useEffect(() => {
     if (!user) return;
     const socket = io(API_URL, { withCredentials: true });
     socketRef.current = socket;
@@ -523,6 +528,11 @@ export function App() {
       setSelectedGame(nextGame);
       setView('game');
       setGamePath(nextGame.code);
+      socket.emit('game:sync', { code: nextGame.code });
+    });
+    socket.on('game:updated', (nextGame: GameSummary) => {
+      if (selectedGameCodeRef.current !== nextGame.code) return;
+      setSelectedGame(nextGame);
       socket.emit('game:sync', { code: nextGame.code });
     });
     socket.on('move:accepted', (accepted: AcceptedMove) => {

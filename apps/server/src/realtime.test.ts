@@ -135,4 +135,33 @@ describe('realtime game rooms', () => {
     expect((await whiteEnded).result).toBe('black');
     expect((await blackEnded).result).toBe('black');
   });
+
+  it('notifies a connected owner when a REST-style join activates the game', async () => {
+    const gameManager = new GameManager();
+    app = buildApp(gameManager);
+    realtime = registerRealtime(app, gameManager);
+    await app.listen({ host: '127.0.0.1', port: 0 });
+
+    const address = app.server.address();
+    if (!address || typeof address === 'string') throw new Error('Server address unavailable');
+    const url = `http://127.0.0.1:${address.port}`;
+    const owner = connect(url, { auth: { playerId: 'player-a' }, transports: ['websocket'] });
+    clients = [owner];
+
+    await waitForEvent(owner, 'connect');
+    const createdPromise = waitForEvent<{ code: string }>(owner, 'game:created');
+    owner.emit('game:create');
+    const created = await createdPromise;
+
+    const updatedPromise = waitForEvent<{ status: string; blackPlayerId?: string }>(
+      owner,
+      'game:updated',
+    );
+    gameManager.joinGame(created.code, 'player-b');
+
+    await expect(updatedPromise).resolves.toMatchObject({
+      status: 'active',
+      blackPlayerId: 'player-b',
+    });
+  });
 });

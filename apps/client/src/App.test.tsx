@@ -173,7 +173,7 @@ describe('App', () => {
   it('opens a newly created casual game', async () => {
     const activeGame = {
       ...waitingGame,
-      status: 'active' as const,
+      status: 'active' as 'active' | 'finished',
       blackPlayerId: 'opponent-1',
     };
 
@@ -191,6 +191,13 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Am Brett' })).toBeTruthy();
     expect(screen.getByText('ABC123')).toBeTruthy();
+    expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
+
+    const gameUpdatedHandler = mocks.socket.on.mock.calls.find(
+      ([event]) => event === 'game:updated',
+    )?.[1] as ((game: typeof activeGame) => void) | undefined;
+    gameUpdatedHandler?.({ ...activeGame, status: 'finished' });
+    expect(await screen.findByText('Casual · ABC123 · finished')).toBeTruthy();
     expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
   });
 

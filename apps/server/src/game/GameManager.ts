@@ -47,6 +47,8 @@ export interface GameSync {
   moves: MoveRecord[];
 }
 
+export type GameUpdateListener = (game: GameSummary) => void;
+
 export interface GameHistory {
   game: GameSummary;
   initialFen: string;
@@ -85,6 +87,7 @@ export class GameManager {
   private readonly games = new Map<string, ManagedGame>();
   private readonly moveQueues = new Map<string, Promise<void>>();
   private readonly pendingPersistence = new Set<Promise<void>>();
+  private readonly gameUpdateListeners = new Set<GameUpdateListener>();
   private persistenceError: unknown;
 
   constructor(
@@ -138,7 +141,14 @@ export class GameManager {
     this.enqueuePersistence(() =>
       this.persistence.saveGame(game.summary, game.chess.getState().fen),
     );
-    return this.snapshot(game);
+    const snapshot = this.snapshot(game);
+    this.publishGameUpdate(snapshot);
+    return snapshot;
+  }
+
+  onGameUpdate(listener: GameUpdateListener): () => void {
+    this.gameUpdateListeners.add(listener);
+    return () => this.gameUpdateListeners.delete(listener);
   }
 
   requestMove(code: string, playerId: string, move: Move): AcceptedMove {
@@ -285,6 +295,10 @@ export class GameManager {
       });
     this.pendingPersistence.add(pending);
     void pending.finally(() => this.pendingPersistence.delete(pending)).catch(() => undefined);
+  }
+
+  private publishGameUpdate(game: GameSummary): void {
+    for (const listener of this.gameUpdateListeners) listener(game);
   }
 
   private snapshot(game: ManagedGame): GameSummary {

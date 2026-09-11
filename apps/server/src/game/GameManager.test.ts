@@ -29,6 +29,19 @@ describe('GameManager', () => {
     expect(joined.blackPlayerId).toBe('player-b');
   });
 
+  it('publishes a game update when a second player joins', () => {
+    manager = new GameManager();
+    const updates: Array<{ code: string; status: string; blackPlayerId?: string }> = [];
+    manager.onGameUpdate((game) => updates.push(game));
+    const created = manager.createGame('player-a');
+
+    manager.joinGame(created.code, 'player-b');
+
+    expect(updates).toEqual([
+      expect.objectContaining({ code: created.code, status: 'active', blackPlayerId: 'player-b' }),
+    ]);
+  });
+
   it('rejects a third player', () => {
     manager = new GameManager();
     const created = manager.createGame('player-a');
