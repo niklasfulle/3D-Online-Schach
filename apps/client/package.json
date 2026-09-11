@@ -6,6 +6,7 @@
     "build": "tsc -b && vite build",
     "dev": "vite",
     "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -b"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
     "@types/react": "^19.1.15",
     "@types/react-dom": "^19.1.9",
     "@types/three": "^0.180.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "@vitejs/plugin-react": "^5.0.4",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4",
