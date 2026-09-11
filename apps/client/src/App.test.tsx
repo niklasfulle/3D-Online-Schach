@@ -115,6 +115,34 @@ describe('App', () => {
     );
   });
 
+  it('deletes an own waiting game from the lobby', async () => {
+    mocks.requestJson.mockImplementation(
+      async (_baseUrl: string, path: string, options?: RequestInit) => {
+        if (path === '/auth/me') return { user };
+        if (path === '/lobby') return { games: [waitingGame] };
+        if (path === '/friends') return emptyFriends;
+        if (path === `/lobby/games/${waitingGame.code}` && options?.method === 'DELETE') {
+          return { ok: true };
+        }
+        throw new Error(`Unexpected request: ${path}`);
+      },
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText('Casual · ABC123')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Partie ABC123 löschen' }));
+
+    await waitFor(() =>
+      expect(mocks.requestJson).toHaveBeenCalledWith(
+        expect.any(String),
+        '/lobby/games/ABC123',
+        expect.objectContaining({ method: 'DELETE' }),
+      ),
+    );
+    expect(screen.queryByText('Casual · ABC123')).toBeNull();
+  });
+
   it('searches for players and responds to friendship actions', async () => {
     const incomingRequest = {
       id: 'request-1',

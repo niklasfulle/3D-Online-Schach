@@ -536,6 +536,10 @@ export function App() {
       setSelectedGame(nextGame);
       socket.emit('game:sync', { code: nextGame.code });
     });
+    socket.on('game:removed', (payload: { code?: string }) => {
+      if (!payload.code) return;
+      setLobbyGames((games) => games.filter((game) => game.code !== payload.code));
+    });
     socket.on('move:accepted', (accepted: AcceptedMove) => {
       setSelectedGame(accepted.game);
       setGamePath(accepted.game.code);
@@ -743,6 +747,17 @@ export function App() {
       await refreshLobby();
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht beigetreten werden');
+    }
+  }
+
+  async function deleteGame(code: string) {
+    try {
+      await requestApi(API_URL, `/lobby/games/${encodeURIComponent(code)}`, {
+        method: 'DELETE',
+      });
+      setLobbyGames((games) => games.filter((game) => game.code !== code));
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht gelöscht werden');
     }
   }
 
@@ -1050,6 +1065,7 @@ export function App() {
                   onRefresh={() => void refreshLobby()}
                   onCreate={(mode) => void createGame(mode)}
                   onJoin={(code) => void joinGame(code)}
+                  onDelete={(code) => void deleteGame(code)}
                 />
               ) : null}
               {view === 'friends' ? (
@@ -1235,11 +1251,13 @@ function LobbyView({
   onRefresh,
   onCreate,
   onJoin,
+  onDelete,
 }: Readonly<{
   games: LobbyGame[];
   onRefresh: () => void;
   onCreate: (mode: GameMode) => void;
   onJoin: (code: string) => void;
+  onDelete: (code: string) => void;
 }>) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -1342,6 +1360,16 @@ function LobbyView({
                 >
                   {game.isOwner ? 'Öffnen' : 'Beitreten'} <span aria-hidden="true">→</span>
                 </button>
+                {game.isOwner ? (
+                  <button
+                    className="quiet-button"
+                    type="button"
+                    aria-label={`Partie ${game.code} löschen`}
+                    onClick={() => onDelete(game.code)}
+                  >
+                    Löschen
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>

@@ -164,4 +164,28 @@ describe('realtime game rooms', () => {
       blackPlayerId: 'player-b',
     });
   });
+
+  it('notifies connected lobby clients when a waiting game is removed', async () => {
+    const gameManager = new GameManager();
+    app = buildApp(gameManager);
+    realtime = registerRealtime(app, gameManager);
+    await app.listen({ host: '127.0.0.1', port: 0 });
+
+    const address = app.server.address();
+    if (!address || typeof address === 'string') throw new Error('Server address unavailable');
+    const url = `http://127.0.0.1:${address.port}`;
+    const owner = connect(url, { auth: { playerId: 'player-a' }, transports: ['websocket'] });
+    const lobbyViewer = connect(url, { auth: { playerId: 'player-b' }, transports: ['websocket'] });
+    clients = [owner, lobbyViewer];
+
+    await Promise.all([waitForEvent(owner, 'connect'), waitForEvent(lobbyViewer, 'connect')]);
+    const createdPromise = waitForEvent<{ code: string }>(owner, 'game:created');
+    owner.emit('game:create');
+    const created = await createdPromise;
+    const removedPromise = waitForEvent<{ code: string }>(lobbyViewer, 'game:removed');
+
+    expect(gameManager.deleteWaitingGame(created.code)).toBe(true);
+
+    await expect(removedPromise).resolves.toEqual({ code: created.code });
+  });
 });

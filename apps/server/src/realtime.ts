@@ -40,6 +40,9 @@ export function registerRealtime(
   gameManager.onGameUpdate((game) => {
     io.to(game.code).emit('game:updated', game);
   });
+  gameManager.onGameRemoved((game) => {
+    io.emit('game:removed', { code: game.code });
+  });
 
   io.use(async (socket, next) => {
     const legacyPlayerId =

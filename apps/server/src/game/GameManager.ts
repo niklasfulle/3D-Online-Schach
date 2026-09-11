@@ -50,6 +50,7 @@ export interface GameSync {
 }
 
 export type GameUpdateListener = (game: GameSummary) => void;
+export type GameRemovalListener = (game: GameSummary) => void;
 
 export interface GameHistory {
   game: GameSummary;
@@ -90,6 +91,7 @@ export class GameManager {
   private readonly moveQueues = new Map<string, Promise<void>>();
   private readonly pendingPersistence = new Set<Promise<void>>();
   private readonly gameUpdateListeners = new Set<GameUpdateListener>();
+  private readonly gameRemovalListeners = new Set<GameRemovalListener>();
   private persistenceError: unknown;
 
   constructor(
@@ -154,6 +156,11 @@ export class GameManager {
   onGameUpdate(listener: GameUpdateListener): () => void {
     this.gameUpdateListeners.add(listener);
     return () => this.gameUpdateListeners.delete(listener);
+  }
+
+  onGameRemoved(listener: GameRemovalListener): () => void {
+    this.gameRemovalListeners.add(listener);
+    return () => this.gameRemovalListeners.delete(listener);
   }
 
   requestMove(code: string, playerId: string, move: Move): AcceptedMove {
@@ -246,11 +253,15 @@ export class GameManager {
     const game = this.getManagedGame(code);
     if (!game || game.summary.status !== 'waiting' || !this.isExpired(game.summary)) return false;
 
-    this.games.delete(code.toUpperCase());
-    this.moveQueues.delete(code.toUpperCase());
-    if (this.persistence.deleteGame) {
-      this.enqueuePersistence(() => this.persistence.deleteGame!(game.summary));
-    }
+    this.removeWaitingGame(game);
+    return true;
+  }
+
+  deleteWaitingGame(code: string): boolean {
+    const game = this.getManagedGame(code);
+    if (!game || game.summary.status !== 'waiting') return false;
+
+    this.removeWaitingGame(game);
     return true;
   }
 
@@ -322,6 +333,20 @@ export class GameManager {
 
   private publishGameUpdate(game: GameSummary): void {
     for (const listener of this.gameUpdateListeners) listener(game);
+  }
+
+  private publishGameRemoval(game: GameSummary): void {
+    for (const listener of this.gameRemovalListeners) listener(game);
+  }
+
+  private removeWaitingGame(game: ManagedGame): void {
+    const summary = this.snapshot(game);
+    this.games.delete(summary.code);
+    this.moveQueues.delete(summary.code);
+    if (this.persistence.deleteGame) {
+      this.enqueuePersistence(() => this.persistence.deleteGame!(summary));
+    }
+    this.publishGameRemoval(summary);
   }
 
   private isExpired(summary: GameSummary): boolean {

@@ -225,6 +225,35 @@ describe('server HTTP routes', () => {
     expect(move.json().move.san).toBe('e4');
   });
 
+  it('allows only the owner to delete a waiting lobby game', async () => {
+    const deleteGame = vi.fn(async () => undefined);
+    const manager = new GameManager(undefined, {
+      saveGame: vi.fn(async () => undefined),
+      saveMove: vi.fn(async () => undefined),
+      deleteGame,
+    });
+    const authProvider = createAuthProvider(user);
+    app = buildApp(manager, authProvider, createSocialProvider(), createNotificationProvider());
+    const created = manager.createGame(user.id);
+    await manager.flushPersistence();
+
+    authProvider.authenticate = vi.fn(async () => bob);
+    expect(
+      (await app.inject({ method: 'DELETE', url: `/lobby/games/${created.code}` })).statusCode,
+    ).toBe(403);
+    expect(manager.getGame(created.code)).toBeDefined();
+
+    authProvider.authenticate = vi.fn(async () => user);
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: `/lobby/games/${created.code}`,
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json()).toEqual({ ok: true });
+    expect(deleteGame).toHaveBeenCalledWith(expect.objectContaining({ code: created.code }));
+    expect(manager.getGame(created.code)).toBeUndefined();
+  });
+
   it('returns history errors and persistence failures', async () => {
     const persistence: GamePersistence = {
       saveGame: vi.fn(async () => undefined),

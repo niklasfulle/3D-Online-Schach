@@ -158,6 +158,31 @@ export function buildApp(
     });
   });
 
+  app.delete<{ Params: { code: string } }>('/lobby/games/:code', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+
+    const game = gameManager.getGame(request.params.code);
+    if (!game) return reply.code(404).send({ error: 'Game not found' });
+    if (game.status !== 'waiting') return reply.code(409).send({ error: 'Game is not waiting' });
+    if (game.whitePlayerId !== user.id) {
+      return reply.code(403).send({ error: 'Only the owner can delete this game' });
+    }
+
+    if (!gameManager.deleteWaitingGame(request.params.code)) {
+      return reply.code(404).send({ error: 'Game not found' });
+    }
+
+    try {
+      await gameManager.flushPersistence();
+      return reply.send({ ok: true });
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to delete game',
+      });
+    }
+  });
+
   app.post<{
     Body: { initialMs?: number; incrementMs?: number; mode?: GameMode };
   }>('/lobby/games', async (request, reply) => {
