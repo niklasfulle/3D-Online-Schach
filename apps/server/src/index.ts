@@ -4,7 +4,7 @@ import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 
 import type { Move } from '@chess3d/chess-core';
-import type { GameMode, UserRole } from '@chess3d/shared';
+import { APP_VERSION, type GameMode, type UserRole } from '@chess3d/shared';
 
 import {
   AuthError,
@@ -400,7 +400,11 @@ export function buildApp(
     }
   });
 
-  app.get('/health', async () => ({ status: 'ok', service: 'chess3d-server' }));
+  app.get('/health', async () => ({
+    status: 'ok',
+    service: 'chess3d-server',
+    version: APP_VERSION,
+  }));
 
   app.post<{
     Body: { playerId?: string; initialMs?: number; incrementMs?: number };

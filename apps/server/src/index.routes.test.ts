@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { APP_VERSION } from '@chess3d/shared';
+
 import { AuthError, type AuthProvider, type AuthResult } from './auth/AuthService.js';
 import type { AdminProvider } from './admin/AdminService.js';
 import { GameManager, type GamePersistence } from './game/GameManager.js';
@@ -65,6 +67,7 @@ describe('server HTTP routes', () => {
     expect((await app.inject({ method: 'GET', url: '/health' })).json()).toEqual({
       status: 'ok',
       service: 'chess3d-server',
+      version: APP_VERSION,
     });
     expect((await app.inject({ method: 'GET', url: '/users/search?q=bo' })).json()).toEqual({
       users: [bob],

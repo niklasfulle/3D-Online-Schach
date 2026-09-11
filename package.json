@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "test": "pnpm -r test",
     "test:e2e": "playwright test",
+    "version:set": "node scripts/set-version.mjs",
     "docs:screenshots": "node scripts/capture-readme-screenshots.mjs",
     "test:coverage": "node scripts/run-coverage.mjs",
     "typecheck": "pnpm -r typecheck"

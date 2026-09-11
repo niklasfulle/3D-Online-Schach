@@ -21,6 +21,8 @@ Der Multiplayer-MVP ist umgesetzt:
 - Spieluhr, Timeout, Reconnect und State-Sync
 - Prisma-Persistenz für Games, Moves, FEN, Uhrwerte und Ergebnisse
 - versionierte PostgreSQL-Migrationen für Games, Sessions und soziale Beziehungen
+- responsiver Footer mit Version, Repository-, Datenschutz- und Impressum-Links auf Deutsch und Englisch
+- zentrale Anwendungsversion für Client-Footer und Server-Health-Endpunkt
 
 PGN-Export und ladbare Spielhistorie sind bereits über die Server-API verfügbar.
 
@@ -81,6 +83,21 @@ pnpm dev
 
 Die lokale Datenbankverbindung wird über `DATABASE_URL` konfiguriert. Eine Vorlage liegt in [.env.example](.env.example).
 
+## Versionierung und Release
+
+Die einzige Versionsquelle liegt in [packages/shared/src/version.ts](packages/shared/src/version.ts). Der Wert wird im Client-Footer angezeigt und über `GET /health` als `version` zurückgegeben.
+
+Für einen Release-Schritt wird die Version zentral aktualisiert:
+
+```bash
+pnpm version:set 0.2.0
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Der Befehl akzeptiert ausschließlich `major.minor.patch`-Versionen. Anschließend kann der Commit als Release-Grundlage getaggt werden.
+
 ## Spielhistorie und PGN
 
 Gespeicherte Partien und ihre Züge können über die Server-API geladen werden:
@@ -112,6 +129,7 @@ POST /notifications/:id/read
 GET  /games/:code/chat      # gespeicherte Partienachrichten laden
 POST /games/:code/chat      # Nachricht als Teilnehmer senden
 GET  /games/:code/spectate  # initialen Spielstand für Zuschauer laden
+GET  /health                # Serverstatus und Anwendungsversion
 ```
 
 Die Echtzeit-Partie läuft über Socket.IO. Authentifizierte Browser verbinden sich mit `withCredentials`; der Server prüft das Session-Cookie vor dem Beitritt zu einem Spielraum. Teilnehmer verwenden `game:sync`, Zuschauer `game:spectate`; beide erhalten `move:accepted` und Chatnachrichten live. Ein Join über die REST-Lobby löst zusätzlich ein `game:updated` für bereits verbundene Teilnehmer aus.

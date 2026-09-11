@@ -1,4 +1,5 @@
 export type Color = 'white' | 'black';
+export { APP_VERSION } from './version.js';
 export type GameStatus = 'waiting' | 'active' | 'finished';
 export type GameMode = 'casual' | 'ranked';
 export type UserRole = 'user' | 'admin' | 'spectator';
