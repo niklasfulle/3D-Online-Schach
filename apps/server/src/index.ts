@@ -440,6 +440,27 @@ export function buildApp(
     },
   );
 
+  app.post<{ Params: { code: string } }>('/games/:code/resign', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+
+    const game = gameManager.getGame(request.params.code);
+    if (!game) return reply.code(404).send({ error: 'Game not found' });
+    if (game.whitePlayerId !== user.id && game.blackPlayerId !== user.id) {
+      return reply.code(403).send({ error: 'Only game participants can resign' });
+    }
+
+    try {
+      const resigned = gameManager.resignGame(request.params.code, user.id);
+      await gameManager.flushPersistence();
+      return reply.send({ game: resigned });
+    } catch (error) {
+      return reply
+        .code(error instanceof Error && error.message === 'Game is not active' ? 409 : 400)
+        .send({ error: error instanceof Error ? error.message : 'Unable to resign game' });
+    }
+  });
+
   app.get<{ Params: { code: string } }>('/games/:code', async (request, reply) => {
     const game = gameManager.getGame(request.params.code);
     if (!game) return reply.code(404).send({ error: 'Game not found' });

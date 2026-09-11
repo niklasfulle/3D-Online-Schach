@@ -365,6 +365,29 @@ describe('server HTTP routes', () => {
     expect(manager.getGame(created.code)).toBeUndefined();
   });
 
+  it('allows only an active participant to resign a game', async () => {
+    const manager = new GameManager();
+    const created = manager.createGame(user.id);
+    manager.joinGame(created.code, bob.id);
+    const authProvider = createAuthProvider(bob);
+    app = buildApp(manager, authProvider, createSocialProvider(), createNotificationProvider());
+
+    authProvider.authenticate = vi.fn(async () => ({ ...user, id: 'intruder' }));
+    expect(
+      (await app.inject({ method: 'POST', url: `/games/${created.code}/resign` })).statusCode,
+    ).toBe(403);
+
+    authProvider.authenticate = vi.fn(async () => user);
+    const response = await app.inject({
+      method: 'POST',
+      url: `/games/${created.code}/resign`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().game).toMatchObject({ status: 'finished', result: 'black' });
+    expect(manager.getGame(created.code)).toMatchObject({ status: 'finished', result: 'black' });
+  });
+
   it('returns history errors and persistence failures', async () => {
     const persistence: GamePersistence = {
       saveGame: vi.fn(async () => undefined),

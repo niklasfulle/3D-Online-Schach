@@ -47,6 +47,7 @@ export type TranslationKey =
   | 'game.linkCopied'
   | 'game.copySpectatorLink'
   | 'game.spectatorLinkCopied'
+  | 'game.resign'
   | 'game.board'
   | 'game.white'
   | 'game.black'
@@ -194,6 +195,7 @@ export type TranslationKey =
   | 'error.gameCreate'
   | 'error.gameJoin'
   | 'error.gameDelete'
+  | 'error.resign'
   | 'error.roleUpdate'
   | 'error.userSearch'
   | 'error.friendRequest'
@@ -260,6 +262,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'game.linkCopied': 'Link kopiert',
     'game.copySpectatorLink': 'Zuschauerlink kopieren',
     'game.spectatorLinkCopied': 'Zuschauerlink kopiert',
+    'game.resign': 'Aufgeben',
     'game.board': '3D-Schachbrett',
     'game.white': 'Weiß',
     'game.black': 'Schwarz',
@@ -407,6 +410,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'error.gameCreate': 'Partie konnte nicht erstellt werden',
     'error.gameJoin': 'Partie konnte nicht beigetreten werden',
     'error.gameDelete': 'Partie konnte nicht gelöscht werden',
+    'error.resign': 'Partie konnte nicht aufgegeben werden',
     'error.roleUpdate': 'Rolle konnte nicht geändert werden',
     'error.userSearch': 'Benutzersuche fehlgeschlagen',
     'error.friendRequest': 'Freundschaftsanfrage fehlgeschlagen',
@@ -469,6 +473,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'game.linkCopied': 'Link copied',
     'game.copySpectatorLink': 'Copy spectator link',
     'game.spectatorLinkCopied': 'Spectator link copied',
+    'game.resign': 'Resign',
     'game.board': '3D chess board',
     'game.white': 'White',
     'game.black': 'Black',
@@ -616,6 +621,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'error.gameCreate': 'Could not create game',
     'error.gameJoin': 'Could not join game',
     'error.gameDelete': 'Could not delete game',
+    'error.resign': 'Could not resign game',
     'error.roleUpdate': 'Could not update role',
     'error.userSearch': 'User search failed',
     'error.friendRequest': 'Friend request failed',

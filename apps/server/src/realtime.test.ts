@@ -136,6 +136,48 @@ describe('realtime game rooms', () => {
     expect((await blackEnded).result).toBe('black');
   });
 
+  it('broadcasts resignation to both players and spectators', async () => {
+    const gameManager = new GameManager();
+    app = buildApp(gameManager);
+    realtime = registerRealtime(app, gameManager);
+    await app.listen({ host: '127.0.0.1', port: 0 });
+
+    const address = app.server.address();
+    if (!address || typeof address === 'string') throw new Error('Server address unavailable');
+    const url = `http://127.0.0.1:${address.port}`;
+    const white = connect(url, { auth: { playerId: 'player-a' }, transports: ['websocket'] });
+    const black = connect(url, { auth: { playerId: 'player-b' }, transports: ['websocket'] });
+    const spectator = connect(url, { auth: { playerId: 'viewer' }, transports: ['websocket'] });
+    clients = [white, black, spectator];
+
+    await Promise.all([
+      waitForEvent(white, 'connect'),
+      waitForEvent(black, 'connect'),
+      waitForEvent(spectator, 'connect'),
+    ]);
+    const createdPromise = waitForEvent<{ code: string }>(white, 'game:created');
+    white.emit('game:create');
+    const created = await createdPromise;
+    const startedPromise = waitForEvent(black, 'game:started');
+    black.emit('game:join', { code: created.code });
+    await startedPromise;
+    const spectatorStatePromise = waitForEvent(spectator, 'game:state');
+    spectator.emit('game:spectate', { code: created.code });
+    await spectatorStatePromise;
+
+    const endedPromises = [white, black, spectator].map((socket) =>
+      waitForEvent<{ gameId: string; result: string }>(socket, 'game:ended'),
+    );
+    const endedGame = gameManager.resignGame(created.code, 'player-a');
+
+    expect(endedGame.status).toBe('finished');
+    expect((await Promise.all(endedPromises)).map((payload) => payload.result)).toEqual([
+      'black',
+      'black',
+      'black',
+    ]);
+  });
+
   it('notifies a connected owner when a REST-style join activates the game', async () => {
     const gameManager = new GameManager();
     app = buildApp(gameManager);

@@ -349,4 +349,37 @@ test.describe('Authentifizierung', () => {
       new RegExp(`/games/${game.code}/pgn`),
     );
   });
+
+  test('kann eine aktive Partie über die Spielansicht aufgeben', async ({ page, request }) => {
+    const player = createCredentials();
+    const opponent = createCredentials();
+    const playerUser = await registerUser(request, player);
+    const opponentUser = await registerUser(request, opponent);
+
+    const created = await request.post(`${apiUrl}/games`, {
+      data: { playerId: playerUser.id, initialMs: 300_000 },
+    });
+    expect(created.status()).toBe(201);
+    const game = (await created.json()) as { code: string };
+
+    const joined = await request.post(`${apiUrl}/games/${game.code}/join`, {
+      data: { playerId: opponentUser.id },
+    });
+    expect(joined.status()).toBe(200);
+
+    await openLogin(page);
+    await page.getByLabel('Benutzername').fill(player.username);
+    await page.getByLabel('Passwort').fill(player.password);
+    await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+    await expectAuthenticated(page, player.username);
+
+    await page.goto(`/game/${game.code}`);
+    await expect(page.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Aufgeben', exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Aufgeben', exact: true }).click();
+
+    await expect(page.getByText(`Casual · ${game.code} · Beendet`)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Aufgeben', exact: true })).toHaveCount(0);
+  });
 });

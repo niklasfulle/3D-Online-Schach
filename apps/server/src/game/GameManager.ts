@@ -51,6 +51,7 @@ export interface GameSync {
 
 export type GameUpdateListener = (game: GameSummary) => void;
 export type GameRemovalListener = (game: GameSummary) => void;
+export type GameEndListener = (game: GameSummary, result: 'white' | 'black' | 'draw') => void;
 
 export interface GameHistory {
   game: GameSummary;
@@ -92,6 +93,7 @@ export class GameManager {
   private readonly pendingPersistence = new Set<Promise<void>>();
   private readonly gameUpdateListeners = new Set<GameUpdateListener>();
   private readonly gameRemovalListeners = new Set<GameRemovalListener>();
+  private readonly gameEndListeners = new Set<GameEndListener>();
   private persistenceError: unknown;
 
   constructor(
@@ -163,6 +165,33 @@ export class GameManager {
     return () => this.gameRemovalListeners.delete(listener);
   }
 
+  onGameEnded(listener: GameEndListener): () => void {
+    this.gameEndListeners.add(listener);
+    return () => this.gameEndListeners.delete(listener);
+  }
+
+  resignGame(code: string, playerId: string): GameSummary {
+    const game = this.getManagedGame(code);
+    if (!game) throw new Error('Game not found');
+    if (game.summary.status !== 'active') throw new Error('Game is not active');
+    if (game.summary.whitePlayerId !== playerId && game.summary.blackPlayerId !== playerId) {
+      throw new Error('Player is not part of this game');
+    }
+
+    const result = game.summary.whitePlayerId === playerId ? 'black' : 'white';
+    game.summary = {
+      ...game.summary,
+      status: 'finished',
+      result,
+      turnStartedAt: undefined,
+    };
+    const snapshot = this.snapshot(game);
+    this.enqueuePersistence(() => this.persistence.saveGame(snapshot, game.chess.getState().fen));
+    this.publishGameUpdate(snapshot);
+    this.publishGameEnd(snapshot, result);
+    return snapshot;
+  }
+
   requestMove(code: string, playerId: string, move: Move): AcceptedMove {
     const game = this.getManagedGame(code);
     if (!game) throw new Error('Game not found');
@@ -208,6 +237,7 @@ export class GameManager {
     this.enqueuePersistence(() =>
       this.persistence.saveMove(summary, playedMove, nextState.fen, game.chess.history().length),
     );
+    if (result) this.publishGameEnd(summary, result);
 
     return {
       fen: nextState.fen,
@@ -315,10 +345,12 @@ export class GameManager {
     if (remainingMs > 0) return undefined;
 
     game.summary = { ...game.summary, ...clock, status: 'finished', turnStartedAt: undefined };
-    this.enqueuePersistence(() =>
-      this.persistence.saveGame(this.snapshot(game), game.chess.getState().fen),
-    );
-    return new GameTimeoutError(this.snapshot(game), activeColor === 'white' ? 'black' : 'white');
+    const snapshot = this.snapshot(game);
+    const result = activeColor === 'white' ? 'black' : 'white';
+    this.enqueuePersistence(() => this.persistence.saveGame(snapshot, game.chess.getState().fen));
+    this.publishGameUpdate(snapshot);
+    this.publishGameEnd(snapshot, result);
+    return new GameTimeoutError(snapshot, result);
   }
 
   private enqueuePersistence(operation: () => Promise<void>): void {
@@ -333,6 +365,10 @@ export class GameManager {
 
   private publishGameUpdate(game: GameSummary): void {
     for (const listener of this.gameUpdateListeners) listener(game);
+  }
+
+  private publishGameEnd(game: GameSummary, result: 'white' | 'black' | 'draw'): void {
+    for (const listener of this.gameEndListeners) listener(game, result);
   }
 
   private publishGameRemoval(game: GameSummary): void {

@@ -408,6 +408,44 @@ describe('App', () => {
     expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
   });
 
+  it('lets an active player resign', async () => {
+    const activeGame = {
+      ...waitingGame,
+      status: 'active' as const,
+      blackPlayerId: 'opponent-1',
+    };
+
+    mocks.requestJson.mockImplementation(
+      async (_baseUrl: string, path: string, options?: RequestInit) => {
+        if (path === '/auth/me') return { user };
+        if (path === '/lobby') return { games: [] };
+        if (path === '/friends') return emptyFriends;
+        if (path === '/lobby/games') return activeGame;
+        if (path === `/games/${activeGame.code}/resign` && options?.method === 'POST') {
+          return { game: { ...activeGame, status: 'finished' as const, result: 'black' as const } };
+        }
+        throw new Error(`Unexpected request: ${path}`);
+      },
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
+    await screen.findByRole('heading', { name: 'Am Brett' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aufgeben' }));
+
+    await waitFor(() =>
+      expect(mocks.requestJson).toHaveBeenCalledWith(
+        expect.any(String),
+        `/games/${activeGame.code}/resign`,
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    expect(await screen.findByText('Casual · ABC123 · Beendet')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Aufgeben' })).toBeNull();
+  });
+
   it('copies a shareable link for the active game', async () => {
     const activeGame = {
       ...waitingGame,

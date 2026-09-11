@@ -40,6 +40,9 @@ export function registerRealtime(
   gameManager.onGameUpdate((game) => {
     io.to(game.code).emit('game:updated', game);
   });
+  gameManager.onGameEnded((game, result) => {
+    io.to(game.code).emit('game:ended', { gameId: game.id, result });
+  });
   gameManager.onGameRemoved((game) => {
     io.emit('game:removed', { code: game.code });
   });
@@ -164,15 +167,8 @@ export function registerRealtime(
         await gameManager.flushPersistence();
         const room = payload.code.toUpperCase();
         io.to(room).emit('move:accepted', accepted);
-        if (accepted.result) {
-          io.to(room).emit('game:ended', { gameId: accepted.game.id, result: accepted.result });
-        }
       } catch (error) {
         if (error instanceof GameTimeoutError) {
-          io.to(payload.code.toUpperCase()).emit('game:ended', {
-            gameId: error.game.id,
-            result: error.result,
-          });
           return;
         }
         socket.emit('move:rejected', {

@@ -112,6 +112,30 @@ describe('GameManager', () => {
     expect(accepted.game.status).toBe('finished');
   });
 
+  it('allows an active participant to resign and awards the game to the opponent', async () => {
+    const savedGames: Array<{ status: string; result?: string }> = [];
+    manager = new GameManager(undefined, {
+      saveGame: async (game) => {
+        savedGames.push({ status: game.status, result: game.result });
+      },
+      saveMove: async () => undefined,
+    });
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+
+    const resigned = manager.resignGame(created.code, 'player-a');
+    await manager.flushPersistence();
+
+    expect(resigned).toMatchObject({
+      code: created.code,
+      status: 'finished',
+      result: 'black',
+      turnStartedAt: undefined,
+    });
+    expect(savedGames.at(-1)).toEqual({ status: 'finished', result: 'black' });
+    expect(() => manager.resignGame(created.code, 'player-b')).toThrow('Game is not active');
+  });
+
   it('serializes concurrent move requests per game', async () => {
     manager = new GameManager();
     const created = manager.createGame('player-a');

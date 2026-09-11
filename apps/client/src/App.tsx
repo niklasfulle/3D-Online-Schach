@@ -466,6 +466,7 @@ interface GameViewProps {
   chatDraft: string;
   onChatDraftChange: (value: string) => void;
   onSendChat: () => void;
+  onResign: () => void;
 }
 
 function GameView({
@@ -490,6 +491,7 @@ function GameView({
   chatDraft,
   onChatDraftChange,
   onSendChat,
+  onResign,
 }: Readonly<GameViewProps>) {
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const previousMessageCountRef = useRef<number | null>(null);
@@ -545,7 +547,9 @@ function GameView({
               ? t('game.spectator')
               : selectedGame.status === 'active'
                 ? t('game.live')
-                : t('game.waiting')}
+                : selectedGame.status === 'finished'
+                  ? t('status.finished')
+                  : t('game.waiting')}
           </span>
           <span className="game-code-label">{gameStatus}</span>
           {!spectatorMode && (
@@ -556,6 +560,11 @@ function GameView({
           <button className="secondary-button" type="button" onClick={onCopySpectatorLink}>
             {spectatorLinkCopied ? t('game.spectatorLinkCopied') : t('game.copySpectatorLink')}
           </button>
+          {!spectatorMode && selectedGame.status === 'active' ? (
+            <button className="tiny-button danger" type="button" onClick={onResign}>
+              {t('game.resign')}
+            </button>
+          ) : null}
         </div>
       </div>
       <div className="game-layout">
@@ -610,7 +619,9 @@ function GameView({
                 ? `${turnLabel} ${t('game.spectatorTurn')}`
                 : selectedGame.status === 'active'
                   ? `${turnLabel} ${t('game.turn')}`
-                  : t('game.waitingForOpponent')}
+                  : selectedGame.status === 'finished'
+                    ? t('status.finished')
+                    : t('game.waitingForOpponent')}
             </span>
             <span>
               {selectedSquare ? `${selectedSquare} ${t('game.selected')}` : t('game.moveBoard')}
@@ -888,6 +899,13 @@ export function App() {
       setSelectedGame(nextGame);
       socket.emit('game:sync', { code: nextGame.code });
     });
+    socket.on('game:ended', (payload: { gameId: string; result: 'white' | 'black' | 'draw' }) => {
+      setSelectedGame((current) =>
+        current && current.id === payload.gameId
+          ? { ...current, status: 'finished', result: payload.result, turnStartedAt: undefined }
+          : current,
+      );
+    });
     socket.on('game:removed', (payload: { code?: string }) => {
       if (!payload.code) return;
       setLobbyGames((games) => games.filter((game) => game.code !== payload.code));
@@ -1111,6 +1129,20 @@ export function App() {
     }
   }
 
+  async function resignGame() {
+    if (!selectedGame) return;
+    try {
+      const response = await requestApi<{ game: GameSummary }>(
+        API_URL,
+        `/games/${encodeURIComponent(selectedGame.code)}/resign`,
+        { method: 'POST' },
+      );
+      setSelectedGame(response.game);
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : t('error.resign'));
+    }
+  }
+
   async function openHistory() {
     setView('history');
     setSelectedHistoryGame(null);
@@ -1310,6 +1342,7 @@ export function App() {
                 chatDraft=""
                 onChatDraftChange={() => undefined}
                 onSendChat={() => undefined}
+                onResign={() => undefined}
               />
             ) : (
               <div className="centered-message">{t('guest.loadingGame')}</div>
@@ -1641,6 +1674,7 @@ export function App() {
                   chatDraft={chatDraft}
                   onChatDraftChange={setChatDraft}
                   onSendChat={sendChat}
+                  onResign={() => void resignGame()}
                 />
               ) : null}
             </section>
