@@ -58,13 +58,15 @@ afterEach(() => {
 
 describe('App', () => {
   it('allows a guest to register and opens the lobby dashboard', async () => {
-    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
-      if (path === '/auth/me') throw new Error('Nicht angemeldet');
-      if (path === '/auth/register') return { user };
-      if (path === '/lobby') return { games: [] };
-      if (path === '/friends') return emptyFriends;
-      throw new Error(`Unexpected request: ${path}`);
-    });
+    mocks.requestJson.mockImplementation(
+      async (_baseUrl: string, path: string, options?: RequestInit) => {
+        if (path === '/auth/me') throw new Error('Nicht angemeldet');
+        if (path === '/auth/register') return { user };
+        if (path === '/lobby') return { games: [] };
+        if (path === '/friends') return emptyFriends;
+        throw new Error(`Unexpected request: ${path}`);
+      },
+    );
 
     render(<App />);
 
@@ -317,5 +319,49 @@ describe('App', () => {
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ username: 'Mara' }) }),
       ),
     );
+  });
+
+  it('loads and sends chat messages inside a game', async () => {
+    const activeGame = {
+      ...waitingGame,
+      status: 'active' as const,
+      blackPlayerId: 'opponent-1',
+    };
+    const chatMessage = {
+      id: 'message-1',
+      senderId: 'opponent-1',
+      senderUsername: 'Mara',
+      message: 'Viel Erfolg!',
+      createdAt: '2026-09-11T10:00:00.000Z',
+    };
+
+    mocks.requestJson.mockImplementation(
+      async (_baseUrl: string, path: string, options?: RequestInit) => {
+        if (path === '/auth/me') return { user };
+        if (path === '/lobby') return { games: [] };
+        if (path === '/friends') return emptyFriends;
+        if (path === '/notifications') return { notifications: [] };
+        if (path === '/lobby/games') return activeGame;
+        if (path === '/games/ABC123/chat') {
+          return options?.method === 'POST' ? chatMessage : { messages: [chatMessage] };
+        }
+        throw new Error(`Unexpected request: ${path}`);
+      },
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
+    await screen.findByRole('heading', { name: 'Am Brett' });
+    expect(await screen.findByText('Viel Erfolg!')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Chatnachricht'), {
+      target: { value: 'Danke!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }));
+    expect(mocks.socket.emit).toHaveBeenCalledWith('chat:send', {
+      code: 'ABC123',
+      message: 'Danke!',
+    });
   });
 });

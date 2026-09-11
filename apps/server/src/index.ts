@@ -16,6 +16,7 @@ import {
 } from './auth/AuthService.js';
 import { readSessionToken, SESSION_COOKIE } from './auth/sessionCookie.js';
 import { GameManager, GameTimeoutError } from './game/GameManager.js';
+import { ChatError, PrismaChatProvider, type ChatProvider } from './chat/ChatService.js';
 import { prisma } from './db/client.js';
 import { PrismaGamePersistence } from './persistence/PrismaGamePersistence.js';
 import { registerRealtime } from './realtime.js';
@@ -31,6 +32,7 @@ export function buildApp(
   authProvider: AuthProvider = new PrismaAuthProvider(prisma),
   socialProvider: SocialProvider = new PrismaSocialProvider(prisma),
   notificationProvider: NotificationProvider = new PrismaNotificationProvider(prisma),
+  chatProvider: ChatProvider = new PrismaChatProvider(prisma),
 ): FastifyInstance {
   const app = Fastify({ logger: true });
 
@@ -220,6 +222,43 @@ export function buildApp(
     },
   );
 
+  app.get<{ Params: { code: string } }>('/games/:code/chat', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    const game = gameManager.getGame(request.params.code);
+    if (!game) return reply.code(404).send({ error: 'Game not found' });
+    if (game.whitePlayerId !== user.id && game.blackPlayerId !== user.id) {
+      return reply.code(403).send({ error: 'Only game participants can read the chat' });
+    }
+
+    try {
+      return reply.send({ messages: await chatProvider.list(game.id) });
+    } catch (error) {
+      return sendChatError(reply, error);
+    }
+  });
+
+  app.post<{ Params: { code: string }; Body: { message?: string } }>(
+    '/games/:code/chat',
+    async (request, reply) => {
+      const user = await requireUser(request, reply, authProvider);
+      if (!user) return;
+      const game = gameManager.getGame(request.params.code);
+      if (!game) return reply.code(404).send({ error: 'Game not found' });
+      if (game.whitePlayerId !== user.id && game.blackPlayerId !== user.id) {
+        return reply.code(403).send({ error: 'Only game participants can write in the chat' });
+      }
+
+      try {
+        return reply
+          .code(201)
+          .send(await chatProvider.send(game.id, user.id, request.body?.message ?? ''));
+      } catch (error) {
+        return sendChatError(reply, error);
+      }
+    },
+  );
+
   app.get('/health', async () => ({ status: 'ok', service: 'chess3d-server' }));
 
   app.post<{
@@ -404,6 +443,12 @@ function sendNotificationError(reply: FastifyReply, error: unknown) {
   if (error instanceof NotificationError)
     return reply.code(error.statusCode).send({ error: error.message });
   return reply.code(503).send({ error: 'Notification service unavailable' });
+}
+
+function sendChatError(reply: FastifyReply, error: unknown) {
+  if (error instanceof ChatError)
+    return reply.code(error.statusCode).send({ error: error.message });
+  return reply.code(503).send({ error: 'Chat service unavailable' });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

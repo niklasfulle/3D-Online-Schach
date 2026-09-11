@@ -4,6 +4,7 @@ import { io as connect, type Socket } from 'socket.io-client';
 import { buildApp } from './index.js';
 import { GameManager } from './game/GameManager.js';
 import { registerRealtime } from './realtime.js';
+import type { ChatProvider } from './chat/ChatService.js';
 
 function waitForEvent<T>(socket: Socket, event: string): Promise<T> {
   return new Promise((resolve) => {
@@ -28,7 +29,17 @@ describe('realtime game rooms', () => {
   it('broadcasts accepted moves to both players', async () => {
     const gameManager = new GameManager();
     app = buildApp(gameManager);
-    realtime = registerRealtime(app, gameManager);
+    const chatProvider: ChatProvider = {
+      list: async () => [],
+      send: async (_gameId, senderId, message) => ({
+        id: 'message-1',
+        senderId,
+        senderUsername: senderId === 'player-a' ? 'alice' : 'bob',
+        message: message.trim(),
+        createdAt: '2026-09-11T12:00:00.000Z',
+      }),
+    };
+    realtime = registerRealtime(app, gameManager, undefined, chatProvider);
     await app.listen({ host: '127.0.0.1', port: 0 });
 
     const address = app.server.address();
@@ -46,6 +57,12 @@ describe('realtime game rooms', () => {
     const startedPromise = waitForEvent(black, 'game:started');
     black.emit('game:join', { code: created.code });
     await startedPromise;
+
+    const whiteChatPromise = waitForEvent<{ message: string }>(white, 'chat:message');
+    const blackChatPromise = waitForEvent<{ message: string }>(black, 'chat:message');
+    white.emit('chat:send', { code: created.code, message: ' Hallo! ' });
+    expect((await whiteChatPromise).message).toBe('Hallo!');
+    expect((await blackChatPromise).message).toBe('Hallo!');
 
     const whiteMovePromise = waitForEvent<{ move: { san: string } }>(white, 'move:accepted');
     const blackMovePromise = waitForEvent<{ move: { san: string } }>(black, 'move:accepted');

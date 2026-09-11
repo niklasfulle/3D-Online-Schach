@@ -25,6 +25,7 @@ model User {
   receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
   notifications          Notification[]  @relation("NotificationRecipient")
   sentNotifications      Notification[]  @relation("NotificationActor")
+  chatMessages            ChatMessage[]
 }
 
 model Session {
@@ -60,6 +61,7 @@ model Game {
   blackPlayer     User?     @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
   winner          User?     @relation("Winner", fields: [winnerId], references: [id])
   moves           Move[]
+  chatMessages    ChatMessage[]
 }
 
 model FriendRequest {
@@ -123,4 +125,16 @@ model Notification {
   actor           User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([recipientId, readAt, createdAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  gameId    String
+  senderId  String
+  message   String
+  createdAt DateTime @default(now())
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, createdAt])
 }

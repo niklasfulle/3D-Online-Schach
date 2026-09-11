@@ -182,6 +182,9 @@ test.describe('Authentifizierung', () => {
       await inviteePage.goto(invitationUrl);
       await expect(inviteePage.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
       await expect(inviteePage.getByText('Schwarz', { exact: true })).toBeVisible();
+      await page.getByLabel('Chatnachricht').fill('Viel Erfolg!');
+      await page.getByRole('button', { name: 'Senden' }).click();
+      await expect(inviteePage.getByText('Viel Erfolg!', { exact: true })).toBeVisible();
     } finally {
       await inviteePage.close();
     }

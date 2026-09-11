@@ -6,6 +6,8 @@ import type { Move } from '@chess3d/chess-core';
 import { GameTimeoutError, type GameManager } from './game/GameManager.js';
 import type { AuthProvider } from './auth/AuthService.js';
 import { readSessionToken } from './auth/sessionCookie.js';
+import { PrismaChatProvider, type ChatProvider } from './chat/ChatService.js';
+import { prisma } from './db/client.js';
 
 interface JoinPayload {
   code?: string;
@@ -19,10 +21,16 @@ interface MovePayload extends Move {
   code?: string;
 }
 
+interface ChatPayload {
+  code?: string;
+  message?: string;
+}
+
 export function registerRealtime(
   app: FastifyInstance,
   gameManager: GameManager,
   authProvider?: AuthProvider,
+  chatProvider: ChatProvider = new PrismaChatProvider(prisma),
 ): Server {
   const io = new Server(app.server, { cors: { origin: true, credentials: true } });
 
@@ -123,6 +131,28 @@ export function registerRealtime(
         }
         socket.emit('move:rejected', {
           reason: error instanceof Error ? error.message : 'Unable to play move',
+        });
+      }
+    });
+
+    socket.on('chat:send', async (payload: ChatPayload) => {
+      if (!payload.code || payload.message === undefined) {
+        socket.emit('chat:error', { error: 'code and message are required' });
+        return;
+      }
+
+      const game = gameManager.getGame(payload.code);
+      if (!game || (game.whitePlayerId !== playerId && game.blackPlayerId !== playerId)) {
+        socket.emit('chat:error', { error: 'Only game participants can use the chat' });
+        return;
+      }
+
+      try {
+        const message = await chatProvider.send(game.id, playerId, payload.message);
+        io.to(game.code).emit('chat:message', message);
+      } catch (error) {
+        socket.emit('chat:error', {
+          error: error instanceof Error ? error.message : 'Unable to send chat message',
         });
       }
     });

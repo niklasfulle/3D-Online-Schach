@@ -578,6 +578,58 @@ input:focus-visible {
   font-weight: 700;
 }
 
+.chat-panel {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.chat-messages {
+  display: grid;
+  max-height: 12rem;
+  gap: 0.45rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.chat-message {
+  display: grid;
+  gap: 0.15rem;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.6rem;
+  background: rgb(36 57 84 / 48%);
+}
+
+.chat-message strong {
+  color: #9cc6ff;
+  font-size: 0.72rem;
+}
+
+.chat-message span {
+  color: #d8e7ff;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.chat-form {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.chat-form label {
+  color: #7f95b0;
+  font-size: 0.7rem;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.chat-input-row input {
+  min-width: 0;
+  flex: 1;
+}
+
 .brand-mark {
   display: grid;
   width: 2.55rem;

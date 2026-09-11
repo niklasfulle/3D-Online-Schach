@@ -82,6 +82,14 @@ interface GameSync {
   moves: MoveRecord[];
 }
 
+interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderUsername: string;
+  message: string;
+  createdAt: string;
+}
+
 interface LobbyGame extends GameSummary {
   isOwner: boolean;
 }
@@ -184,6 +192,10 @@ interface GameViewProps {
   handleSelectSquare: (square: Square) => void;
   onCopyLink: () => void;
   linkCopied: boolean;
+  chatMessages: ChatMessage[];
+  chatDraft: string;
+  onChatDraftChange: (value: string) => void;
+  onSendChat: () => void;
 }
 
 function GameView({
@@ -199,6 +211,10 @@ function GameView({
   handleSelectSquare,
   onCopyLink,
   linkCopied,
+  chatMessages,
+  chatDraft,
+  onChatDraftChange,
+  onSendChat,
 }: Readonly<GameViewProps>) {
   return (
     <section className="game-view">
@@ -331,6 +347,45 @@ function GameView({
             <span className="panel-label">FEN</span>
             <code>{gameState.fen}</code>
           </div>
+          <div className="panel-section chat-panel" aria-label="Partiechat">
+            <div className="moves-heading">
+              <span className="panel-label">Partiechat</span>
+              <span className="muted">Teilnehmer</span>
+            </div>
+            <div className="chat-messages" role="log" aria-live="polite">
+              {chatMessages.length ? (
+                chatMessages.map((message) => (
+                  <div className="chat-message" key={message.id}>
+                    <strong>{message.senderUsername}</strong>
+                    <span>{message.message}</span>
+                  </div>
+                ))
+              ) : (
+                <span className="muted">Noch keine Nachrichten.</span>
+              )}
+            </div>
+            <form
+              className="chat-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onSendChat();
+              }}
+            >
+              <label htmlFor="chat-message">Chatnachricht</label>
+              <div className="chat-input-row">
+                <input
+                  id="chat-message"
+                  maxLength={500}
+                  value={chatDraft}
+                  onChange={(event) => onChatDraftChange(event.target.value)}
+                  placeholder="Nachricht schreiben …"
+                />
+                <button className="tiny-button" type="submit">
+                  Senden
+                </button>
+              </div>
+            </form>
+          </div>
           <button
             className="quiet-button panel-back-button"
             type="button"
@@ -364,6 +419,8 @@ export function App() {
   const [legalTargets, setLegalTargets] = useState<Square[]>([]);
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
   const [promotionMove, setPromotionMove] = useState<Move | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const invitationAttemptRef = useRef<string | null>(null);
@@ -384,6 +441,14 @@ export function App() {
       '/notifications',
     );
     setNotifications(response.notifications);
+  }, []);
+
+  const refreshChat = useCallback(async (code: string) => {
+    const response = await requestApi<{ messages: ChatMessage[] }>(
+      API_URL,
+      `/games/${encodeURIComponent(code)}/chat`,
+    );
+    setChatMessages(response.messages);
   }, []);
 
   useEffect(() => {
@@ -424,6 +489,14 @@ export function App() {
       setMoveHistory((history) => [...history, accepted.move]);
       resetSelection();
     });
+    socket.on('chat:message', (message: ChatMessage) => {
+      setChatMessages((messages) =>
+        messages.some((current) => current.id === message.id) ? messages : [...messages, message],
+      );
+    });
+    socket.on('chat:error', (payload: { error?: string }) =>
+      setError(payload.error ?? 'Nachricht konnte nicht gesendet werden'),
+    );
     socket.on('game:error', (payload: { error?: string }) =>
       setError(payload.error ?? 'Partie konnte nicht synchronisiert werden'),
     );
@@ -439,18 +512,18 @@ export function App() {
     };
   }, [user]);
 
-    useEffect(() => {
-      if (!user || !inviteCode) return;
-      const currentUser = user;
-      if (invitationAttemptRef.current === inviteCode) return;
+  useEffect(() => {
+    if (!user || !inviteCode) return;
+    const currentUser = user;
+    if (invitationAttemptRef.current === inviteCode) return;
     invitationAttemptRef.current = inviteCode;
 
     async function openInvitation() {
       try {
-          const invitedGame = await requestApi<GameSummary>(API_URL, `/games/${inviteCode}`);
-          const isParticipant =
-            invitedGame.whitePlayerId === currentUser.id ||
-            invitedGame.blackPlayerId === currentUser.id;
+        const invitedGame = await requestApi<GameSummary>(API_URL, `/games/${inviteCode}`);
+        const isParticipant =
+          invitedGame.whitePlayerId === currentUser.id ||
+          invitedGame.blackPlayerId === currentUser.id;
         const nextGame =
           invitedGame.status === 'waiting' && !isParticipant
             ? await requestApi<GameSummary>(API_URL, `/lobby/games/${inviteCode}/join`, {
@@ -476,6 +549,7 @@ export function App() {
     setGame(nextGame);
     setGameState(nextGame.getState());
     setMoveHistory(sync.moves);
+    void refreshChat(sync.game.code).catch(() => undefined);
     setView('game');
     setLinkCopied(false);
     setGamePath(sync.game.code);
@@ -508,6 +582,8 @@ export function App() {
     setUser(null);
     setSelectedGame(null);
     setView('lobby');
+    setChatMessages([]);
+    setChatDraft('');
     setLinkCopied(false);
     setGamePath(null);
   }
@@ -518,7 +594,16 @@ export function App() {
     setView('game');
     setLinkCopied(false);
     setGamePath(nextGame.code);
+    setChatDraft('');
+    void refreshChat(nextGame.code).catch(() => undefined);
     socketRef.current?.emit('game:sync', { code: nextGame.code });
+  }
+
+  function sendChat() {
+    const message = chatDraft.trim();
+    if (!selectedGame || !message) return;
+    socketRef.current?.emit('chat:send', { code: selectedGame.code, message });
+    setChatDraft('');
   }
 
   async function copyGameLink() {
@@ -899,6 +984,10 @@ export function App() {
                   handleSelectSquare={handleSelectSquare}
                   onCopyLink={() => void copyGameLink()}
                   linkCopied={linkCopied}
+                  chatMessages={chatMessages}
+                  chatDraft={chatDraft}
+                  onChatDraftChange={setChatDraft}
+                  onSendChat={sendChat}
                 />
               ) : null}
             </section>
