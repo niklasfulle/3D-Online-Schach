@@ -244,6 +244,25 @@ describe('server HTTP routes', () => {
     );
     expect((await app.inject({ method: 'GET', url: '/games/missing/pgn' })).statusCode).toBe(503);
   });
+
+  it('serves an active game snapshot to authenticated spectators', async () => {
+    const manager = new GameManager();
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+    const authProvider = createAuthProvider({ id: 'viewer', username: 'viewer', rating: 1200 });
+    app = buildApp(manager, authProvider, createSocialProvider(), createNotificationProvider());
+
+    const response = await app.inject({ method: 'GET', url: `/games/${created.code}/spectate` });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().game.status).toBe('active');
+    expect(response.json().moves).toEqual([]);
+
+    const waiting = manager.createGame('player-c');
+    expect(
+      (await app.inject({ method: 'GET', url: `/games/${waiting.code}/spectate` })).statusCode,
+    ).toBe(409);
+  });
 });
 
 function createAuthProvider(

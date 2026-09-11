@@ -47,9 +47,14 @@ describe('realtime game rooms', () => {
     const url = `http://127.0.0.1:${address.port}`;
     const white = connect(url, { auth: { playerId: 'player-a' }, transports: ['websocket'] });
     const black = connect(url, { auth: { playerId: 'player-b' }, transports: ['websocket'] });
-    clients = [white, black];
+    const spectator = connect(url, { auth: { playerId: 'viewer' }, transports: ['websocket'] });
+    clients = [white, black, spectator];
 
-    await Promise.all([waitForEvent(white, 'connect'), waitForEvent(black, 'connect')]);
+    await Promise.all([
+      waitForEvent(white, 'connect'),
+      waitForEvent(black, 'connect'),
+      waitForEvent(spectator, 'connect'),
+    ]);
     const createdPromise = waitForEvent<{ code: string }>(white, 'game:created');
     white.emit('game:create');
     const created = await createdPromise;
@@ -57,6 +62,13 @@ describe('realtime game rooms', () => {
     const startedPromise = waitForEvent(black, 'game:started');
     black.emit('game:join', { code: created.code });
     await startedPromise;
+
+    const spectatorStatePromise = waitForEvent<{ game: { status: string } }>(
+      spectator,
+      'game:state',
+    );
+    spectator.emit('game:spectate', { code: created.code });
+    expect((await spectatorStatePromise).game.status).toBe('active');
 
     const whiteChatPromise = waitForEvent<{ message: string }>(white, 'chat:message');
     const blackChatPromise = waitForEvent<{ message: string }>(black, 'chat:message');
@@ -66,10 +78,15 @@ describe('realtime game rooms', () => {
 
     const whiteMovePromise = waitForEvent<{ move: { san: string } }>(white, 'move:accepted');
     const blackMovePromise = waitForEvent<{ move: { san: string } }>(black, 'move:accepted');
+    const spectatorMovePromise = waitForEvent<{ move: { san: string } }>(
+      spectator,
+      'move:accepted',
+    );
     white.emit('move:request', { code: created.code, from: 'e2', to: 'e4' });
 
     expect((await whiteMovePromise).move.san).toBe('e4');
     expect((await blackMovePromise).move.san).toBe('e4');
+    expect((await spectatorMovePromise).move.san).toBe('e4');
 
     const syncPromise = waitForEvent<{ fen: string; moves: Array<{ san: string }> }>(
       white,

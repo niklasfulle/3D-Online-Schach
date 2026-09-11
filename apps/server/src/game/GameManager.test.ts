@@ -131,6 +131,18 @@ describe('GameManager', () => {
     expect(() => manager.getGameSync(created.code, 'intruder')).toThrow('not part');
   });
 
+  it('allows a non-participant to sync an active game as a spectator', () => {
+    const manager = new GameManager();
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+
+    const sync = manager.getGameSyncForViewer(created.code, 'viewer', true);
+
+    expect(sync.game.status).toBe('active');
+    expect(sync.game.whitePlayerId).toBe('player-a');
+    expect(() => manager.getGameSyncForViewer(created.code, 'viewer')).toThrow('not part');
+  });
+
   it('flushes game, move and FEN persistence after state changes', async () => {
     const savedGames: Array<{ status: string; fen: string }> = [];
     const savedMoves: Array<{ moveNumber: number; san: string; fen: string }> = [];

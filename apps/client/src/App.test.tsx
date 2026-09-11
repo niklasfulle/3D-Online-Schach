@@ -226,6 +226,11 @@ describe('App', () => {
     );
     expect(screen.getByRole('button', { name: 'Link kopiert' })).toBeTruthy();
     expect(window.location.pathname).toBe('/game/ABC123');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zuschauerlink kopieren' }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/watch/ABC123')),
+    );
   });
 
   it('opens and joins a waiting game from its invitation path', async () => {
@@ -363,5 +368,39 @@ describe('App', () => {
       code: 'ABC123',
       message: 'Danke!',
     });
+  });
+
+  it('opens an active game in read-only spectator mode', async () => {
+    window.history.replaceState({}, '', '/watch/ABC123');
+    const activeGame = {
+      ...waitingGame,
+      status: 'active' as const,
+      whitePlayerId: 'owner-1',
+      blackPlayerId: 'opponent-1',
+    };
+    const sync = {
+      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      game: activeGame,
+      moves: [],
+    };
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      if (path === '/games/ABC123/spectate') return sync;
+      if (path === '/games/ABC123/chat') return { messages: [] };
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Am Brett' })).toBeTruthy();
+    expect(screen.getByText('Zuschauer')).toBeTruthy();
+    expect(screen.getByText(/nur Zuschauen/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Senden' })).toBeNull();
+    expect(mocks.socket.emit).toHaveBeenCalledWith('game:spectate', { code: 'ABC123' });
+    expect(window.location.pathname).toBe('/watch/ABC123');
   });
 });

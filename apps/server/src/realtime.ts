@@ -26,6 +26,10 @@ interface ChatPayload {
   message?: string;
 }
 
+interface SpectatePayload {
+  code?: string;
+}
+
 export function registerRealtime(
   app: FastifyInstance,
   gameManager: GameManager,
@@ -99,6 +103,23 @@ export function registerRealtime(
       } catch (error) {
         socket.emit('game:error', {
           error: error instanceof Error ? error.message : 'Unable to sync game',
+        });
+      }
+    });
+
+    socket.on('game:spectate', async (payload: SpectatePayload) => {
+      if (!payload.code) {
+        socket.emit('game:error', { error: 'code is required' });
+        return;
+      }
+
+      try {
+        const sync = gameManager.getGameSyncForViewer(payload.code, playerId, true);
+        await socket.join(payload.code.toUpperCase());
+        socket.emit('game:state', sync);
+      } catch (error) {
+        socket.emit('game:error', {
+          error: error instanceof Error ? error.message : 'Unable to spectate game',
         });
       }
     });

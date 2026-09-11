@@ -222,10 +222,21 @@ export class GameManager {
   }
 
   getGameSync(code: string, playerId: string): GameSync {
+    return this.getGameSyncForViewer(code, playerId, false);
+  }
+
+  getGameSyncForViewer(code: string, viewerId: string, spectator = false): GameSync {
     const game = this.getManagedGame(code);
     if (!game) throw new Error('Game not found');
-    if (game.summary.whitePlayerId !== playerId && game.summary.blackPlayerId !== playerId) {
+    if (
+      !spectator &&
+      game.summary.whitePlayerId !== viewerId &&
+      game.summary.blackPlayerId !== viewerId
+    ) {
       throw new Error('Player is not part of this game');
+    }
+    if (spectator && game.summary.status === 'waiting') {
+      throw new Error('Game is not ready for spectators');
     }
 
     this.expireIfNeeded(game);

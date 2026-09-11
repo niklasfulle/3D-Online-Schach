@@ -125,6 +125,15 @@ function playerLabel(playerId: string | undefined, currentUserId: string) {
   return playerId === currentUserId ? 'Du' : 'Gegner';
 }
 
+function viewerPlayerLabel(
+  playerId: string | undefined,
+  currentUserId: string,
+  spectator: boolean,
+) {
+  if (spectator) return playerId ? 'Spieler' : 'Offen';
+  return playerLabel(playerId, currentUserId);
+}
+
 function pageHeadingFor(view: AppView): PageHeading {
   if (view === 'game') {
     return {
@@ -171,8 +180,17 @@ function invitationCodeFromPath(pathname: string): string | null {
   return match?.[1]?.toUpperCase() ?? null;
 }
 
+function spectatorCodeFromPath(pathname: string): string | null {
+  const match = /^\/watch\/([a-z0-9]+)\/?$/i.exec(pathname);
+  return match?.[1]?.toUpperCase() ?? null;
+}
+
 function gamePath(code: string): string {
   return `/game/${encodeURIComponent(code)}`;
+}
+
+function spectatorPath(code: string): string {
+  return `/watch/${encodeURIComponent(code)}`;
 }
 
 function setGamePath(code: string | null): void {
@@ -192,6 +210,9 @@ interface GameViewProps {
   handleSelectSquare: (square: Square) => void;
   onCopyLink: () => void;
   linkCopied: boolean;
+  spectatorMode: boolean;
+  onCopySpectatorLink: () => void;
+  spectatorLinkCopied: boolean;
   chatMessages: ChatMessage[];
   chatDraft: string;
   onChatDraftChange: (value: string) => void;
@@ -211,6 +232,9 @@ function GameView({
   handleSelectSquare,
   onCopyLink,
   linkCopied,
+  spectatorMode,
+  onCopySpectatorLink,
+  spectatorLinkCopied,
   chatMessages,
   chatDraft,
   onChatDraftChange,
@@ -237,11 +261,17 @@ function GameView({
         </div>
         <div className="game-toolbar-meta">
           <span className="game-status-pill">
-            <span className="live-dot" /> {selectedGame.status === 'active' ? 'Live' : 'Wartet'}
+            <span className="live-dot" />{' '}
+            {spectatorMode ? 'Zuschauer' : selectedGame.status === 'active' ? 'Live' : 'Wartet'}
           </span>
           <span className="game-code-label">{gameStatus}</span>
-          <button className="secondary-button" type="button" onClick={onCopyLink}>
-            {linkCopied ? 'Link kopiert' : 'Link kopieren'}
+          {!spectatorMode && (
+            <button className="secondary-button" type="button" onClick={onCopyLink}>
+              {linkCopied ? 'Link kopiert' : 'Link kopieren'}
+            </button>
+          )}
+          <button className="secondary-button" type="button" onClick={onCopySpectatorLink}>
+            {spectatorLinkCopied ? 'Zuschauerlink kopiert' : 'Zuschauerlink kopieren'}
           </button>
         </div>
       </div>
@@ -253,7 +283,9 @@ function GameView({
             >
               <span className="player-avatar light">♙</span>
               <div>
-                <strong>{playerLabel(selectedGame.whitePlayerId, user.id)}</strong>
+                <strong>
+                  {viewerPlayerLabel(selectedGame.whitePlayerId, user.id, spectatorMode)}
+                </strong>
                 <span>Weiß</span>
               </div>
               <strong className="player-clock">{formatClock(selectedGame.whiteRemainingMs)}</strong>
@@ -264,7 +296,9 @@ function GameView({
             >
               <span className="player-avatar dark">♟</span>
               <div>
-                <strong>{playerLabel(selectedGame.blackPlayerId, user.id)}</strong>
+                <strong>
+                  {viewerPlayerLabel(selectedGame.blackPlayerId, user.id, spectatorMode)}
+                </strong>
                 <span>Schwarz</span>
               </div>
               <strong className="player-clock">{formatClock(selectedGame.blackRemainingMs)}</strong>
@@ -289,7 +323,11 @@ function GameView({
           <div className="board-footer">
             <span>
               <span className="live-dot" />{' '}
-              {selectedGame.status === 'active' ? `${turnLabel} am Zug` : 'Warte auf einen Gegner'}
+              {spectatorMode
+                ? `${turnLabel} am Zug · nur Zuschauen`
+                : selectedGame.status === 'active'
+                  ? `${turnLabel} am Zug`
+                  : 'Warte auf einen Gegner'}
             </span>
             <span>
               {selectedSquare
@@ -350,7 +388,7 @@ function GameView({
           <div className="panel-section chat-panel" aria-label="Partiechat">
             <div className="moves-heading">
               <span className="panel-label">Partiechat</span>
-              <span className="muted">Teilnehmer</span>
+              <span className="muted">{spectatorMode ? 'Nur lesen' : 'Teilnehmer'}</span>
             </div>
             <div className="chat-messages" role="log" aria-live="polite">
               {chatMessages.length ? (
@@ -364,27 +402,31 @@ function GameView({
                 <span className="muted">Noch keine Nachrichten.</span>
               )}
             </div>
-            <form
-              className="chat-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                onSendChat();
-              }}
-            >
-              <label htmlFor="chat-message">Chatnachricht</label>
-              <div className="chat-input-row">
-                <input
-                  id="chat-message"
-                  maxLength={500}
-                  value={chatDraft}
-                  onChange={(event) => onChatDraftChange(event.target.value)}
-                  placeholder="Nachricht schreiben …"
-                />
-                <button className="tiny-button" type="submit">
-                  Senden
-                </button>
-              </div>
-            </form>
+            {spectatorMode ? (
+              <span className="muted">Als Zuschauer kannst du den Chat mitlesen.</span>
+            ) : (
+              <form
+                className="chat-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  onSendChat();
+                }}
+              >
+                <label htmlFor="chat-message">Chatnachricht</label>
+                <div className="chat-input-row">
+                  <input
+                    id="chat-message"
+                    maxLength={500}
+                    value={chatDraft}
+                    onChange={(event) => onChatDraftChange(event.target.value)}
+                    placeholder="Nachricht schreiben …"
+                  />
+                  <button className="tiny-button" type="submit">
+                    Senden
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
           <button
             className="quiet-button panel-back-button"
@@ -422,9 +464,12 @@ export function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
+  const [spectatorMode, setSpectatorMode] = useState(false);
+  const [spectatorLinkCopied, setSpectatorLinkCopied] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const invitationAttemptRef = useRef<string | null>(null);
   const inviteCode = invitationCodeFromPath(globalThis.location?.pathname ?? '');
+  const spectatorCode = spectatorCodeFromPath(globalThis.location?.pathname ?? '');
 
   const refreshLobby = useCallback(async () => {
     const response = await requestApi<{ games: LobbyGame[] }>(API_URL, '/lobby');
@@ -543,6 +588,21 @@ export function App() {
     void openInvitation();
   }, [inviteCode, user]);
 
+  useEffect(() => {
+    if (!user || !spectatorCode) return;
+
+    async function openSpectatorView() {
+      try {
+        const sync = await requestApi<GameSync>(API_URL, `/games/${spectatorCode}/spectate`);
+        openSpectatorGame(sync);
+      } catch (error_) {
+        setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht geöffnet werden');
+      }
+    }
+
+    void openSpectatorView();
+  }, [spectatorCode, user]);
+
   function applyGameSync(sync: GameSync) {
     const nextGame = new ChessGame(sync.fen);
     setSelectedGame(sync.game);
@@ -552,7 +612,6 @@ export function App() {
     void refreshChat(sync.game.code).catch(() => undefined);
     setView('game');
     setLinkCopied(false);
-    setGamePath(sync.game.code);
     resetSelection();
   }
 
@@ -585,18 +644,30 @@ export function App() {
     setChatMessages([]);
     setChatDraft('');
     setLinkCopied(false);
+    setSpectatorMode(false);
+    setSpectatorLinkCopied(false);
     setGamePath(null);
   }
 
   function openGame(nextGame: GameSummary) {
     setError('');
     setSelectedGame(nextGame);
+    setSpectatorMode(false);
     setView('game');
     setLinkCopied(false);
+    setSpectatorLinkCopied(false);
     setGamePath(nextGame.code);
     setChatDraft('');
     void refreshChat(nextGame.code).catch(() => undefined);
     socketRef.current?.emit('game:sync', { code: nextGame.code });
+  }
+
+  function openSpectatorGame(sync: GameSync) {
+    setSpectatorMode(true);
+    applyGameSync(sync);
+    setSpectatorLinkCopied(false);
+    globalThis.history?.replaceState({}, '', spectatorPath(sync.game.code));
+    socketRef.current?.emit('game:spectate', { code: sync.game.code });
   }
 
   function sendChat() {
@@ -615,6 +686,18 @@ export function App() {
       setLinkCopied(true);
     } catch {
       setError('Der Partie-Link konnte nicht kopiert werden');
+    }
+  }
+
+  async function copySpectatorLink() {
+    if (!selectedGame) return;
+    try {
+      await navigator.clipboard.writeText(
+        `${globalThis.location.origin}${spectatorPath(selectedGame.code)}`,
+      );
+      setSpectatorLinkCopied(true);
+    } catch {
+      setError('Der Zuschauerlink konnte nicht kopiert werden');
     }
   }
 
@@ -984,6 +1067,9 @@ export function App() {
                   handleSelectSquare={handleSelectSquare}
                   onCopyLink={() => void copyGameLink()}
                   linkCopied={linkCopied}
+                  spectatorMode={spectatorMode}
+                  onCopySpectatorLink={() => void copySpectatorLink()}
+                  spectatorLinkCopied={spectatorLinkCopied}
                   chatMessages={chatMessages}
                   chatDraft={chatDraft}
                   onChatDraftChange={setChatDraft}

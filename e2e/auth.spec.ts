@@ -157,6 +157,7 @@ test.describe('Authentifizierung', () => {
   }) => {
     const owner = createCredentials();
     const invitee = createCredentials();
+    const spectator = createCredentials();
 
     await openLogin(page);
     await switchToRegistration(page);
@@ -185,6 +186,26 @@ test.describe('Authentifizierung', () => {
       await page.getByLabel('Chatnachricht').fill('Viel Erfolg!');
       await page.getByRole('button', { name: 'Senden' }).click();
       await expect(inviteePage.getByText('Viel Erfolg!', { exact: true })).toBeVisible();
+
+      const spectatorPage = await browser.newPage();
+      try {
+        await openLogin(spectatorPage);
+        await switchToRegistration(spectatorPage);
+        await spectatorPage.getByLabel('Benutzername').fill(spectator.username);
+        await spectatorPage.getByLabel('Passwort').fill(spectator.password);
+        await spectatorPage.getByRole('button', { name: 'Registrieren', exact: true }).click();
+        await expectAuthenticated(spectatorPage, spectator.username);
+
+        await spectatorPage.goto(invitationUrl.replace('/game/', '/watch/'));
+        await expect(spectatorPage.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
+        await expect(spectatorPage.getByText('Zuschauer', { exact: true })).toBeVisible();
+        await expect(
+          spectatorPage.getByText('Als Zuschauer kannst du den Chat mitlesen.'),
+        ).toBeVisible();
+        await expect(spectatorPage.getByRole('button', { name: 'Senden' })).toHaveCount(0);
+      } finally {
+        await spectatorPage.close();
+      }
     } finally {
       await inviteePage.close();
     }
