@@ -28,7 +28,13 @@ function createClient(): any {
   };
 }
 
-const user = { id: 'user-1', username: 'alice', email: 'alice@example.test', rating: 1200 };
+const user = {
+  id: 'user-1',
+  username: 'alice',
+  email: 'alice@example.test',
+  rating: 1200,
+  role: 'user' as const,
+};
 
 describe('PrismaAuthProvider', () => {
   it('registers a normalized user and creates a session', async () => {
@@ -92,6 +98,24 @@ describe('PrismaAuthProvider', () => {
     await expect(
       provider.login({ username: 'nobody', password: 'password123' }),
     ).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it('maps persisted roles into the auth session user', async () => {
+    const client = createClient();
+    client.user.findUnique = vi.fn(async () => ({
+      ...user,
+      role: 'ADMIN',
+      passwordHash: await hashPassword('password123'),
+    }));
+    client.user.update = vi.fn(async () => undefined);
+    client.session.create = vi.fn(async () => undefined);
+
+    const result = await new PrismaAuthProvider(client, () => now).login({
+      username: 'alice',
+      password: 'password123',
+    });
+
+    expect(result.user.role).toBe('admin');
   });
 
   it('authenticates active sessions, removes expired sessions, and logs out', async () => {

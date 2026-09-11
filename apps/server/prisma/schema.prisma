@@ -7,12 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  ADMIN
+  SPECTATOR
+}
+
 model User {
   id             String             @id @default(cuid())
   username       String             @unique
   email          String?            @unique
   passwordHash   String?
   rating         Int                @default(1200)
+  role           UserRole           @default(USER)
   createdAt      DateTime           @default(now())
   lastOnline     DateTime?
   whiteGames     Game[]             @relation("WhitePlayer")

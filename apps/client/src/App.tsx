@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { io, type Socket } from 'socket.io-client';
 
 import { ChessGame, type Move, type PromotionPiece } from '@chess3d/chess-core';
-import type { GameMode, GameSummary, Square } from '@chess3d/shared';
+import type { GameMode, GameSummary, Square, UserRole } from '@chess3d/shared';
 
 import { resolveApiUrl } from './apiUrl';
 import { ChessScene } from './board/ChessScene';
@@ -26,6 +26,7 @@ interface AuthUser {
   username: string;
   email?: string;
   rating: number;
+  role?: UserRole;
 }
 
 type AppView = 'lobby' | 'friends' | 'game';

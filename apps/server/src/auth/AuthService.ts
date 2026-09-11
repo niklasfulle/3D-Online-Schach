@@ -2,6 +2,7 @@ import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 import type { PrismaClient } from '@prisma/client';
+import type { UserRole } from '@chess3d/shared';
 
 const scryptAsync = promisify(scrypt);
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -12,6 +13,7 @@ export interface AuthUser {
   username: string;
   email?: string;
   rating: number;
+  role?: UserRole;
 }
 
 export interface RegisterInput {
@@ -171,11 +173,24 @@ function validateCredentials(username: string, password: string): void {
   if (password.length < 8) throw new AuthError('Password must contain at least 8 characters');
 }
 
-function toAuthUser(user: { id: string; username: string; email: string | null; rating: number }) {
+function toAuthUser(user: {
+  id: string;
+  username: string;
+  email: string | null;
+  rating: number;
+  role?: string;
+}) {
   return {
     id: user.id,
     username: user.username,
     email: user.email ?? undefined,
     rating: user.rating,
+    role: toUserRole(user.role),
   } satisfies AuthUser;
+}
+
+function toUserRole(role: string | undefined): UserRole {
+  if (role?.toLowerCase() === 'admin') return 'admin';
+  if (role?.toLowerCase() === 'spectator') return 'spectator';
+  return 'user';
 }
