@@ -400,4 +400,36 @@ test.describe('Authentifizierung', () => {
     await expect(page.getByRole('heading', { name: 'Deine Entwicklung' })).toBeVisible();
     await expect(page.getByText('WERTUNGSVERLAUF')).toBeVisible();
   });
+
+  test('öffnet ein öffentliches Spielerprofil aus der Spielersuche ohne private Daten', async ({
+    page,
+    request,
+  }) => {
+    const viewer = createCredentials();
+    const target = createCredentials();
+
+    const targetRegistration = await request.post(`${apiUrl}/auth/register`, {
+      data: {
+        ...target,
+        email: `${target.username}@example.test`,
+      },
+    });
+    expect(targetRegistration.status()).toBe(200);
+
+    await openLogin(page);
+    await switchToRegistration(page);
+    await page.getByLabel('Benutzername').fill(viewer.username);
+    await page.getByLabel('Passwort').fill(viewer.password);
+    await page.getByRole('button', { name: 'Registrieren', exact: true }).click();
+    await expectAuthenticated(page, viewer.username);
+
+    await page.getByRole('button', { name: /Freunde/ }).click();
+    await page.getByPlaceholder('z. B. niklas…').fill(target.username);
+    await page.getByRole('button', { name: 'Suchen' }).click();
+    await page.getByRole('button', { name: target.username, exact: true }).click();
+
+    await expect(page.getByRole('heading', { name: 'Öffentliches Profil' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: target.username, level: 2 })).toBeVisible();
+    await expect(page.getByText(`${target.username}@example.test`)).toHaveCount(0);
+  });
 });

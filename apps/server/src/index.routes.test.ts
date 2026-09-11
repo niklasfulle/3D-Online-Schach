@@ -184,6 +184,46 @@ describe('server HTTP routes', () => {
     expect(profileProvider.getForUser).toHaveBeenCalledWith(user.id);
   });
 
+  it('serves a public profile without private contact data', async () => {
+    const publicProfile: UserProfile = {
+      user: {
+        id: 'user-2',
+        username: 'bob',
+        rating: 1300,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+      stats: {
+        totalGames: 1,
+        wins: 1,
+        losses: 0,
+        draws: 0,
+        ranked: { totalGames: 1, wins: 1, losses: 0, draws: 0 },
+        casual: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
+        ratingHistory: [{ at: '2026-01-01T00:00:00.000Z', rating: 1300 }],
+      },
+    };
+    const profileProvider: ProfileProvider = {
+      getForUser: vi.fn(async () => publicProfile),
+    };
+    app = buildApp(
+      new GameManager(),
+      createAuthProvider(undefined),
+      createSocialProvider(),
+      createNotificationProvider(),
+      undefined,
+      undefined,
+      undefined,
+      profileProvider,
+    );
+
+    const response = await app.inject({ method: 'GET', url: '/users/user-2/profile' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(publicProfile);
+    expect(response.json().user).not.toHaveProperty('email');
+    expect(profileProvider.getForUser).toHaveBeenCalledWith('user-2');
+  });
+
   it('protects admin user management and prevents self-demotion', async () => {
     const admin = { ...user, id: 'admin-1', role: 'admin' as const };
     const adminProvider: AdminProvider = {

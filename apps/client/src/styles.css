@@ -350,6 +350,13 @@ button {
   width: 100%;
 }
 
+.friend-profile-link {
+  width: auto;
+  padding: 0.15rem 0.25rem;
+  font-weight: 700;
+  text-align: left;
+}
+
 .header-actions,
 .main-nav,
 .action-row,

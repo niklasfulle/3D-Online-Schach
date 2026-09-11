@@ -208,6 +208,49 @@ describe('App', () => {
     expect(mocks.requestJson).toHaveBeenCalledWith(expect.any(String), '/profile');
   });
 
+  it('opens a public profile from the friends list without showing private contact data', async () => {
+    const publicProfile = {
+      user: {
+        id: 'friend-1',
+        username: 'Max',
+        rating: 1250,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+      stats: {
+        totalGames: 1,
+        wins: 1,
+        losses: 0,
+        draws: 0,
+        ranked: { totalGames: 1, wins: 1, losses: 0, draws: 0 },
+        casual: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
+        ratingHistory: [{ at: '2026-01-01T00:00:00.000Z', rating: 1250 }],
+      },
+    };
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') {
+        return {
+          ...emptyFriends,
+          friends: [{ id: 'friend-1', username: 'Max', rating: 1250, online: true }],
+        };
+      }
+      if (path === '/notifications') return { notifications: [] };
+      if (path === '/users/friend-1/profile') return publicProfile;
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Freunde/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Max$/ }));
+
+    expect(await screen.findByRole('heading', { name: 'Öffentliches Profil' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Max', level: 2 })).toBeTruthy();
+    expect(screen.queryByText('max@example.com')).toBeNull();
+    expect(mocks.requestJson).toHaveBeenCalledWith(expect.any(String), '/users/friend-1/profile');
+  });
+
   it('allows a guest to register and opens the lobby dashboard', async () => {
     mocks.requestJson.mockImplementation(
       async (_baseUrl: string, path: string, options?: RequestInit) => {

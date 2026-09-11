@@ -126,6 +126,18 @@ export function buildApp(
     }
   });
 
+  app.get<{ Params: { id: string } }>('/users/:id/profile', async (request, reply) => {
+    try {
+      const profile = await profileProvider.getForUser(request.params.id);
+      if (!profile) return reply.code(404).send({ error: 'Profile not found' });
+      return reply.send(profile);
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to load public profile',
+      });
+    }
+  });
+
   app.get('/friends', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
     if (!user) return;

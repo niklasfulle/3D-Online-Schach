@@ -37,7 +37,7 @@ const GUEST_SPECTATOR: AuthUser = {
   role: 'spectator',
 };
 
-type AppView = 'lobby' | 'history' | 'profile' | 'friends' | 'admin' | 'game';
+type AppView = 'lobby' | 'history' | 'profile' | 'public-profile' | 'friends' | 'admin' | 'game';
 
 interface PageHeading {
   eyebrow: string;
@@ -370,6 +370,13 @@ function pageHeadingFor(view: AppView, t: Translator): PageHeading {
       eyebrow: t('page.profile.eyebrow'),
       title: t('page.profile.title'),
       description: t('page.profile.description'),
+    };
+  }
+  if (view === 'public-profile') {
+    return {
+      eyebrow: t('page.publicProfile.eyebrow'),
+      title: t('page.publicProfile.title'),
+      description: t('page.publicProfile.description'),
     };
   }
   if (view === 'admin') {
@@ -810,6 +817,7 @@ export function App() {
   const [selectedHistoryGame, setSelectedHistoryGame] = useState<HistoryGame | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [publicProfile, setPublicProfile] = useState<UserProfile | null>(null);
   const [friends, setFriends] = useState<FriendsOverview | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -1064,6 +1072,7 @@ export function App() {
     setUser(null);
     setSelectedGame(null);
     setProfile(null);
+    setPublicProfile(null);
     selectedGameCodeRef.current = null;
     setView('lobby');
     setChatMessages([]);
@@ -1197,6 +1206,18 @@ export function App() {
     setView('profile');
     try {
       await refreshProfile();
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : t('error.profileLoad'));
+    }
+  }
+
+  async function openPublicProfile(id: string) {
+    setView('public-profile');
+    setPublicProfile(null);
+    try {
+      setPublicProfile(
+        await requestApi<UserProfile>(API_URL, `/users/${encodeURIComponent(id)}/profile`),
+      );
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : t('error.profileLoad'));
     }
@@ -1687,6 +1708,9 @@ export function App() {
                   <ProfileView t={t} language={language} profile={profile} />
                 ) : null
               ) : null}
+              {view === 'public-profile' && publicProfile ? (
+                <ProfileView t={t} language={language} profile={publicProfile} publicProfile />
+              ) : null}
               {view === 'friends' ? (
                 <FriendsView
                   t={t}
@@ -1707,6 +1731,7 @@ export function App() {
                   onRespond={(id, action) => void respondToRequest(id, action)}
                   onInvite={(username) => void inviteFriend(username)}
                   onInviteSpectator={(username) => void inviteSpectator(username)}
+                  onViewProfile={(id) => void openPublicProfile(id)}
                 />
               ) : null}
               {view === 'admin' && user.role === 'admin' ? (
@@ -2222,10 +2247,12 @@ function ProfileView({
   t,
   language,
   profile,
+  publicProfile = false,
 }: Readonly<{
   t: Translator;
   language: Language;
   profile: UserProfile;
+  publicProfile?: boolean;
 }>) {
   const { stats } = profile;
   const highestRating = Math.max(...stats.ratingHistory.map((snapshot) => snapshot.rating));
@@ -2238,11 +2265,16 @@ function ProfileView({
 
   return (
     <div className="profile-content">
-      <section className="content-card profile-summary-card" aria-label={t('profile.summary')}>
+      <section
+        className="content-card profile-summary-card"
+        aria-label={t(publicProfile ? 'profile.publicSummary' : 'profile.summary')}
+      >
         <div className="profile-summary-heading">
           <div className="insight-avatar">{profile.user.username.slice(0, 1).toUpperCase()}</div>
           <div>
-            <span className="panel-label">{t('profile.label')}</span>
+            <span className="panel-label">
+              {t(publicProfile ? 'profile.publicLabel' : 'profile.label')}
+            </span>
             <h2>{profile.user.username}</h2>
             <span className="muted">
               {t('profile.memberSince')} {formatHistoryDate(profile.user.createdAt, language)}
@@ -2393,6 +2425,7 @@ function FriendsView({
   onRespond,
   onInvite,
   onInviteSpectator,
+  onViewProfile,
 }: Readonly<{
   t: Translator;
   friends: FriendsOverview | null;
@@ -2406,6 +2439,7 @@ function FriendsView({
   onRespond: (id: string, action: 'accept' | 'reject') => void;
   onInvite: (username: string) => void;
   onInviteSpectator: (username: string) => void;
+  onViewProfile: (id: string) => void;
 }>) {
   return (
     <section className="social-grid">
@@ -2421,7 +2455,13 @@ function FriendsView({
             {friends.friends.map((friend) => (
               <div className="user-row" key={friend.id}>
                 <span className={friend.online ? 'online-dot' : 'offline-dot'} />
-                <strong>{friend.username}</strong>
+                <button
+                  className="link-button friend-profile-link"
+                  type="button"
+                  onClick={() => onViewProfile(friend.id)}
+                >
+                  {friend.username}
+                </button>
                 <span className="muted">{friend.rating}</span>
                 {canInvite ? (
                   <button
@@ -2488,7 +2528,13 @@ function FriendsView({
           {searchResults.map((result) => (
             <div className="user-row" key={result.id}>
               <span className={result.online ? 'online-dot' : 'offline-dot'} />
-              <strong>{result.username}</strong>
+              <button
+                className="link-button friend-profile-link"
+                type="button"
+                onClick={() => onViewProfile(result.id)}
+              >
+                {result.username}
+              </button>
               <span className="muted">{result.rating}</span>
               <button className="tiny-button" type="button" onClick={() => onAdd(result.username)}>
                 {t('friends.add')}

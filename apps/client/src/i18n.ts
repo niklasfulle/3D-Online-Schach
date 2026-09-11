@@ -34,6 +34,9 @@ export type TranslationKey =
   | 'page.profile.eyebrow'
   | 'page.profile.title'
   | 'page.profile.description'
+  | 'page.publicProfile.eyebrow'
+  | 'page.publicProfile.title'
+  | 'page.publicProfile.description'
   | 'page.admin.eyebrow'
   | 'page.admin.title'
   | 'page.admin.description'
@@ -123,7 +126,9 @@ export type TranslationKey =
   | 'history.loss'
   | 'history.draw'
   | 'profile.label'
+  | 'profile.publicLabel'
   | 'profile.summary'
+  | 'profile.publicSummary'
   | 'profile.memberSince'
   | 'profile.rating'
   | 'profile.statistics'
@@ -269,6 +274,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'page.profile.eyebrow': 'DEIN PROFIL',
     'page.profile.title': 'Mein Profil',
     'page.profile.description': 'Behalte deine Spielstatistiken und Wertungsentwicklung im Blick.',
+    'page.publicProfile.eyebrow': 'SPIELERPROFIL',
+    'page.publicProfile.title': 'Öffentliches Profil',
+    'page.publicProfile.description': 'Entdecke die Spielstatistiken dieses Spielers.',
     'page.admin.eyebrow': 'VERWALTUNG',
     'page.admin.title': 'Benutzerverwaltung',
     'page.admin.description': 'Rollen und Zugänge der Community im Blick behalten.',
@@ -358,7 +366,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.loss': 'Niederlage',
     'history.draw': 'Remis',
     'profile.label': 'PROFIL',
+    'profile.publicLabel': 'ÖFFENTLICHES PROFIL',
     'profile.summary': 'Profilübersicht',
+    'profile.publicSummary': 'Öffentliche Profilübersicht',
     'profile.memberSince': 'Dabei seit',
     'profile.rating': 'Wertung',
     'profile.statistics': 'Spielstatistiken',
@@ -500,6 +510,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'page.profile.eyebrow': 'YOUR PROFILE',
     'page.profile.title': 'My profile',
     'page.profile.description': 'Keep your game statistics and rating development in view.',
+    'page.publicProfile.eyebrow': 'PLAYER PROFILE',
+    'page.publicProfile.title': 'Public profile',
+    'page.publicProfile.description': "Discover this player's game statistics.",
     'page.admin.eyebrow': 'ADMINISTRATION',
     'page.admin.title': 'User administration',
     'page.admin.description': 'Keep community roles and access under control.',
@@ -589,7 +602,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.loss': 'Loss',
     'history.draw': 'Draw',
     'profile.label': 'PROFILE',
+    'profile.publicLabel': 'PUBLIC PROFILE',
     'profile.summary': 'Profile overview',
+    'profile.publicSummary': 'Public profile overview',
     'profile.memberSince': 'Member since',
     'profile.rating': 'Rating',
     'profile.statistics': 'Game statistics',
