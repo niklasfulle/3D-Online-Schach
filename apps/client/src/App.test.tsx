@@ -171,6 +171,43 @@ describe('App', () => {
     );
   });
 
+  it('opens the user profile with game statistics and rating history', async () => {
+    const profile = {
+      user: { ...user, createdAt: '2026-01-01T00:00:00.000Z' },
+      stats: {
+        totalGames: 4,
+        wins: 2,
+        losses: 1,
+        draws: 1,
+        ranked: { totalGames: 2, wins: 1, losses: 0, draws: 1 },
+        casual: { totalGames: 2, wins: 1, losses: 1, draws: 0 },
+        ratingHistory: [
+          { at: '2026-02-01T00:00:00.000Z', rating: 1200 },
+          { at: '2026-02-04T00:00:00.000Z', rating: 1240 },
+        ],
+      },
+    };
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      if (path === '/profile') return profile;
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Profil/ }));
+
+    expect(await screen.findByRole('heading', { name: 'Mein Profil' })).toBeTruthy();
+    expect(screen.getByText('4')).toBeTruthy();
+    expect(screen.getAllByText('2').length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Deine Entwicklung' })).toBeTruthy();
+    expect(screen.getByText('1240')).toBeTruthy();
+    expect(mocks.requestJson).toHaveBeenCalledWith(expect.any(String), '/profile');
+  });
+
   it('allows a guest to register and opens the lobby dashboard', async () => {
     mocks.requestJson.mockImplementation(
       async (_baseUrl: string, path: string, options?: RequestInit) => {

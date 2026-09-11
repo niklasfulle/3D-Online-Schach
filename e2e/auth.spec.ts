@@ -382,4 +382,22 @@ test.describe('Authentifizierung', () => {
     await expect(page.getByText(`Casual · ${game.code} · Beendet`)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Aufgeben', exact: true })).toHaveCount(0);
   });
+
+  test('zeigt das Benutzerprofil mit Statistiken und Bewertungsverlauf', async ({ page }) => {
+    const credentials = createCredentials();
+
+    await openLogin(page);
+    await switchToRegistration(page);
+    await page.getByLabel('Benutzername').fill(credentials.username);
+    await page.getByLabel('Passwort').fill(credentials.password);
+    await page.getByRole('button', { name: 'Registrieren', exact: true }).click();
+    await expectAuthenticated(page, credentials.username);
+
+    await page.getByRole('button', { name: 'Dein Profil', exact: true }).click();
+
+    await expect(page.getByRole('heading', { name: 'Mein Profil' })).toBeVisible();
+    await expect(page.getByText('Partien gesamt')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Deine Entwicklung' })).toBeVisible();
+    await expect(page.getByText('WERTUNGSVERLAUF')).toBeVisible();
+  });
 });

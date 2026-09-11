@@ -37,7 +37,7 @@ const GUEST_SPECTATOR: AuthUser = {
   role: 'spectator',
 };
 
-type AppView = 'lobby' | 'history' | 'friends' | 'admin' | 'game';
+type AppView = 'lobby' | 'history' | 'profile' | 'friends' | 'admin' | 'game';
 
 interface PageHeading {
   eyebrow: string;
@@ -160,6 +160,27 @@ interface HistoryGame {
 interface HistoryPage {
   games: HistoryGame[];
   nextCursor?: string;
+}
+
+interface ProfileBreakdown {
+  totalGames: number;
+  wins: number;
+  losses: number;
+  draws: number;
+}
+
+interface UserProfile {
+  user: {
+    id: string;
+    username: string;
+    rating: number;
+    createdAt: string;
+  };
+  stats: ProfileBreakdown & {
+    ranked: ProfileBreakdown;
+    casual: ProfileBreakdown;
+    ratingHistory: Array<{ at: string; rating: number }>;
+  };
 }
 
 type HistoryResultFilter = 'all' | 'wins' | 'losses' | 'draws';
@@ -342,6 +363,13 @@ function pageHeadingFor(view: AppView, t: Translator): PageHeading {
       eyebrow: t('page.history.eyebrow'),
       title: t('page.history.title'),
       description: t('page.history.description'),
+    };
+  }
+  if (view === 'profile') {
+    return {
+      eyebrow: t('page.profile.eyebrow'),
+      title: t('page.profile.title'),
+      description: t('page.profile.description'),
     };
   }
   if (view === 'admin') {
@@ -780,6 +808,8 @@ export function App() {
   const [historyResultFilter, setHistoryResultFilter] = useState<HistoryResultFilter>('all');
   const [historyModeFilter, setHistoryModeFilter] = useState<HistoryModeFilter>('all');
   const [selectedHistoryGame, setSelectedHistoryGame] = useState<HistoryGame | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [friends, setFriends] = useState<FriendsOverview | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -834,6 +864,15 @@ export function App() {
 
   const refreshFriends = useCallback(async () => {
     setFriends(await requestApi<FriendsOverview>(API_URL, '/friends'));
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    setProfileLoading(true);
+    try {
+      setProfile(await requestApi<UserProfile>(API_URL, '/profile'));
+    } finally {
+      setProfileLoading(false);
+    }
   }, []);
 
   const refreshAdminUsers = useCallback(async () => {
@@ -1024,6 +1063,7 @@ export function App() {
     await requestApi(API_URL, '/auth/logout', { method: 'POST' });
     setUser(null);
     setSelectedGame(null);
+    setProfile(null);
     selectedGameCodeRef.current = null;
     setView('lobby');
     setChatMessages([]);
@@ -1150,6 +1190,15 @@ export function App() {
       await refreshHistory();
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : t('error.historyLoad'));
+    }
+  }
+
+  async function openProfile() {
+    setView('profile');
+    try {
+      await refreshProfile();
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : t('error.profileLoad'));
     }
   }
 
@@ -1510,6 +1559,16 @@ export function App() {
                     <span>{t('sidebar.history')}</span>
                     <span className="nav-count">{historyGames.length}</span>
                   </button>
+                  <button
+                    className={view === 'profile' ? 'nav-button active' : 'nav-button'}
+                    type="button"
+                    onClick={() => void openProfile()}
+                  >
+                    <span className="nav-icon" aria-hidden="true">
+                      ◉
+                    </span>
+                    <span>{t('sidebar.profile')}</span>
+                  </button>
                   {user.role === 'admin' ? (
                     <button
                       className={view === 'admin' ? 'nav-button active' : 'nav-button'}
@@ -1620,6 +1679,13 @@ export function App() {
                   onSelect={setSelectedHistoryGame}
                   onLoadMore={() => void refreshHistory(historyCursor)}
                 />
+              ) : null}
+              {view === 'profile' ? (
+                profileLoading ? (
+                  <div className="centered-message">{t('profile.loading')}</div>
+                ) : profile ? (
+                  <ProfileView t={t} language={language} profile={profile} />
+                ) : null
               ) : null}
               {view === 'friends' ? (
                 <FriendsView
@@ -2148,6 +2214,116 @@ function HistoryView({
           </div>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+function ProfileView({
+  t,
+  language,
+  profile,
+}: Readonly<{
+  t: Translator;
+  language: Language;
+  profile: UserProfile;
+}>) {
+  const { stats } = profile;
+  const highestRating = Math.max(...stats.ratingHistory.map((snapshot) => snapshot.rating));
+  const lowestRating = Math.min(...stats.ratingHistory.map((snapshot) => snapshot.rating));
+  const ratingRange = Math.max(1, highestRating - lowestRating);
+
+  function breakdownLabel(breakdown: ProfileBreakdown): string {
+    return `${breakdown.wins} / ${breakdown.losses} / ${breakdown.draws}`;
+  }
+
+  return (
+    <div className="profile-content">
+      <section className="content-card profile-summary-card" aria-label={t('profile.summary')}>
+        <div className="profile-summary-heading">
+          <div className="insight-avatar">{profile.user.username.slice(0, 1).toUpperCase()}</div>
+          <div>
+            <span className="panel-label">{t('profile.label')}</span>
+            <h2>{profile.user.username}</h2>
+            <span className="muted">
+              {t('profile.memberSince')} {formatHistoryDate(profile.user.createdAt, language)}
+            </span>
+          </div>
+          <div className="profile-current-rating">
+            <strong>{profile.user.rating}</strong>
+            <span>{t('profile.rating')}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="profile-stat-grid" aria-label={t('profile.statistics')}>
+        {[
+          ['profile.totalGames', stats.totalGames, 'blue'],
+          ['profile.wins', stats.wins, 'green'],
+          ['profile.losses', stats.losses, 'red'],
+          ['profile.draws', stats.draws, 'gold'],
+        ].map(([label, value, color]) => (
+          <div className="metric-card profile-metric" key={label as string}>
+            <span className={`metric-icon ${color}`} aria-hidden="true">
+              {color === 'green' ? '↗' : color === 'red' ? '↘' : color === 'gold' ? '◇' : '◈'}
+            </span>
+            <div>
+              <strong>{value as number}</strong>
+              <span className="muted">{t(label as Parameters<Translator>[0])}</span>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="content-card profile-modes-card">
+        <div className="section-heading">
+          <div>
+            <span className="panel-label">{t('profile.breakdown')}</span>
+            <h2>{t('profile.modes')}</h2>
+          </div>
+          <span className="muted">{t('profile.winsLossesDraws')}</span>
+        </div>
+        <div className="profile-mode-grid">
+          {[
+            ['mode.ranked', stats.ranked],
+            ['mode.casual', stats.casual],
+          ].map(([label, breakdown]) => (
+            <div className="profile-mode-row" key={label as string}>
+              <strong>{t(label as Parameters<Translator>[0])}</strong>
+              <span className="muted">
+                {(breakdown as ProfileBreakdown).totalGames} {t('profile.games')}
+              </span>
+              <span>{breakdownLabel(breakdown as ProfileBreakdown)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="content-card profile-rating-card" aria-label={t('profile.ratingHistory')}>
+        <div className="section-heading">
+          <div>
+            <span className="panel-label">{t('profile.ratingHistory')}</span>
+            <h2>{t('profile.ratingDevelopment')}</h2>
+          </div>
+          <strong className="profile-rating-current">{profile.user.rating}</strong>
+        </div>
+        <div className="profile-rating-history">
+          {stats.ratingHistory.map((snapshot, index) => (
+            <div className="profile-rating-point" key={`${snapshot.at}-${index}`}>
+              <div className="profile-rating-value">
+                <strong>{snapshot.rating}</strong>
+                <time dateTime={snapshot.at}>{formatHistoryDate(snapshot.at, language)}</time>
+              </div>
+              <div className="profile-rating-track">
+                <span
+                  style={{
+                    width: `${((snapshot.rating - lowestRating) / ratingRange) * 70 + 30}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

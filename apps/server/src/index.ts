@@ -35,6 +35,7 @@ import {
   PrismaHistoryProvider,
   type HistoryProvider,
 } from './history/HistoryService.js';
+import { PrismaProfileProvider, type ProfileProvider } from './profile/ProfileService.js';
 
 export function buildApp(
   gameManager = new GameManager(),
@@ -44,6 +45,7 @@ export function buildApp(
   chatProvider: ChatProvider = new PrismaChatProvider(prisma),
   adminProvider: AdminProvider = new PrismaAdminProvider(prisma),
   historyProvider: HistoryProvider = new PrismaHistoryProvider(prisma),
+  profileProvider: ProfileProvider = new PrismaProfileProvider(prisma),
 ): FastifyInstance {
   const app = Fastify({ logger: true });
 
@@ -199,6 +201,21 @@ export function buildApp(
     return reply.send({
       games: gameManager.listWaitingGames().map((game) => toLobbyGame(game, user.id)),
     });
+  });
+
+  app.get('/profile', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+
+    try {
+      const profile = await profileProvider.getForUser(user.id);
+      if (!profile) return reply.code(404).send({ error: 'Profile not found' });
+      return reply.send(profile);
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to load profile',
+      });
+    }
   });
 
   app.delete<{ Params: { code: string } }>('/lobby/games/:code', async (request, reply) => {

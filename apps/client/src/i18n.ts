@@ -31,6 +31,9 @@ export type TranslationKey =
   | 'page.history.eyebrow'
   | 'page.history.title'
   | 'page.history.description'
+  | 'page.profile.eyebrow'
+  | 'page.profile.title'
+  | 'page.profile.description'
   | 'page.admin.eyebrow'
   | 'page.admin.title'
   | 'page.admin.description'
@@ -119,6 +122,22 @@ export type TranslationKey =
   | 'history.win'
   | 'history.loss'
   | 'history.draw'
+  | 'profile.label'
+  | 'profile.summary'
+  | 'profile.memberSince'
+  | 'profile.rating'
+  | 'profile.statistics'
+  | 'profile.totalGames'
+  | 'profile.wins'
+  | 'profile.losses'
+  | 'profile.draws'
+  | 'profile.breakdown'
+  | 'profile.modes'
+  | 'profile.winsLossesDraws'
+  | 'profile.games'
+  | 'profile.ratingHistory'
+  | 'profile.ratingDevelopment'
+  | 'profile.loading'
   | 'sidebar.workspace'
   | 'sidebar.navigation'
   | 'sidebar.lobby'
@@ -188,6 +207,7 @@ export type TranslationKey =
   | 'error.authentication'
   | 'error.lobbyLoad'
   | 'error.historyLoad'
+  | 'error.profileLoad'
   | 'error.friendsLoad'
   | 'error.notificationsUpdate'
   | 'error.gameConnection'
@@ -246,6 +266,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'page.history.eyebrow': 'DEINE PARTIEN',
     'page.history.title': 'Spielhistorie',
     'page.history.description': 'Sieh dir deine abgeschlossenen Partien und Züge an.',
+    'page.profile.eyebrow': 'DEIN PROFIL',
+    'page.profile.title': 'Mein Profil',
+    'page.profile.description': 'Behalte deine Spielstatistiken und Wertungsentwicklung im Blick.',
     'page.admin.eyebrow': 'VERWALTUNG',
     'page.admin.title': 'Benutzerverwaltung',
     'page.admin.description': 'Rollen und Zugänge der Community im Blick behalten.',
@@ -334,6 +357,22 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.win': 'Sieg',
     'history.loss': 'Niederlage',
     'history.draw': 'Remis',
+    'profile.label': 'PROFIL',
+    'profile.summary': 'Profilübersicht',
+    'profile.memberSince': 'Dabei seit',
+    'profile.rating': 'Wertung',
+    'profile.statistics': 'Spielstatistiken',
+    'profile.totalGames': 'Partien gesamt',
+    'profile.wins': 'Siege',
+    'profile.losses': 'Niederlagen',
+    'profile.draws': 'Remis',
+    'profile.breakdown': 'AUSWERTUNG',
+    'profile.modes': 'Ranked und Casual',
+    'profile.winsLossesDraws': 'Siege / Niederlagen / Remis',
+    'profile.games': 'Partien',
+    'profile.ratingHistory': 'WERTUNGSVERLAUF',
+    'profile.ratingDevelopment': 'Deine Entwicklung',
+    'profile.loading': 'Profil wird geladen …',
     'sidebar.workspace': 'Arbeitsbereich',
     'sidebar.navigation': 'Hauptnavigation',
     'sidebar.lobby': 'Lobby',
@@ -403,6 +442,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'error.authentication': 'Authentifizierung fehlgeschlagen',
     'error.lobbyLoad': 'Lobby konnte nicht geladen werden',
     'error.historyLoad': 'Spielhistorie konnte nicht geladen werden',
+    'error.profileLoad': 'Profil konnte nicht geladen werden',
     'error.friendsLoad': 'Freunde konnten nicht geladen werden',
     'error.notificationsUpdate': 'Benachrichtigung konnte nicht aktualisiert werden',
     'error.gameConnection': 'Partie konnte nicht synchronisiert werden',
@@ -457,6 +497,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'page.history.eyebrow': 'YOUR GAMES',
     'page.history.title': 'Game history',
     'page.history.description': 'Review your finished games and moves.',
+    'page.profile.eyebrow': 'YOUR PROFILE',
+    'page.profile.title': 'My profile',
+    'page.profile.description': 'Keep your game statistics and rating development in view.',
     'page.admin.eyebrow': 'ADMINISTRATION',
     'page.admin.title': 'User administration',
     'page.admin.description': 'Keep community roles and access under control.',
@@ -545,6 +588,22 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.win': 'Win',
     'history.loss': 'Loss',
     'history.draw': 'Draw',
+    'profile.label': 'PROFILE',
+    'profile.summary': 'Profile overview',
+    'profile.memberSince': 'Member since',
+    'profile.rating': 'Rating',
+    'profile.statistics': 'Game statistics',
+    'profile.totalGames': 'Total games',
+    'profile.wins': 'Wins',
+    'profile.losses': 'Losses',
+    'profile.draws': 'Draws',
+    'profile.breakdown': 'BREAKDOWN',
+    'profile.modes': 'Ranked and casual',
+    'profile.winsLossesDraws': 'Wins / losses / draws',
+    'profile.games': 'games',
+    'profile.ratingHistory': 'RATING HISTORY',
+    'profile.ratingDevelopment': 'Your development',
+    'profile.loading': 'Loading profile …',
     'sidebar.workspace': 'Workspace',
     'sidebar.navigation': 'Main navigation',
     'sidebar.lobby': 'Lobby',
@@ -614,6 +673,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'error.authentication': 'Authentication failed',
     'error.lobbyLoad': 'Could not load lobby',
     'error.historyLoad': 'Could not load game history',
+    'error.profileLoad': 'Could not load profile',
     'error.friendsLoad': 'Could not load friends',
     'error.notificationsUpdate': 'Could not update notification',
     'error.gameConnection': 'Could not synchronize game',

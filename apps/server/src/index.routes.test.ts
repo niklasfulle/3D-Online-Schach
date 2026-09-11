@@ -6,6 +6,7 @@ import { GameManager, type GamePersistence } from './game/GameManager.js';
 import type { HistoryPage, HistoryProvider } from './history/HistoryService.js';
 import { buildApp } from './index.js';
 import type { NotificationProvider } from './notifications/NotificationService.js';
+import type { ProfileProvider, UserProfile } from './profile/ProfileService.js';
 import {
   SocialError,
   type FriendRequestView,
@@ -138,6 +139,49 @@ describe('server HTTP routes', () => {
     expect((await app.inject({ method: 'GET', url: '/games/history?limit=0' })).statusCode).toBe(
       400,
     );
+  });
+
+  it('protects and returns the authenticated user profile', async () => {
+    const profile: UserProfile = {
+      user: {
+        id: user.id,
+        username: user.username,
+        rating: user.rating,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+      stats: {
+        totalGames: 2,
+        wins: 1,
+        losses: 1,
+        draws: 0,
+        ranked: { totalGames: 1, wins: 1, losses: 0, draws: 0 },
+        casual: { totalGames: 1, wins: 0, losses: 1, draws: 0 },
+        ratingHistory: [{ at: '2026-01-01T00:00:00.000Z', rating: 1200 }],
+      },
+    };
+    const profileProvider: ProfileProvider = {
+      getForUser: vi.fn(async () => profile),
+    };
+    const authProvider = createAuthProvider(undefined);
+    app = buildApp(
+      new GameManager(),
+      authProvider,
+      createSocialProvider(),
+      createNotificationProvider(),
+      undefined,
+      undefined,
+      undefined,
+      profileProvider,
+    );
+
+    expect((await app.inject({ method: 'GET', url: '/profile' })).statusCode).toBe(401);
+    authProvider.authenticate = vi.fn(async () => user);
+
+    const response = await app.inject({ method: 'GET', url: '/profile' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(profile);
+    expect(profileProvider.getForUser).toHaveBeenCalledWith(user.id);
   });
 
   it('protects admin user management and prevents self-demotion', async () => {
