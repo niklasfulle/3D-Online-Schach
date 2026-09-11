@@ -15,6 +15,7 @@ import {
   type Translator,
 } from './i18n';
 import { requestJson as requestApi } from './request';
+import { readTheme, saveTheme, type Theme } from './theme';
 
 const API_URL = resolveApiUrl(
   import.meta.env.VITE_API_URL,
@@ -578,6 +579,7 @@ function GameView({
 export function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [language, setLanguage] = useState<Language>(() => readLanguage());
+  const [theme, setTheme] = useState<Theme>(() => readTheme());
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
@@ -612,6 +614,11 @@ export function App() {
   useEffect(() => {
     saveLanguage(language);
   }, [language]);
+
+  useEffect(() => {
+    saveTheme(theme);
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   const refreshLobby = useCallback(async () => {
     const response = await requestApi<{ games: LobbyGame[] }>(API_URL, '/lobby');
@@ -1036,7 +1043,12 @@ export function App() {
     setLegalTargets([...new Set(moves.map((move) => move.to))]);
   }
 
-  if (loading) return <main className="centered-message">{t('guest.connectionHint')} …</main>;
+  if (loading)
+    return (
+      <main className="centered-message" data-theme={theme}>
+        {t('guest.connectionHint')} …
+      </main>
+    );
   if (!user && spectatorCode) {
     const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
     const gameStatus = selectedGame
@@ -1044,7 +1056,7 @@ export function App() {
       : statusLabel(gameState.status, t);
 
     return (
-      <main className="app-shell game-mode guest-spectator-shell">
+      <main className="app-shell game-mode guest-spectator-shell" data-theme={theme}>
         <div className="dashboard-shell">
           <section className="dashboard-main">
             <div className="page-heading">
@@ -1108,6 +1120,8 @@ export function App() {
         setAuthMode={setAuthMode}
         language={language}
         onLanguageChange={setLanguage}
+        theme={theme}
+        onThemeChange={setTheme}
         form={authForm}
         setForm={setAuthForm}
         error={error}
@@ -1127,7 +1141,7 @@ export function App() {
     const pageHeading = pageHeadingFor(view, t);
 
     return (
-      <main className={view === 'game' ? 'app-shell game-mode' : 'app-shell'}>
+      <main className={view === 'game' ? 'app-shell game-mode' : 'app-shell'} data-theme={theme}>
         <div className="dashboard-shell">
           <header className="topbar">
             <div className="brand-lockup">
@@ -1140,6 +1154,17 @@ export function App() {
               </div>
             </div>
             <div className="header-actions">
+              <label className="theme-switcher">
+                <span className="sr-only">{t('theme.label')}</span>
+                <select
+                  aria-label={t('theme.label')}
+                  value={theme}
+                  onChange={(event) => setTheme(event.target.value as Theme)}
+                >
+                  <option value="dark">{t('theme.dark')}</option>
+                  <option value="light">{t('theme.light')}</option>
+                </select>
+              </label>
               <label className="language-switcher">
                 <span className="sr-only">{t('language.label')}</span>
                 <select
@@ -1478,6 +1503,8 @@ function AuthScreen({
   setAuthMode,
   language,
   onLanguageChange,
+  theme,
+  onThemeChange,
   form,
   setForm,
   error,
@@ -1488,6 +1515,8 @@ function AuthScreen({
   setAuthMode: (mode: 'login' | 'register') => void;
   language: Language;
   onLanguageChange: (language: Language) => void;
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
   form: { username: string; email: string; password: string };
   setForm: (form: { username: string; email: string; password: string }) => void;
   error: string;
@@ -1495,7 +1524,7 @@ function AuthScreen({
   t: Translator;
 }>) {
   return (
-    <main className="auth-shell">
+    <main className="auth-shell" data-theme={theme}>
       <label className="language-switcher auth-language-switcher">
         <span className="sr-only">{t('language.label')}</span>
         <select
@@ -1505,6 +1534,17 @@ function AuthScreen({
         >
           <option value="de">{t('language.de')}</option>
           <option value="en">{t('language.en')}</option>
+        </select>
+      </label>
+      <label className="theme-switcher auth-theme-switcher">
+        <span className="sr-only">{t('theme.label')}</span>
+        <select
+          aria-label={t('theme.label')}
+          value={theme}
+          onChange={(event) => onThemeChange(event.target.value as Theme)}
+        >
+          <option value="dark">{t('theme.dark')}</option>
+          <option value="light">{t('theme.light')}</option>
         </select>
       </label>
       <section className="auth-card">

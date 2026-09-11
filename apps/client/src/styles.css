@@ -1,10 +1,38 @@
 :root {
+  --page-bg: #080d16;
+  --app-bg: radial-gradient(circle at top right, #1a2940 0, #0b0f16 45%);
+  --surface: #10151f;
+  --surface-raised: #141d2b;
+  --surface-muted: #17243a;
+  --border: #26364e;
+  --border-strong: #385170;
+  --text: #eef2f7;
+  --text-strong: #edf4ff;
+  --text-muted: #91a3bd;
+  --accent: #70a8ff;
+  --accent-soft: #d8e7ff;
   color-scheme: dark;
-  color: #eef2f7;
-  background: #080d16;
+  color: var(--text);
+  background: var(--page-bg);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+:root[data-theme='light'] {
+  --page-bg: #eef3f9;
+  --app-bg: radial-gradient(circle at top right, #dce9f8 0, #f7f9fc 52%);
+  --surface: #ffffff;
+  --surface-raised: #f7f9fc;
+  --surface-muted: #e8f0f8;
+  --border: #c7d5e5;
+  --border-strong: #8aa8c7;
+  --text: #17283d;
+  --text-strong: #102238;
+  --text-muted: #526b86;
+  --accent: #2268aa;
+  --accent-soft: #173f68;
+  color-scheme: light;
 }
 
 * {
@@ -15,7 +43,7 @@ body {
   margin: 0;
   min-width: 320px;
   overflow-x: hidden;
-  background: #080d16;
+  background: var(--page-bg);
 }
 
 button,
@@ -29,7 +57,7 @@ input {
   gap: 0;
   min-height: 100vh;
   padding: 0;
-  background: radial-gradient(circle at top right, #1a2940 0, #0b0f16 45%);
+  background: var(--app-bg);
 }
 
 .app-header {
@@ -72,9 +100,9 @@ h1 {
   max-width: 1320px;
   min-height: clamp(560px, 72vh, 820px);
   margin: 0 auto;
-  border: 1px solid #26364e;
+  border: 1px solid var(--border);
   border-radius: 1.25rem;
-  background: #10151f;
+  background: var(--surface);
   box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
 }
 
@@ -116,9 +144,9 @@ h1 {
   align-content: start;
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid #26364e;
+  border: 1px solid var(--border);
   border-radius: 1.25rem;
-  background: rgb(16 21 31 / 88%);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
 }
 
 .chat-column {
@@ -136,7 +164,7 @@ h1 {
 
 .chat-column-header h3 {
   margin: 0.25rem 0 0;
-  color: #edf4ff;
+  color: var(--text-strong);
   font-size: 1.05rem;
 }
 
@@ -144,7 +172,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: #91a3bd;
+  color: var(--text-muted);
   font-size: 0.72rem;
   white-space: nowrap;
 }
@@ -155,7 +183,7 @@ h1 {
 }
 
 .panel-label {
-  color: #70a8ff;
+  color: var(--accent);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -164,7 +192,7 @@ h1 {
 
 .panel-section code {
   overflow-wrap: anywhere;
-  color: #91a3bd;
+  color: var(--text-muted);
   font-size: 0.7rem;
   line-height: 1.4;
 }
@@ -192,12 +220,12 @@ h1 {
   display: grid;
   grid-template-columns: 2rem 1fr;
   gap: 0.5rem;
-  color: #d8e7ff;
+  color: var(--accent-soft);
 }
 
 .move-row span,
 .muted {
-  color: #91a3bd;
+  color: var(--text-muted);
 }
 
 .promotion-dialog {
@@ -806,10 +834,27 @@ input:focus-visible {
   font-size: 0.78rem;
 }
 
+.theme-switcher select {
+  min-width: 6.3rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--surface-muted);
+  color: var(--accent-soft);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
 .auth-language-switcher {
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
+}
+
+.auth-theme-switcher {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
 }
 
 .avatar,
@@ -1410,6 +1455,131 @@ input:focus-visible {
   .social-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Light theme surface overrides. The board keeps its dedicated 3D palette. */
+:root[data-theme='light'] .auth-shell,
+:root[data-theme='light'] .centered-message,
+:root[data-theme='light'] .app-shell {
+  background: var(--app-bg);
+  color: var(--text);
+}
+
+:root[data-theme='light'] .dashboard-shell {
+  background: rgb(247 249 252 / 88%);
+}
+
+:root[data-theme='light'] .topbar {
+  border-color: rgb(120 151 184 / 24%);
+  background: rgb(255 255 255 / 78%);
+}
+
+:root[data-theme='light'] .sidebar,
+:root[data-theme='light'] .insights-panel {
+  border-color: rgb(120 151 184 / 24%);
+  background: rgb(232 240 248 / 72%);
+}
+
+:root[data-theme='light'] .auth-card,
+:root[data-theme='light'] .content-card,
+:root[data-theme='light'] .insight-card,
+:root[data-theme='light'] .game-panel,
+:root[data-theme='light'] .chat-column,
+:root[data-theme='light'] .notification-panel {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: 0 18px 45px rgb(71 95 122 / 12%);
+}
+
+:root[data-theme='light'] .welcome-card {
+  border-color: #9fbad5;
+  background:
+    radial-gradient(circle at 84% 50%, rgb(105 171 235 / 25%), transparent 31%),
+    linear-gradient(130deg, #dceaf8, #f7f9fc 65%, #e8f0f8);
+}
+
+:root[data-theme='light'] .metric-card,
+:root[data-theme='light'] .dashboard-main .lobby-row,
+:root[data-theme='light'] .dashboard-main .user-row,
+:root[data-theme='light'] .sidebar-note,
+:root[data-theme='light'] .game-facts > div {
+  border-color: rgb(120 151 184 / 28%);
+  background: rgb(232 240 248 / 74%);
+}
+
+:root[data-theme='light'] .quick-match {
+  background: linear-gradient(145deg, #dceaf8, #f1f5fa);
+}
+
+:root[data-theme='light'] input,
+:root[data-theme='light'] .language-switcher select,
+:root[data-theme='light'] .theme-switcher select {
+  border-color: var(--border-strong);
+  background: #fff;
+  color: var(--text);
+}
+
+:root[data-theme='light'] .secondary-button,
+:root[data-theme='light'] .ghost-button,
+:root[data-theme='light'] .tiny-button,
+:root[data-theme='light'] .back-button,
+:root[data-theme='light'] .panel-back-button,
+:root[data-theme='light'] .notification-button {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
+  color: var(--accent-soft);
+}
+
+:root[data-theme='light'] .primary-button {
+  background: #2b73b5;
+  color: #fff;
+}
+
+:root[data-theme='light'] .page-heading h1,
+:root[data-theme='light'] .content-card h2,
+:root[data-theme='light'] .insight-card > strong,
+:root[data-theme='light'] .quick-match h3,
+:root[data-theme='light'] .game-panel-header h3,
+:root[data-theme='light'] .chat-column-header h3,
+:root[data-theme='light'] .metric-card strong,
+:root[data-theme='light'] .brand-title {
+  color: var(--text-strong);
+}
+
+:root[data-theme='light'] .page-heading p,
+:root[data-theme='light'] .muted,
+:root[data-theme='light'] .chat-presence,
+:root[data-theme='light'] .game-code-label,
+:root[data-theme='light'] .sidebar-label,
+:root[data-theme='light'] .insight-heading,
+:root[data-theme='light'] .insight-stats span {
+  color: var(--text-muted);
+}
+
+:root[data-theme='light'] .sidebar .nav-button,
+:root[data-theme='light'] .quiet-button,
+:root[data-theme='light'] .link-button {
+  color: var(--accent);
+}
+
+:root[data-theme='light'] .sidebar .nav-button:hover,
+:root[data-theme='light'] .sidebar .nav-button.active,
+:root[data-theme='light'] .lobby-row:hover,
+:root[data-theme='light'] .user-row:hover {
+  background: #dceaf8;
+  color: var(--text-strong);
+}
+
+:root[data-theme='light'] .error-banner,
+:root[data-theme='light'] .dashboard-main .error-banner {
+  border-color: #d38a96;
+  background: #fff0f2;
+  color: #8b3043;
+}
+
+:root[data-theme='light'] .game-view .scene-card {
+  border-color: #7897b8;
+  background: #0c1420;
 }
 
 @media (prefers-reduced-motion: reduce) {

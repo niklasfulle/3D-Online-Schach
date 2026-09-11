@@ -7,6 +7,9 @@ export type TranslationKey =
   | 'language.label'
   | 'language.de'
   | 'language.en'
+  | 'theme.label'
+  | 'theme.dark'
+  | 'theme.light'
   | 'mode.ranked'
   | 'mode.casual'
   | 'status.check'
@@ -193,6 +196,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'language.label': 'Sprache',
     'language.de': 'Deutsch',
     'language.en': 'Englisch',
+    'theme.label': 'Darstellung',
+    'theme.dark': 'Dunkel',
+    'theme.light': 'Hell',
     'mode.ranked': 'Ranked',
     'mode.casual': 'Casual',
     'status.check': 'Schach',
@@ -375,6 +381,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'language.label': 'Language',
     'language.de': 'German',
     'language.en': 'English',
+    'theme.label': 'Theme',
+    'theme.dark': 'Dark',
+    'theme.light': 'Light',
     'mode.ranked': 'Ranked',
     'mode.casual': 'Casual',
     'status.check': 'Check',

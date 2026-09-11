@@ -59,6 +59,7 @@ afterEach(() => {
   cleanup();
   window.history.replaceState({}, '', '/');
   localStorage.clear();
+  delete document.documentElement.dataset.theme;
   vi.clearAllMocks();
   mocks.listeners.clear();
 });
@@ -75,6 +76,11 @@ describe('App', () => {
 
     render(<App />);
     await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+
+    const themeSelect = screen.getByRole('combobox', { name: 'Darstellung' });
+    fireEvent.change(themeSelect, { target: { value: 'light' } });
+    expect(localStorage.getItem('chess3d.theme')).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
 
     const languageSelect = screen.getByRole('combobox', { name: 'Sprache' });
     fireEvent.change(languageSelect, { target: { value: 'en' } });

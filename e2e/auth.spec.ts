@@ -127,6 +127,8 @@ test.describe('Authentifizierung', () => {
     const credentials = createCredentials();
 
     await openLogin(page);
+    await page.getByRole('combobox', { name: 'Darstellung' }).selectOption('light');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await page.getByRole('combobox', { name: 'Sprache' }).selectOption('en');
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'No account yet? Register' })).toBeVisible();
@@ -140,10 +142,12 @@ test.describe('Authentifizierung', () => {
     await expect(page.getByRole('heading', { name: 'Ready for your next move?' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Public lobby' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
+    await expect(page.getByRole('combobox', { name: 'Theme' })).toHaveValue('light');
 
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Ready for your next move?' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   });
 
   test('spannt das Dashboard ohne äußeren Rand über den gesamten Viewport', async ({ page }) => {
