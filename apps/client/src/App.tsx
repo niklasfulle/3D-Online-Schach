@@ -7,6 +7,7 @@ import type { GameMode, GameSummary, Square, UserRole } from '@chess3d/shared';
 
 import { resolveApiUrl } from './apiUrl';
 import { ChessScene } from './board/ChessScene';
+import { createTranslator, readLanguage, saveLanguage, type Language } from './i18n';
 import { requestJson as requestApi } from './request';
 
 const API_URL = resolveApiUrl(
@@ -541,6 +542,7 @@ function GameView({
 
 export function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [language, setLanguage] = useState<Language>(() => readLanguage());
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
@@ -570,6 +572,11 @@ export function App() {
   const invitationAttemptRef = useRef<string | null>(null);
   const inviteCode = invitationCodeFromPath(globalThis.location?.pathname ?? '');
   const spectatorCode = spectatorCodeFromPath(globalThis.location?.pathname ?? '');
+  const t = createTranslator(language);
+
+  useEffect(() => {
+    saveLanguage(language);
+  }, [language]);
 
   const refreshLobby = useCallback(async () => {
     const response = await requestApi<{ games: LobbyGame[] }>(API_URL, '/lobby');
@@ -1101,6 +1108,17 @@ export function App() {
               </div>
             </div>
             <div className="header-actions">
+              <label className="language-switcher">
+                <span className="sr-only">{t('language.label')}</span>
+                <select
+                  aria-label={t('language.label')}
+                  value={language}
+                  onChange={(event) => setLanguage(event.target.value as Language)}
+                >
+                  <option value="de">{t('language.de')}</option>
+                  <option value="en">{t('language.en')}</option>
+                </select>
+              </label>
               <span className="live-chip">
                 <span className="live-dot" /> Online
               </span>

@@ -58,11 +58,32 @@ const waitingGame = {
 afterEach(() => {
   cleanup();
   window.history.replaceState({}, '', '/');
+  localStorage.clear();
   vi.clearAllMocks();
   mocks.listeners.clear();
 });
 
 describe('App', () => {
+  it('switches language and persists the preference', async () => {
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+
+    const languageSelect = screen.getByRole('combobox', { name: 'Sprache' });
+    fireEvent.change(languageSelect, { target: { value: 'en' } });
+
+    expect(localStorage.getItem('chess3d.language')).toBe('en');
+    expect(screen.getByRole('combobox', { name: 'Language' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'English' })).toBeTruthy();
+  });
+
   it('allows a guest to register and opens the lobby dashboard', async () => {
     mocks.requestJson.mockImplementation(
       async (_baseUrl: string, path: string, options?: RequestInit) => {

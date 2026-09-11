@@ -795,6 +795,17 @@ input:focus-visible {
   font-weight: 600;
 }
 
+.language-switcher select {
+  min-width: 7.2rem;
+  border: 1px solid #385170;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: #17243a;
+  color: #d8e7ff;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
 .avatar,
 .insight-avatar {
   display: grid;
@@ -1479,7 +1490,7 @@ input:focus-visible {
 }
 
 .game-view .game-layout {
-  grid-template-columns: minmax(0, 1fr) 292px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 292px) minmax(280px, 340px);
   align-items: start;
   gap: 1rem;
 }
@@ -1724,7 +1735,7 @@ input:focus-visible {
 
 @media (max-width: 1120px) {
   .game-view .game-layout {
-    grid-template-columns: minmax(0, 1fr) 260px;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
   }
 }
 
