@@ -27,6 +27,12 @@ if [[ -z "${NODE}" ]]; then
     exit 1
 fi
 
+SONAR_PROJECT_VERSION="$("${NODE}" "${SCRIPT_DIR}/scripts/read-version.mjs")"
+if [[ -z "${SONAR_PROJECT_VERSION}" ]]; then
+    echo "Die Anwendungsversion konnte nicht gelesen werden." >&2
+    exit 1
+fi
+
 echo "Erzeuge LCOV-Coverage-Berichte für alle Workspace-Pakete ..."
 "${NODE}" "${SCRIPT_DIR}/scripts/run-coverage.mjs"
 
@@ -35,16 +41,19 @@ DOCKER="$(command -v docker || true)"
 
 echo "Starte SonarQube-Analyse für '${SONAR_PROJECT_KEY}' ..."
 echo "Server: ${SONAR_HOST_URL}"
+echo "Version: ${SONAR_PROJECT_VERSION}"
 
 if [[ -n "${SONAR_SCANNER}" ]]; then
     if [[ -n "${SONAR_TOKEN_VALUE}" ]]; then
         SONAR_TOKEN="${SONAR_TOKEN_VALUE}" "${SONAR_SCANNER}" \
             "-Dsonar.host.url=${SONAR_HOST_URL}" \
-            "-Dsonar.projectKey=${SONAR_PROJECT_KEY}"
+            "-Dsonar.projectKey=${SONAR_PROJECT_KEY}" \
+            "-Dsonar.projectVersion=${SONAR_PROJECT_VERSION}"
     else
         "${SONAR_SCANNER}" \
             "-Dsonar.host.url=${SONAR_HOST_URL}" \
-            "-Dsonar.projectKey=${SONAR_PROJECT_KEY}"
+            "-Dsonar.projectKey=${SONAR_PROJECT_KEY}" \
+            "-Dsonar.projectVersion=${SONAR_PROJECT_VERSION}"
     fi
 elif [[ -n "${DOCKER}" ]]; then
     DOCKER_ARGS=(
@@ -64,7 +73,8 @@ elif [[ -n "${DOCKER}" ]]; then
     fi
     "${DOCKER}" "${DOCKER_ARGS[@]}" sonarsource/sonar-scanner-cli:latest \
         "-Dsonar.host.url=${SONAR_HOST_URL}" \
-        "-Dsonar.projectKey=${SONAR_PROJECT_KEY}"
+        "-Dsonar.projectKey=${SONAR_PROJECT_KEY}" \
+        "-Dsonar.projectVersion=${SONAR_PROJECT_VERSION}"
 else
     echo "Weder sonar-scanner noch Docker wurde gefunden." >&2
     exit 1

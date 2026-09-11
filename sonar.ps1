@@ -38,6 +38,11 @@ if ($null -eq $nodeCommand) {
     throw "node wurde nicht gefunden. Installiere zuerst Node.js."
 }
 
+$projectVersion = (& $nodeCommand.Source (Join-Path $PSScriptRoot "scripts/read-version.mjs")).Trim()
+if ([string]::IsNullOrWhiteSpace($projectVersion)) {
+    throw "Die Anwendungsversion konnte nicht gelesen werden."
+}
+
 Write-Host "Erzeuge LCOV-Coverage-Berichte für alle Workspace-Pakete ..."
 & $nodeCommand.Source (Join-Path $PSScriptRoot "scripts/run-coverage.mjs")
 $coverageExitCode = $LASTEXITCODE
@@ -50,7 +55,8 @@ $scannerCommand = Get-Command "sonar-scanner" -ErrorAction SilentlyContinue
 $dockerCommand = Get-Command "docker" -ErrorAction SilentlyContinue
 $scannerArguments = @(
     "-Dsonar.host.url=$SonarHostUrl",
-    "-Dsonar.projectKey=$ProjectKey"
+    "-Dsonar.projectKey=$ProjectKey",
+    "-Dsonar.projectVersion=$projectVersion"
 )
 $tokenValue = $Token
 if ([string]::IsNullOrWhiteSpace($tokenValue)) {
@@ -59,6 +65,7 @@ if ([string]::IsNullOrWhiteSpace($tokenValue)) {
 
 Write-Host "Starte SonarQube-Analyse für '$ProjectKey' ..."
 Write-Host "Server: $SonarHostUrl"
+Write-Host "Version: $projectVersion"
 
 $previousSonarToken = $env:SONAR_TOKEN
 try {
@@ -95,7 +102,8 @@ try {
         $dockerArguments += @(
             "sonarsource/sonar-scanner-cli:latest",
             "-Dsonar.host.url=$SonarHostUrl",
-            "-Dsonar.projectKey=$ProjectKey"
+            "-Dsonar.projectKey=$ProjectKey",
+            "-Dsonar.projectVersion=$projectVersion"
         )
         & $dockerCommand.Source @dockerArguments
     }
