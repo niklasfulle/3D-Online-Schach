@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 
 import type { FriendRequestView, SocialUser } from '../social/SocialService.js';
 
-export type NotificationType = 'friend_request' | 'game_invitation';
+export type NotificationType = 'friend_request' | 'game_invitation' | 'spectator_invitation';
 
 export interface NotificationView {
   id: string;
@@ -21,6 +21,11 @@ export interface NotificationProvider {
   markRead(userId: string, notificationId: string): Promise<NotificationView>;
   createFriendRequestNotification(request: FriendRequestView): Promise<void>;
   createGameInvitation(
+    userId: string,
+    username: string,
+    gameCode: string,
+  ): Promise<NotificationView>;
+  createSpectatorInvitation(
     userId: string,
     username: string,
     gameCode: string,
@@ -104,6 +109,31 @@ export class PrismaNotificationProvider implements NotificationProvider {
     return this.toView(notification);
   }
 
+  async createSpectatorInvitation(
+    userId: string,
+    username: string,
+    gameCode: string,
+  ): Promise<NotificationView> {
+    const receiver = await this.client.user.findUnique({
+      where: { username: username.trim().toLowerCase() },
+    });
+    if (!receiver) throw new NotificationError('User not found');
+    if (receiver.id === userId) throw new NotificationError('You cannot invite yourself', 400);
+
+    const notification = await this.client.notification.create({
+      data: {
+        recipientId: receiver.id,
+        actorId: userId,
+        type: 'spectator_invitation',
+        title: 'Einladung zum Zuschauen',
+        message: 'Du wurdest eingeladen, eine Partie zu beobachten.',
+        gameCode: gameCode.toUpperCase(),
+      },
+      include: { actor: true },
+    });
+    return this.toView(notification);
+  }
+
   private toView(notification: {
     id: string;
     type: string;
@@ -140,5 +170,6 @@ export class PrismaNotificationProvider implements NotificationProvider {
 }
 
 function toNotificationType(type: string): NotificationType {
-  return type === 'game_invitation' ? 'game_invitation' : 'friend_request';
+  if (type === 'game_invitation' || type === 'spectator_invitation') return type;
+  return 'friend_request';
 }

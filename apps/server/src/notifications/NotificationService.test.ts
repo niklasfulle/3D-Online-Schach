@@ -50,7 +50,7 @@ describe('PrismaNotificationProvider', () => {
     );
   });
 
-  it('creates friend and game invitation notifications', async () => {
+  it('creates friend, game, and spectator invitation notifications', async () => {
     const client = createClient();
     client.user.findUnique = vi.fn(async () => bob);
     client.notification.create = vi.fn(async ({ data }: { data: any }) => ({
@@ -70,12 +70,23 @@ describe('PrismaNotificationProvider', () => {
       receiver: bob,
     });
     await provider.createGameInvitation(alice.id, 'bob', 'ABC123');
+    await provider.createSpectatorInvitation(alice.id, 'bob', 'ABC123');
 
-    expect(client.notification.create).toHaveBeenCalledTimes(2);
+    expect(client.notification.create).toHaveBeenCalledTimes(3);
     expect(client.notification.create).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         data: expect.objectContaining({ recipientId: bob.id, gameCode: 'ABC123' }),
+      }),
+    );
+    expect(client.notification.create).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          recipientId: bob.id,
+          type: 'spectator_invitation',
+          gameCode: 'ABC123',
+        }),
       }),
     );
   });

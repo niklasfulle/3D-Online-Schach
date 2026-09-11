@@ -73,7 +73,7 @@ interface AdminUser {
 
 interface NotificationItem {
   id: string;
-  type: 'friend_request' | 'game_invitation';
+  type: 'friend_request' | 'game_invitation' | 'spectator_invitation';
   title: string;
   message: string;
   gameCode?: string;
@@ -860,6 +860,23 @@ export function App() {
     }
   }
 
+  async function inviteSpectator(username: string) {
+    if (!selectedGame) return;
+    try {
+      await requestApi(API_URL, `/games/${selectedGame.code}/spectator-invitations`, {
+        method: 'POST',
+        body: JSON.stringify({ username }),
+      });
+      setError('Zuschauereinladung wurde gesendet');
+    } catch (error_) {
+      setError(
+        error_ instanceof Error
+          ? error_.message
+          : 'Zuschauereinladung konnte nicht gesendet werden',
+      );
+    }
+  }
+
   async function markNotificationRead(notification: NotificationItem) {
     if (!notification.read) {
       try {
@@ -1047,13 +1064,21 @@ export function App() {
                               className={
                                 notification.read ? 'notification-item' : 'notification-item unread'
                               }
-                              href={gamePath(notification.gameCode)}
+                              href={
+                                notification.type === 'spectator_invitation'
+                                  ? spectatorPath(notification.gameCode)
+                                  : gamePath(notification.gameCode)
+                              }
                               key={notification.id}
                               onClick={() => void markNotificationRead(notification)}
                             >
                               <strong>{notification.title}</strong>
                               <span>{notification.message}</span>
-                              <span className="notification-action">Partie öffnen</span>
+                              <span className="notification-action">
+                                {notification.type === 'spectator_invitation'
+                                  ? 'Zuschaueransicht öffnen'
+                                  : 'Partie öffnen'}
+                              </span>
                             </a>
                           ) : (
                             <button
@@ -1195,6 +1220,11 @@ export function App() {
                   canInvite={Boolean(
                     selectedGame?.status === 'waiting' && selectedGame.whitePlayerId === user.id,
                   )}
+                  canInviteSpectator={Boolean(
+                    selectedGame?.status === 'active' &&
+                    (selectedGame.whitePlayerId === user.id ||
+                      selectedGame.blackPlayerId === user.id),
+                  )}
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
                   searchResults={searchResults}
@@ -1202,6 +1232,7 @@ export function App() {
                   onAdd={(username) => void sendFriendRequest(username)}
                   onRespond={(id, action) => void respondToRequest(id, action)}
                   onInvite={(username) => void inviteFriend(username)}
+                  onInviteSpectator={(username) => void inviteSpectator(username)}
                 />
               ) : null}
               {view === 'admin' && user.role === 'admin' ? (
@@ -1558,6 +1589,7 @@ function AdminView({
 function FriendsView({
   friends,
   canInvite,
+  canInviteSpectator,
   searchQuery,
   setSearchQuery,
   searchResults,
@@ -1565,9 +1597,11 @@ function FriendsView({
   onAdd,
   onRespond,
   onInvite,
+  onInviteSpectator,
 }: Readonly<{
   friends: FriendsOverview | null;
   canInvite: boolean;
+  canInviteSpectator: boolean;
   searchQuery: string;
   setSearchQuery: (value: string) => void;
   searchResults: SocialUser[];
@@ -1575,6 +1609,7 @@ function FriendsView({
   onAdd: (username: string) => void;
   onRespond: (id: string, action: 'accept' | 'reject') => void;
   onInvite: (username: string) => void;
+  onInviteSpectator: (username: string) => void;
 }>) {
   return (
     <section className="social-grid">
@@ -1599,6 +1634,15 @@ function FriendsView({
                     onClick={() => onInvite(friend.username)}
                   >
                     Einladen
+                  </button>
+                ) : null}
+                {canInviteSpectator ? (
+                  <button
+                    className="tiny-button"
+                    type="button"
+                    onClick={() => onInviteSpectator(friend.username)}
+                  >
+                    Zuschauer einladen
                   </button>
                 ) : null}
               </div>

@@ -283,6 +283,33 @@ export function buildApp(
     },
   );
 
+  app.post<{ Params: { code: string }; Body: { username?: string } }>(
+    '/games/:code/spectator-invitations',
+    async (request, reply) => {
+      const user = await requireUser(request, reply, authProvider);
+      if (!user) return;
+      const username = request.body?.username?.trim();
+      if (!username) return reply.code(400).send({ error: 'username is required' });
+
+      const game = gameManager.getGame(request.params.code);
+      if (!game) return reply.code(404).send({ error: 'Game not found' });
+      if (game.status !== 'active') {
+        return reply.code(409).send({ error: 'Only active games can invite spectators' });
+      }
+      if (game.whitePlayerId !== user.id && game.blackPlayerId !== user.id) {
+        return reply.code(403).send({ error: 'Only game participants can invite spectators' });
+      }
+
+      try {
+        return reply
+          .code(201)
+          .send(await notificationProvider.createSpectatorInvitation(user.id, username, game.code));
+      } catch (error) {
+        return sendNotificationError(reply, error);
+      }
+    },
+  );
+
   app.get<{ Params: { code: string } }>('/games/:code/chat', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
     if (!user) return;

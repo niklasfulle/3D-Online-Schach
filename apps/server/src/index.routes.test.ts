@@ -365,6 +365,39 @@ describe('server HTTP routes', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().game.status).toBe('active');
   });
+
+  it('lets active game participants invite a user as a spectator', async () => {
+    const manager = new GameManager();
+    const created = manager.createGame(user.id);
+    manager.joinGame(created.code, bob.id);
+    const authProvider = createAuthProvider(user);
+    const notifications = createNotificationProvider();
+    app = buildApp(manager, authProvider, createSocialProvider(), notifications);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/games/${created.code}/spectator-invitations`,
+      payload: { username: 'bob' },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(notifications.createSpectatorInvitation).toHaveBeenCalledWith(
+      user.id,
+      'bob',
+      created.code,
+    );
+
+    authProvider.authenticate = vi.fn(async () => ({ ...user, id: 'viewer' }));
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/games/${created.code}/spectator-invitations`,
+          payload: { username: 'bob' },
+        })
+      ).statusCode,
+    ).toBe(403);
+  });
 });
 
 function createAuthProvider(
@@ -405,6 +438,15 @@ function createNotificationProvider(): NotificationProvider {
       type: 'game_invitation' as const,
       title: 'Einladung zu einer Partie',
       message: 'Du wurdest zu einer Partie eingeladen.',
+      read: false,
+      createdAt: '2026-09-11T12:00:00.000Z',
+    })),
+    createSpectatorInvitation: vi.fn(async () => ({
+      id: 'notification-3',
+      type: 'spectator_invitation' as const,
+      title: 'Einladung zum Zuschauen',
+      message: 'Du wurdest eingeladen, eine Partie zu beobachten.',
+      gameCode: 'ABC123',
       read: false,
       createdAt: '2026-09-11T12:00:00.000Z',
     })),

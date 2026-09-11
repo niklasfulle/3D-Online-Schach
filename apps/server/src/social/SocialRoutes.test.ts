@@ -121,6 +121,7 @@ function createSocialProvider(): SocialProvider & {
 function createNotificationProvider(): NotificationProvider & {
   createFriendRequestNotification: ReturnType<typeof vi.fn>;
   createGameInvitation: ReturnType<typeof vi.fn>;
+  createSpectatorInvitation: ReturnType<typeof vi.fn>;
 } {
   return {
     list: vi.fn(async () => []),
@@ -138,6 +139,15 @@ function createNotificationProvider(): NotificationProvider & {
       type: 'game_invitation' as const,
       title: 'Einladung zu einer Partie',
       message: 'Du wurdest zu einer Partie eingeladen.',
+      gameCode: 'ABC123',
+      read: false,
+      createdAt: '2026-09-11T10:00:00.000Z',
+    })),
+    createSpectatorInvitation: vi.fn(async () => ({
+      id: 'notification-3',
+      type: 'spectator_invitation' as const,
+      title: 'Einladung zum Zuschauen',
+      message: 'Du wurdest eingeladen, eine Partie zu beobachten.',
       gameCode: 'ABC123',
       read: false,
       createdAt: '2026-09-11T10:00:00.000Z',

@@ -397,6 +397,37 @@ describe('App', () => {
     expect(invitationLink.getAttribute('href')).toBe('/game/ABC123');
   });
 
+  it('links spectator invitations to the read-only spectator view', async () => {
+    const notification = {
+      id: 'notification-spectator-1',
+      type: 'spectator_invitation',
+      title: 'Einladung zum Zuschauen',
+      message: 'Mara lädt dich ein, ihre Partie zu beobachten.',
+      gameCode: 'ABC123',
+      read: false,
+      createdAt: '2026-09-11T10:00:00.000Z',
+      actor: { id: 'friend-1', username: 'Mara', rating: 1250, online: true },
+    };
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [notification] };
+      if (path === '/notifications/notification-spectator-1/read') {
+        return { ...notification, read: true };
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Benachrichtigungen/ }));
+
+    const invitationLink = await screen.findByRole('link', { name: /Zuschaueransicht öffnen/ });
+    expect(invitationLink.getAttribute('href')).toBe('/watch/ABC123');
+  });
+
   it('invites a friend from an own waiting game', async () => {
     const friend = { id: 'friend-1', username: 'Mara', rating: 1250, online: true };
     const ownWaitingGame = { ...waitingGame, whitePlayerId: user.id };
