@@ -649,6 +649,16 @@ input:focus-visible {
   padding-right: 0.2rem;
 }
 
+.chat-log-shell {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-log-shell .chat-messages {
+  height: 100%;
+}
+
 .chat-message {
   display: grid;
   width: fit-content;
@@ -670,6 +680,19 @@ input:focus-visible {
 .chat-message strong {
   color: #9cc6ff;
   font-size: 0.72rem;
+}
+
+.chat-message-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.chat-message time {
+  color: #91a3bd;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .chat-message span {
@@ -696,6 +719,21 @@ input:focus-visible {
 .chat-input-row input {
   min-width: 0;
   flex: 1;
+}
+
+.chat-new-messages {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  border: 1px solid rgb(112 168 255 / 42%);
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  background: #1d4f84;
+  color: #eef6ff;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .brand-mark {

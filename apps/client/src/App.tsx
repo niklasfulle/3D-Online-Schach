@@ -213,6 +213,25 @@ function gamePath(code: string): string {
   return `/game/${encodeURIComponent(code)}`;
 }
 
+function formatChatTime(createdAt: string): string {
+  return new Intl.DateTimeFormat('de-DE', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(createdAt));
+}
+
+function isChatNearBottom(element: HTMLDivElement): boolean {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 64;
+}
+
+function scrollChatToBottom(element: HTMLDivElement): void {
+  if (typeof element.scrollTo === 'function') {
+    element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
+  } else {
+    element.scrollTop = element.scrollHeight;
+  }
+}
+
 function spectatorPath(code: string): string {
   return `/watch/${encodeURIComponent(code)}`;
 }
@@ -264,6 +283,34 @@ function GameView({
   onChatDraftChange,
   onSendChat,
 }: Readonly<GameViewProps>) {
+  const chatMessagesRef = useRef<HTMLDivElement | null>(null);
+  const previousMessageCountRef = useRef<number | null>(null);
+  const [showNewMessages, setShowNewMessages] = useState(false);
+
+  useEffect(() => {
+    const element = chatMessagesRef.current;
+    if (!element) return;
+
+    const isInitialLoad = previousMessageCountRef.current === null;
+    const hasNewMessages =
+      previousMessageCountRef.current !== null &&
+      chatMessages.length > previousMessageCountRef.current;
+    if (isInitialLoad || (hasNewMessages && isChatNearBottom(element))) {
+      scrollChatToBottom(element);
+      setShowNewMessages(false);
+    } else if (hasNewMessages) {
+      setShowNewMessages(true);
+    }
+    previousMessageCountRef.current = chatMessages.length;
+  }, [chatMessages.length]);
+
+  function scrollToLatestChat() {
+    const element = chatMessagesRef.current;
+    if (!element) return;
+    scrollChatToBottom(element);
+    setShowNewMessages(false);
+  }
+
   return (
     <section className="game-view">
       <div className="game-toolbar">
@@ -427,20 +474,39 @@ function GameView({
               <span className="live-dot" /> {spectatorMode ? 'Nur lesen' : 'Live'}
             </span>
           </div>
-          <div className="chat-messages" role="log" aria-live="polite">
-            {chatMessages.length ? (
-              chatMessages.map((message) => (
-                <div
-                  className={`chat-message ${message.senderId === user.id ? 'outgoing' : 'incoming'}`}
-                  key={message.id}
-                >
-                  <strong>{message.senderUsername}</strong>
-                  <span>{message.message}</span>
-                </div>
-              ))
-            ) : (
-              <span className="muted">Noch keine Nachrichten.</span>
-            )}
+          <div className="chat-log-shell">
+            <div
+              className="chat-messages"
+              ref={chatMessagesRef}
+              role="log"
+              aria-live="polite"
+              onScroll={(event) => {
+                if (isChatNearBottom(event.currentTarget)) setShowNewMessages(false);
+              }}
+            >
+              {chatMessages.length ? (
+                chatMessages.map((message) => (
+                  <div
+                    aria-label={`${message.senderUsername}: ${message.message} um ${formatChatTime(message.createdAt)}`}
+                    className={`chat-message ${message.senderId === user.id ? 'outgoing' : 'incoming'}`}
+                    key={message.id}
+                  >
+                    <div className="chat-message-meta">
+                      <strong>{message.senderUsername}</strong>
+                      <time dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time>
+                    </div>
+                    <span>{message.message}</span>
+                  </div>
+                ))
+              ) : (
+                <span className="muted">Noch keine Nachrichten.</span>
+              )}
+            </div>
+            {showNewMessages ? (
+              <button className="chat-new-messages" type="button" onClick={scrollToLatestChat}>
+                Neue Nachrichten
+              </button>
+            ) : null}
           </div>
           {spectatorMode ? (
             <span className="muted">Als Zuschauer kannst du den Chat mitlesen.</span>

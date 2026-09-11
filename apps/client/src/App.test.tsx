@@ -3,16 +3,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode } from 'react';
 
 const mocks = vi.hoisted(() => {
+  const listeners = new Map<string, (payload: unknown) => void>();
   const socket = {
-    on: vi.fn(),
+    on: vi.fn((event: string, handler: (payload: unknown) => void) => {
+      listeners.set(event, handler);
+      return socket;
+    }),
     emit: vi.fn(),
     disconnect: vi.fn(),
   };
-  socket.on.mockReturnValue(socket);
 
   return {
     requestJson: vi.fn(),
     socket,
+    listeners,
   };
 });
 
@@ -55,6 +59,7 @@ afterEach(() => {
   cleanup();
   window.history.replaceState({}, '', '/');
   vi.clearAllMocks();
+  mocks.listeners.clear();
 });
 
 describe('App', () => {
@@ -496,6 +501,25 @@ describe('App', () => {
     expect(
       within(chatColumn).getByText('Viel Erfolg!').closest('.chat-message')?.className,
     ).toContain('incoming');
+    expect(within(chatColumn).getByText('12:00')).toBeTruthy();
+
+    const chatLog = within(chatColumn).getByRole('log');
+    Object.defineProperties(chatLog, {
+      clientHeight: { configurable: true, value: 100 },
+      scrollHeight: { configurable: true, value: 1000 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+      scrollTo: { configurable: true, value: vi.fn() },
+    });
+    mocks.listeners.get('chat:message')?.({
+      id: 'message-2',
+      senderId: 'opponent-1',
+      senderUsername: 'Mara',
+      message: 'Dein Zug!',
+      createdAt: '2026-09-11T10:01:00.000Z',
+    });
+    expect(await screen.findByRole('button', { name: 'Neue Nachrichten' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Neue Nachrichten' }));
+    expect(screen.queryByRole('button', { name: 'Neue Nachrichten' })).toBeNull();
 
     fireEvent.change(screen.getByLabelText('Chatnachricht'), {
       target: { value: 'Danke!' },
