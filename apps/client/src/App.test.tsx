@@ -519,6 +519,34 @@ describe('App', () => {
     expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
   });
 
+  it('returns to the root path from the game view', async () => {
+    const activeGame = {
+      ...waitingGame,
+      status: 'active' as const,
+      blackPlayerId: 'opponent-1',
+    };
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/lobby/games') return activeGame;
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
+    await screen.findByRole('heading', { name: 'Am Brett' });
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Zurück zur Lobby' })[0]);
+
+    expect(window.location.pathname).toBe('/');
+    expect(
+      await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' }),
+    ).toBeTruthy();
+  });
+
   it('lets an active player resign', async () => {
     const activeGame = {
       ...waitingGame,

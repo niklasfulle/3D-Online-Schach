@@ -496,7 +496,7 @@ interface GameViewProps {
   moveHistory: MoveRecord[];
   turnLabel: string;
   gameStatus: string;
-  setView: (view: AppView) => void;
+  onBackToLobby: () => void;
   handleSelectSquare: (square: Square) => void;
   onCopyLink: () => void;
   linkCopied: boolean;
@@ -521,7 +521,7 @@ function GameView({
   moveHistory,
   turnLabel,
   gameStatus,
-  setView,
+  onBackToLobby,
   handleSelectSquare,
   onCopyLink,
   linkCopied,
@@ -570,7 +570,7 @@ function GameView({
             className="back-button"
             aria-label={t('game.backToLobby')}
             type="button"
-            onClick={() => setView('lobby')}
+            onClick={onBackToLobby}
           >
             ←
           </button>
@@ -720,11 +720,7 @@ function GameView({
             <span className="panel-label">{t('game.fen')}</span>
             <code>{gameState.fen}</code>
           </div>
-          <button
-            className="quiet-button panel-back-button"
-            type="button"
-            onClick={() => setView('lobby')}
-          >
+          <button className="quiet-button panel-back-button" type="button" onClick={onBackToLobby}>
             ← {t('game.backToLobby')}
           </button>
         </aside>
@@ -1107,6 +1103,11 @@ export function App() {
     socketRef.current?.emit('game:sync', { code: nextGame.code });
   }
 
+  function returnToLobby() {
+    setView('lobby');
+    setGamePath(null);
+  }
+
   function handleUnavailableLobby(code: string) {
     setSelectedGame(null);
     selectedGameCodeRef.current = null;
@@ -1424,7 +1425,7 @@ export function App() {
                 moveHistory={moveHistory}
                 turnLabel={turnLabel}
                 gameStatus={gameStatus}
-                setView={() => globalThis.location.assign('/')}
+                onBackToLobby={() => globalThis.location.assign('/')}
                 handleSelectSquare={handleSelectSquare}
                 onCopyLink={() => undefined}
                 linkCopied={false}
@@ -1785,7 +1786,7 @@ export function App() {
                   moveHistory={moveHistory}
                   turnLabel={turnLabel}
                   gameStatus={gameStatus}
-                  setView={setView}
+                  onBackToLobby={returnToLobby}
                   handleSelectSquare={handleSelectSquare}
                   onCopyLink={() => void copyGameLink()}
                   linkCopied={linkCopied}

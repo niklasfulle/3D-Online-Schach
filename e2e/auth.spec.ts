@@ -335,6 +335,7 @@ test.describe('Authentifizierung', () => {
       await page.getByRole('button', { name: /Casual-Spiel erstellen/ }).click();
       await expect(page.getByRole('heading', { name: 'Am Brett' })).toBeVisible();
       await page.getByRole('button', { name: 'Zurück zur Lobby' }).first().click();
+      await expect(page).toHaveURL(/\/$/);
       await page.getByRole('button', { name: /Freunde/ }).click();
       await expect(page.getByText(invitee.username, { exact: true }).last()).toBeVisible();
       await page.getByRole('button', { name: 'Einladen' }).click();
