@@ -20,6 +20,7 @@ async function registerUser(request: APIRequestContext, credentials: Credentials
     data: credentials,
   });
   expect(response.status()).toBe(200);
+  return (await response.json()).user as { id: string };
 }
 
 async function openLogin(page: Page) {
@@ -297,5 +298,55 @@ test.describe('Authentifizierung', () => {
     } finally {
       await inviteePage.close();
     }
+  });
+
+  test('zeigt die persönliche Spielhistorie mit Zügen und PGN-Link', async ({ page, request }) => {
+    const player = createCredentials();
+    const opponent = createCredentials();
+    const playerUser = await registerUser(request, player);
+    const opponentUser = await registerUser(request, opponent);
+
+    const created = await request.post(`${apiUrl}/games`, {
+      data: { playerId: playerUser.id, initialMs: 300_000 },
+    });
+    expect(created.status()).toBe(201);
+    const game = (await created.json()) as { code: string };
+
+    const joined = await request.post(`${apiUrl}/games/${game.code}/join`, {
+      data: { playerId: opponentUser.id },
+    });
+    expect(joined.status()).toBe(200);
+
+    for (const [playerId, from, to] of [
+      [playerUser.id, 'e2', 'e4'],
+      [opponentUser.id, 'e7', 'e5'],
+      [playerUser.id, 'f1', 'c4'],
+      [opponentUser.id, 'b8', 'c6'],
+      [playerUser.id, 'd1', 'h5'],
+      [opponentUser.id, 'g8', 'f6'],
+      [playerUser.id, 'h5', 'f7'],
+    ]) {
+      const move = await request.post(`${apiUrl}/games/${game.code}/moves`, {
+        data: { playerId, from, to },
+      });
+      expect(move.status()).toBe(200);
+    }
+
+    await openLogin(page);
+    await page.getByLabel('Benutzername').fill(player.username);
+    await page.getByLabel('Passwort').fill(player.password);
+    await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+    await expectAuthenticated(page, player.username);
+
+    await page.getByRole('button', { name: /Historie/ }).click();
+    await expect(page.getByRole('heading', { name: 'Spielhistorie', level: 1 })).toBeVisible();
+    await expect(page.getByRole('button', { name: new RegExp(game.code) })).toBeVisible();
+    await page.getByRole('button', { name: new RegExp(game.code) }).click();
+    await expect(page.getByRole('region', { name: `Partiedetails ${game.code}` })).toBeVisible();
+    await expect(page.getByText('Qxf7#')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'PGN herunterladen' })).toHaveAttribute(
+      'href',
+      new RegExp(`/games/${game.code}/pgn`),
+    );
   });
 });

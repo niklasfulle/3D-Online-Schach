@@ -94,6 +94,83 @@ describe('App', () => {
     expect(screen.getByText('Find your next game.')).toBeTruthy();
   });
 
+  it('loads, filters, opens and paginates the personal game history', async () => {
+    const historyGames = [
+      {
+        id: 'history-1',
+        code: 'ABC123',
+        mode: 'ranked' as const,
+        result: 'white' as const,
+        createdAt: '2026-09-10T18:00:00.000Z',
+        finishedAt: '2026-09-10T18:20:00.000Z',
+        whitePlayer: { id: user.id, username: user.username },
+        blackPlayer: { id: 'user-2', username: 'Mara' },
+        moves: [
+          {
+            moveNumber: 1,
+            from: 'e2',
+            to: 'e4',
+            promotion: null,
+            san: 'e4',
+            fenAfterMove: 'fen-after-e4',
+          },
+        ],
+      },
+      {
+        id: 'history-2',
+        code: 'XYZ789',
+        mode: 'casual' as const,
+        result: 'black' as const,
+        createdAt: '2026-09-09T18:00:00.000Z',
+        finishedAt: '2026-09-09T18:20:00.000Z',
+        whitePlayer: { id: user.id, username: user.username },
+        blackPlayer: { id: 'user-3', username: 'Leo' },
+        moves: [],
+      },
+    ];
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      if (path === '/games/history?limit=20')
+        return { games: historyGames, nextCursor: 'next-page' };
+      if (path === '/games/history?limit=20&cursor=next-page')
+        return { games: [], nextCursor: undefined };
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Historie/ }));
+
+    expect(await screen.findByRole('heading', { name: 'Spielhistorie', level: 1 })).toBeTruthy();
+    expect(mocks.requestJson).toHaveBeenCalledWith(expect.any(String), '/games/history?limit=20');
+    expect(screen.getByRole('button', { name: /ABC123/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /XYZ789/ })).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ergebnis' }), {
+      target: { value: 'wins' },
+    });
+    expect(screen.getByRole('button', { name: /ABC123/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /XYZ789/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /ABC123/ }));
+    expect(screen.getByRole('region', { name: 'Partiedetails ABC123' })).toBeTruthy();
+    expect(screen.getByText('e4')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'PGN herunterladen' }).getAttribute('href')).toContain(
+      '/games/ABC123/pgn',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mehr laden' }));
+    await waitFor(() =>
+      expect(mocks.requestJson).toHaveBeenCalledWith(
+        expect.any(String),
+        '/games/history?limit=20&cursor=next-page',
+      ),
+    );
+  });
+
   it('allows a guest to register and opens the lobby dashboard', async () => {
     mocks.requestJson.mockImplementation(
       async (_baseUrl: string, path: string, options?: RequestInit) => {

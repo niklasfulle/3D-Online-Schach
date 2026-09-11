@@ -37,7 +37,7 @@ const GUEST_SPECTATOR: AuthUser = {
   role: 'spectator',
 };
 
-type AppView = 'lobby' | 'friends' | 'admin' | 'game';
+type AppView = 'lobby' | 'history' | 'friends' | 'admin' | 'game';
 
 interface PageHeading {
   eyebrow: string;
@@ -130,6 +130,40 @@ interface ChatMessage {
 interface LobbyGame extends GameSummary {
   isOwner: boolean;
 }
+
+interface HistoryPlayer {
+  id: string;
+  username: string;
+}
+
+interface HistoryMove {
+  moveNumber: number;
+  from: string;
+  to: string;
+  promotion: string | null;
+  san: string;
+  fenAfterMove: string;
+}
+
+interface HistoryGame {
+  id: string;
+  code: string;
+  mode: GameMode;
+  result: 'white' | 'black' | 'draw' | null;
+  createdAt: string;
+  finishedAt: string;
+  whitePlayer: HistoryPlayer | null;
+  blackPlayer: HistoryPlayer | null;
+  moves: HistoryMove[];
+}
+
+interface HistoryPage {
+  games: HistoryGame[];
+  nextCursor?: string;
+}
+
+type HistoryResultFilter = 'all' | 'wins' | 'losses' | 'draws';
+type HistoryModeFilter = 'all' | GameMode;
 
 function statusLabel(status: ReturnType<ChessGame['getStatus']>, t: Translator) {
   switch (status) {
@@ -303,6 +337,13 @@ function pageHeadingFor(view: AppView, t: Translator): PageHeading {
       description: t('page.friends.description'),
     };
   }
+  if (view === 'history') {
+    return {
+      eyebrow: t('page.history.eyebrow'),
+      title: t('page.history.title'),
+      description: t('page.history.description'),
+    };
+  }
   if (view === 'admin') {
     return {
       eyebrow: t('page.admin.eyebrow'),
@@ -355,6 +396,32 @@ function formatChatTime(createdAt: string, language: Language): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(createdAt));
+}
+
+function formatHistoryDate(createdAt: string, language: Language): string {
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'de-DE', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(createdAt));
+}
+
+function historyOutcome(historyGame: HistoryGame, userId: string, t: Translator): string {
+  if (historyGame.result === 'draw') return t('history.draw');
+  if (!historyGame.result) return t('status.finished');
+  const userColor = historyGame.whitePlayer?.id === userId ? 'white' : 'black';
+  return historyGame.result === userColor ? t('history.win') : t('history.loss');
+}
+
+function matchesHistoryFilter(
+  historyGame: HistoryGame,
+  userId: string,
+  filter: HistoryResultFilter,
+): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'draws') return historyGame.result === 'draw';
+  if (!historyGame.result || historyGame.result === 'draw') return false;
+  const userColor = historyGame.whitePlayer?.id === userId ? 'white' : 'black';
+  return filter === 'wins' ? historyGame.result === userColor : historyGame.result !== userColor;
 }
 
 function isChatNearBottom(element: HTMLDivElement): boolean {
@@ -696,6 +763,12 @@ export function App() {
   const [error, setError] = useState('');
   const [view, setView] = useState<AppView>('lobby');
   const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
+  const [historyGames, setHistoryGames] = useState<HistoryGame[]>([]);
+  const [historyCursor, setHistoryCursor] = useState<string | undefined>();
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyResultFilter, setHistoryResultFilter] = useState<HistoryResultFilter>('all');
+  const [historyModeFilter, setHistoryModeFilter] = useState<HistoryModeFilter>('all');
+  const [selectedHistoryGame, setSelectedHistoryGame] = useState<HistoryGame | null>(null);
   const [friends, setFriends] = useState<FriendsOverview | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -733,6 +806,19 @@ export function App() {
   const refreshLobby = useCallback(async () => {
     const response = await requestApi<{ games: LobbyGame[] }>(API_URL, '/lobby');
     setLobbyGames(response.games);
+  }, []);
+
+  const refreshHistory = useCallback(async (cursor?: string) => {
+    setHistoryLoading(true);
+    try {
+      const query = new URLSearchParams({ limit: '20' });
+      if (cursor) query.set('cursor', cursor);
+      const response = await requestApi<HistoryPage>(API_URL, `/games/history?${query.toString()}`);
+      setHistoryGames((games) => (cursor ? [...games, ...response.games] : response.games));
+      setHistoryCursor(response.nextCursor);
+    } finally {
+      setHistoryLoading(false);
+    }
   }, []);
 
   const refreshFriends = useCallback(async () => {
@@ -1022,6 +1108,16 @@ export function App() {
       setLobbyGames((games) => games.filter((game) => game.code !== code));
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : t('error.gameDelete'));
+    }
+  }
+
+  async function openHistory() {
+    setView('history');
+    setSelectedHistoryGame(null);
+    try {
+      await refreshHistory();
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : t('error.historyLoad'));
     }
   }
 
@@ -1370,6 +1466,17 @@ export function App() {
                     <span>{t('sidebar.lobby')}</span>
                     <span className="nav-count">{lobbyGames.length}</span>
                   </button>
+                  <button
+                    className={view === 'history' ? 'nav-button active' : 'nav-button'}
+                    type="button"
+                    onClick={() => void openHistory()}
+                  >
+                    <span className="nav-icon" aria-hidden="true">
+                      ◷
+                    </span>
+                    <span>{t('sidebar.history')}</span>
+                    <span className="nav-count">{historyGames.length}</span>
+                  </button>
                   {user.role === 'admin' ? (
                     <button
                       className={view === 'admin' ? 'nav-button active' : 'nav-button'}
@@ -1462,6 +1569,23 @@ export function App() {
                   onCreate={(mode) => void createGame(mode)}
                   onJoin={(code) => void joinGame(code)}
                   onDelete={(code) => void deleteGame(code)}
+                />
+              ) : null}
+              {view === 'history' ? (
+                <HistoryView
+                  t={t}
+                  language={language}
+                  userId={user.id}
+                  games={historyGames}
+                  cursor={historyCursor}
+                  loading={historyLoading}
+                  resultFilter={historyResultFilter}
+                  modeFilter={historyModeFilter}
+                  selectedGame={selectedHistoryGame}
+                  onResultFilterChange={setHistoryResultFilter}
+                  onModeFilterChange={setHistoryModeFilter}
+                  onSelect={setSelectedHistoryGame}
+                  onLoadMore={() => void refreshHistory(historyCursor)}
                 />
               ) : null}
               {view === 'friends' ? (
@@ -1815,6 +1939,181 @@ function LobbyView({
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function HistoryView({
+  t,
+  language,
+  userId,
+  games,
+  cursor,
+  loading,
+  resultFilter,
+  modeFilter,
+  selectedGame,
+  onResultFilterChange,
+  onModeFilterChange,
+  onSelect,
+  onLoadMore,
+}: Readonly<{
+  t: Translator;
+  language: Language;
+  userId: string;
+  games: HistoryGame[];
+  cursor?: string;
+  loading: boolean;
+  resultFilter: HistoryResultFilter;
+  modeFilter: HistoryModeFilter;
+  selectedGame: HistoryGame | null;
+  onResultFilterChange: (filter: HistoryResultFilter) => void;
+  onModeFilterChange: (filter: HistoryModeFilter) => void;
+  onSelect: (game: HistoryGame) => void;
+  onLoadMore: () => void;
+}>) {
+  const filteredGames = games.filter(
+    (historyGame) =>
+      (modeFilter === 'all' || historyGame.mode === modeFilter) &&
+      matchesHistoryFilter(historyGame, userId, resultFilter),
+  );
+
+  return (
+    <div className="history-content">
+      <section className="content-card history-card">
+        <div className="section-heading history-heading">
+          <div>
+            <span className="panel-label">{t('history.label')}</span>
+            <h2>{t('page.history.title')}</h2>
+          </div>
+          <div className="history-filters">
+            <label>
+              <span className="sr-only">{t('history.resultFilter')}</span>
+              <select
+                aria-label={t('history.resultFilter')}
+                value={resultFilter}
+                onChange={(event) =>
+                  onResultFilterChange(event.target.value as HistoryResultFilter)
+                }
+              >
+                <option value="all">{t('history.all')}</option>
+                <option value="wins">{t('history.wins')}</option>
+                <option value="losses">{t('history.losses')}</option>
+                <option value="draws">{t('history.draws')}</option>
+              </select>
+            </label>
+            <label>
+              <span className="sr-only">{t('history.modeFilter')}</span>
+              <select
+                aria-label={t('history.modeFilter')}
+                value={modeFilter}
+                onChange={(event) => onModeFilterChange(event.target.value as HistoryModeFilter)}
+              >
+                <option value="all">{t('history.allModes')}</option>
+                <option value="casual">{t('mode.casual')}</option>
+                <option value="ranked">{t('mode.ranked')}</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        {filteredGames.length ? (
+          <div className="history-list">
+            {filteredGames.map((historyGame) => {
+              const opponent =
+                historyGame.whitePlayer?.id === userId
+                  ? historyGame.blackPlayer?.username
+                  : historyGame.whitePlayer?.username;
+              const outcome = historyOutcome(historyGame, userId, t);
+              return (
+                <button
+                  className={
+                    selectedGame?.id === historyGame.id ? 'history-row selected' : 'history-row'
+                  }
+                  type="button"
+                  key={historyGame.id}
+                  onClick={() => onSelect(historyGame)}
+                >
+                  <span className="history-result" data-result={outcome}>
+                    {historyGame.result === 'draw'
+                      ? '½'
+                      : historyGame.result === 'white'
+                        ? '1'
+                        : '0'}
+                  </span>
+                  <span className="history-game-main">
+                    <strong>{historyGame.code}</strong>
+                    <span className="muted">
+                      {historyGame.mode === 'ranked' ? t('mode.ranked') : t('mode.casual')} ·{' '}
+                      {t('history.opponent')}: {opponent ?? t('player.open')}
+                    </span>
+                  </span>
+                  <span className="history-outcome">{outcome}</span>
+                  <time dateTime={historyGame.finishedAt}>
+                    {formatHistoryDate(historyGame.finishedAt, language)}
+                  </time>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-icon" aria-hidden="true">
+              ◷
+            </div>
+            <strong>{t('history.empty')}</strong>
+          </div>
+        )}
+        {cursor ? (
+          <button
+            className="quiet-button history-load-more"
+            type="button"
+            onClick={onLoadMore}
+            disabled={loading}
+          >
+            {loading ? t('history.loading') : t('history.loadMore')}
+          </button>
+        ) : null}
+      </section>
+      {selectedGame ? (
+        <section
+          className="content-card history-detail"
+          aria-label={`${t('history.details')} ${selectedGame.code}`}
+          role="region"
+        >
+          <div className="section-heading">
+            <div>
+              <span className="panel-label">{t('history.details')}</span>
+              <h2>{selectedGame.code}</h2>
+            </div>
+            <a
+              className="secondary-button"
+              href={`${API_URL}/games/${encodeURIComponent(selectedGame.code)}/pgn`}
+              download={`game-${selectedGame.code}.pgn`}
+            >
+              {t('history.downloadPgn')}
+            </a>
+          </div>
+          <div className="history-detail-meta">
+            <span>{historyOutcome(selectedGame, userId, t)}</span>
+            <span>{formatHistoryDate(selectedGame.finishedAt, language)}</span>
+          </div>
+          <div className="history-moves" aria-label={t('history.moves')}>
+            {selectedGame.moves.length ? (
+              selectedGame.moves.map((move) => (
+                <div className="history-move" key={move.moveNumber}>
+                  <span>{move.moveNumber}.</span>
+                  <strong>{move.san}</strong>
+                  <span className="muted">
+                    {move.from} → {move.to}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <span className="muted">{t('history.noMoves')}</span>
+            )}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

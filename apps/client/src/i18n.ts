@@ -28,6 +28,9 @@ export type TranslationKey =
   | 'page.friends.eyebrow'
   | 'page.friends.title'
   | 'page.friends.description'
+  | 'page.history.eyebrow'
+  | 'page.history.title'
+  | 'page.history.description'
   | 'page.admin.eyebrow'
   | 'page.admin.title'
   | 'page.admin.description'
@@ -96,11 +99,31 @@ export type TranslationKey =
   | 'notifications.openGame'
   | 'notifications.openSpectator'
   | 'notifications.empty'
+  | 'history.label'
+  | 'history.resultFilter'
+  | 'history.modeFilter'
+  | 'history.all'
+  | 'history.wins'
+  | 'history.losses'
+  | 'history.draws'
+  | 'history.allModes'
+  | 'history.empty'
+  | 'history.loading'
+  | 'history.loadMore'
+  | 'history.details'
+  | 'history.downloadPgn'
+  | 'history.moves'
+  | 'history.noMoves'
+  | 'history.opponent'
+  | 'history.win'
+  | 'history.loss'
+  | 'history.draw'
   | 'sidebar.workspace'
   | 'sidebar.navigation'
   | 'sidebar.lobby'
   | 'sidebar.administration'
   | 'sidebar.friends'
+  | 'sidebar.history'
   | 'sidebar.activeGame'
   | 'sidebar.profile'
   | 'sidebar.rating'
@@ -163,6 +186,7 @@ export type TranslationKey =
   | 'error.connection'
   | 'error.authentication'
   | 'error.lobbyLoad'
+  | 'error.historyLoad'
   | 'error.friendsLoad'
   | 'error.notificationsUpdate'
   | 'error.gameConnection'
@@ -217,6 +241,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'page.friends.eyebrow': 'COMMUNITY',
     'page.friends.title': 'Deine Freunde',
     'page.friends.description': 'Finde Spieler, vernetze dich und bleib in Kontakt.',
+    'page.history.eyebrow': 'DEINE PARTIEN',
+    'page.history.title': 'Spielhistorie',
+    'page.history.description': 'Sieh dir deine abgeschlossenen Partien und Züge an.',
     'page.admin.eyebrow': 'VERWALTUNG',
     'page.admin.title': 'Benutzerverwaltung',
     'page.admin.description': 'Rollen und Zugänge der Community im Blick behalten.',
@@ -285,11 +312,31 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'notifications.openGame': 'Partie öffnen',
     'notifications.openSpectator': 'Zuschaueransicht öffnen',
     'notifications.empty': 'Keine neuen Benachrichtigungen.',
+    'history.label': 'VERLAUF',
+    'history.resultFilter': 'Ergebnis',
+    'history.modeFilter': 'Modus',
+    'history.all': 'Alle Ergebnisse',
+    'history.wins': 'Siege',
+    'history.losses': 'Niederlagen',
+    'history.draws': 'Remis',
+    'history.allModes': 'Alle Modi',
+    'history.empty': 'Noch keine abgeschlossenen Partien.',
+    'history.loading': 'Lädt …',
+    'history.loadMore': 'Mehr laden',
+    'history.details': 'Partiedetails',
+    'history.downloadPgn': 'PGN herunterladen',
+    'history.moves': 'Züge',
+    'history.noMoves': 'Für diese Partie sind keine Züge gespeichert.',
+    'history.opponent': 'Gegner',
+    'history.win': 'Sieg',
+    'history.loss': 'Niederlage',
+    'history.draw': 'Remis',
     'sidebar.workspace': 'Arbeitsbereich',
     'sidebar.navigation': 'Hauptnavigation',
     'sidebar.lobby': 'Lobby',
     'sidebar.administration': 'Administration',
     'sidebar.friends': 'Freunde',
+    'sidebar.history': 'Historie',
     'sidebar.activeGame': 'Aktive Partie',
     'sidebar.profile': 'Dein Profil',
     'sidebar.rating': 'Wertung',
@@ -352,6 +399,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'error.connection': 'Die Echtzeitverbindung zur Partie konnte nicht aufgebaut werden',
     'error.authentication': 'Authentifizierung fehlgeschlagen',
     'error.lobbyLoad': 'Lobby konnte nicht geladen werden',
+    'error.historyLoad': 'Spielhistorie konnte nicht geladen werden',
     'error.friendsLoad': 'Freunde konnten nicht geladen werden',
     'error.notificationsUpdate': 'Benachrichtigung konnte nicht aktualisiert werden',
     'error.gameConnection': 'Partie konnte nicht synchronisiert werden',
@@ -402,6 +450,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'page.friends.eyebrow': 'COMMUNITY',
     'page.friends.title': 'Your friends',
     'page.friends.description': 'Find players, connect and stay in touch.',
+    'page.history.eyebrow': 'YOUR GAMES',
+    'page.history.title': 'Game history',
+    'page.history.description': 'Review your finished games and moves.',
     'page.admin.eyebrow': 'ADMINISTRATION',
     'page.admin.title': 'User administration',
     'page.admin.description': 'Keep community roles and access under control.',
@@ -470,11 +521,31 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'notifications.openGame': 'Open game',
     'notifications.openSpectator': 'Open spectator view',
     'notifications.empty': 'No new notifications.',
+    'history.label': 'HISTORY',
+    'history.resultFilter': 'Result',
+    'history.modeFilter': 'Mode',
+    'history.all': 'All results',
+    'history.wins': 'Wins',
+    'history.losses': 'Losses',
+    'history.draws': 'Draws',
+    'history.allModes': 'All modes',
+    'history.empty': 'No finished games yet.',
+    'history.loading': 'Loading …',
+    'history.loadMore': 'Load more',
+    'history.details': 'Game details',
+    'history.downloadPgn': 'Download PGN',
+    'history.moves': 'Moves',
+    'history.noMoves': 'No moves were saved for this game.',
+    'history.opponent': 'Opponent',
+    'history.win': 'Win',
+    'history.loss': 'Loss',
+    'history.draw': 'Draw',
     'sidebar.workspace': 'Workspace',
     'sidebar.navigation': 'Main navigation',
     'sidebar.lobby': 'Lobby',
     'sidebar.administration': 'Administration',
     'sidebar.friends': 'Friends',
+    'sidebar.history': 'History',
     'sidebar.activeGame': 'Active game',
     'sidebar.profile': 'Your profile',
     'sidebar.rating': 'Rating',
@@ -537,6 +608,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'error.connection': 'The real-time connection to the game could not be established',
     'error.authentication': 'Authentication failed',
     'error.lobbyLoad': 'Could not load lobby',
+    'error.historyLoad': 'Could not load game history',
     'error.friendsLoad': 'Could not load friends',
     'error.notificationsUpdate': 'Could not update notification',
     'error.gameConnection': 'Could not synchronize game',

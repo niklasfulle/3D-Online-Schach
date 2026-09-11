@@ -20,6 +20,8 @@ const baseSummary = {
 function createClient(): any {
   return {
     user: {
+      findUnique: vi.fn(async () => undefined),
+      update: vi.fn(async () => undefined),
       upsert: vi.fn(async ({ where }: { where: { username: string } }) => ({ id: where.username })),
     },
     game: { upsert: vi.fn(), findUnique: vi.fn() },
@@ -68,6 +70,29 @@ describe('PrismaGamePersistence', () => {
       expect.objectContaining({
         where: { gameId_moveNumber: { gameId: 'game-1', moveNumber: 1 } },
         create: expect.objectContaining({ from: 'e2', to: 'e4', san: 'e4', playerId: 'alice' }),
+      }),
+    );
+  });
+
+  it('preserves existing user ids instead of creating users named after those ids', async () => {
+    const client = createClient();
+    client.user.findUnique = vi.fn(async ({ where }: { where: { id: string } }) =>
+      where.id === 'user-1' ? { id: 'user-1' } : undefined,
+    );
+    const persistence = new PrismaGamePersistence(client);
+
+    await persistence.saveGame(
+      { ...baseSummary, whitePlayerId: 'user-1', blackPlayerId: undefined },
+      'fen-existing-user',
+    );
+
+    expect(client.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'user-1' } }),
+    );
+    expect(client.user.upsert).not.toHaveBeenCalled();
+    expect(client.game.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ whitePlayerId: 'user-1', blackPlayerId: undefined }),
       }),
     );
   });

@@ -141,6 +141,18 @@ export class PrismaGamePersistence implements GamePersistence {
   private async ensureUser(playerId: string | undefined): Promise<string | undefined> {
     if (!playerId) return undefined;
 
+    const existingUser = await this.client.user.findUnique({
+      where: { id: playerId },
+      select: { id: true },
+    });
+    if (existingUser) {
+      await this.client.user.update({
+        where: { id: existingUser.id },
+        data: { lastOnline: new Date() },
+      });
+      return existingUser.id;
+    }
+
     const user = await this.client.user.upsert({
       where: { username: playerId },
       update: { lastOnline: new Date() },
