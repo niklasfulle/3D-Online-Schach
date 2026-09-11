@@ -82,6 +82,9 @@ describe('App', () => {
     expect(localStorage.getItem('chess3d.language')).toBe('en');
     expect(screen.getByRole('combobox', { name: 'Language' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'English' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Ready for your next move?' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Public lobby' })).toBeTruthy();
+    expect(screen.getByText('Find your next game.')).toBeTruthy();
   });
 
   it('allows a guest to register and opens the lobby dashboard', async () => {
@@ -317,7 +320,7 @@ describe('App', () => {
       ([event]) => event === 'game:updated',
     )?.[1] as ((game: typeof activeGame) => void) | undefined;
     gameUpdatedHandler?.({ ...activeGame, status: 'finished' });
-    expect(await screen.findByText('Casual · ABC123 · finished')).toBeTruthy();
+    expect(await screen.findByText('Casual · ABC123 · Beendet')).toBeTruthy();
     expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
   });
 

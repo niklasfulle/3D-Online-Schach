@@ -7,7 +7,13 @@ import type { GameMode, GameSummary, Square, UserRole } from '@chess3d/shared';
 
 import { resolveApiUrl } from './apiUrl';
 import { ChessScene } from './board/ChessScene';
-import { createTranslator, readLanguage, saveLanguage, type Language } from './i18n';
+import {
+  createTranslator,
+  readLanguage,
+  saveLanguage,
+  type Language,
+  type Translator,
+} from './i18n';
 import { requestJson as requestApi } from './request';
 
 const API_URL = resolveApiUrl(
@@ -15,13 +21,6 @@ const API_URL = resolveApiUrl(
   globalThis.location ?? { protocol: 'http:', hostname: 'localhost' },
 );
 const PROMOTION_OPTIONS: PromotionPiece[] = ['q', 'r', 'b', 'n'];
-const PROMOTION_LABELS: Record<PromotionPiece, string> = {
-  q: 'Dame',
-  r: 'Turm',
-  b: 'Läufer',
-  n: 'Springer',
-};
-
 interface AuthUser {
   id: string;
   username: string;
@@ -84,6 +83,25 @@ interface NotificationItem {
   actor?: SocialUser;
 }
 
+function notificationTitle(notification: NotificationItem, language: Language, t: Translator) {
+  if (language === 'de') return notification.title;
+  if (notification.type === 'friend_request') return t('notification.friendRequest');
+  if (notification.type === 'game_invitation') return t('notification.gameInvitation');
+  return t('notification.spectatorInvitation');
+}
+
+function notificationMessage(notification: NotificationItem, language: Language, t: Translator) {
+  if (language === 'de') return notification.message;
+  const username = notification.actor?.username ?? t('player.player');
+  const key =
+    notification.type === 'friend_request'
+      ? 'notification.friendRequestMessage'
+      : notification.type === 'game_invitation'
+        ? 'notification.gameInvitationMessage'
+        : 'notification.spectatorInvitationMessage';
+  return t(key).replace('{username}', username);
+}
+
 interface MoveRecord extends Move {
   san: string;
 }
@@ -112,23 +130,29 @@ interface LobbyGame extends GameSummary {
   isOwner: boolean;
 }
 
-function statusLabel(status: ReturnType<ChessGame['getStatus']>) {
+function statusLabel(status: ReturnType<ChessGame['getStatus']>, t: Translator) {
   switch (status) {
     case 'check':
-      return 'Schach';
+      return t('status.check');
     case 'checkmate':
-      return 'Schachmatt';
+      return t('status.checkmate');
     case 'stalemate':
-      return 'Patt';
+      return t('status.stalemate');
     case 'draw':
-      return 'Remis';
+      return t('status.draw');
     default:
-      return 'Partie läuft';
+      return t('status.active');
   }
 }
 
-function gameLabel(game: GameSummary) {
-  return `${game.mode === 'ranked' ? 'Ranked' : 'Casual'} · ${game.code}`;
+function gameLabel(game: GameSummary, t: Translator) {
+  return `${game.mode === 'ranked' ? t('mode.ranked') : t('mode.casual')} · ${game.code}`;
+}
+
+function gameStatusLabel(status: GameSummary['status'], t: Translator) {
+  if (status === 'waiting') return t('game.waiting');
+  if (status === 'active') return t('game.live');
+  return t('status.finished');
 }
 
 function formatClock(milliseconds: number) {
@@ -138,46 +162,47 @@ function formatClock(milliseconds: number) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function playerLabel(playerId: string | undefined, currentUserId: string) {
-  if (!playerId) return 'Offen';
-  return playerId === currentUserId ? 'Du' : 'Gegner';
+function playerLabel(playerId: string | undefined, currentUserId: string, t: Translator) {
+  if (!playerId) return t('player.open');
+  return playerId === currentUserId ? t('player.you') : t('player.opponent');
 }
 
 function viewerPlayerLabel(
   playerId: string | undefined,
   currentUserId: string,
   spectator: boolean,
+  t: Translator,
 ) {
-  if (spectator) return playerId ? 'Spieler' : 'Offen';
-  return playerLabel(playerId, currentUserId);
+  if (spectator) return playerId ? t('player.player') : t('player.open');
+  return playerLabel(playerId, currentUserId, t);
 }
 
-function pageHeadingFor(view: AppView): PageHeading {
+function pageHeadingFor(view: AppView, t: Translator): PageHeading {
   if (view === 'game') {
     return {
-      eyebrow: 'DEINE PARTIE',
-      title: 'Am Brett',
-      description: 'Konzentriert bleiben. Jeder Zug zählt.',
+      eyebrow: t('page.game.eyebrow'),
+      title: t('page.game.title'),
+      description: t('page.game.description'),
     };
   }
   if (view === 'friends') {
     return {
-      eyebrow: 'COMMUNITY',
-      title: 'Deine Freunde',
-      description: 'Finde Spieler, vernetze dich und bleib in Kontakt.',
+      eyebrow: t('page.friends.eyebrow'),
+      title: t('page.friends.title'),
+      description: t('page.friends.description'),
     };
   }
   if (view === 'admin') {
     return {
-      eyebrow: 'VERWALTUNG',
-      title: 'Benutzerverwaltung',
-      description: 'Rollen und Zugänge der Community im Blick behalten.',
+      eyebrow: t('page.admin.eyebrow'),
+      title: t('page.admin.title'),
+      description: t('page.admin.description'),
     };
   }
   return {
-    eyebrow: 'SPIELZENTRALE',
-    title: 'Bereit für den nächsten Zug?',
-    description: 'Finde eine Partie oder eröffne deinen eigenen Raum.',
+    eyebrow: t('page.lobby.eyebrow'),
+    title: t('page.lobby.title'),
+    description: t('page.lobby.description'),
   };
 }
 
@@ -214,8 +239,8 @@ function gamePath(code: string): string {
   return `/game/${encodeURIComponent(code)}`;
 }
 
-function formatChatTime(createdAt: string): string {
-  return new Intl.DateTimeFormat('de-DE', {
+function formatChatTime(createdAt: string, language: Language): string {
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'de-DE', {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(createdAt));
@@ -243,6 +268,8 @@ function setGamePath(code: string | null): void {
 
 interface GameViewProps {
   user: AuthUser;
+  language: Language;
+  t: Translator;
   selectedGame: GameSummary;
   gameState: ReturnType<ChessGame['getState']>;
   selectedSquare: Square | null;
@@ -265,6 +292,8 @@ interface GameViewProps {
 
 function GameView({
   user,
+  language,
+  t,
   selectedGame,
   gameState,
   selectedSquare,
@@ -318,7 +347,7 @@ function GameView({
         <div className="game-toolbar-title">
           <button
             className="back-button"
-            aria-label="Zurück zur Lobby"
+            aria-label={t('game.backToLobby')}
             type="button"
             onClick={() => setView('lobby')}
           >
@@ -326,7 +355,7 @@ function GameView({
           </button>
           <div>
             <span className="panel-label">
-              {selectedGame.mode === 'ranked' ? 'Ranked-Partie' : 'Casual-Partie'}
+              {selectedGame.mode === 'ranked' ? t('game.ranked') : t('game.casual')}
             </span>
             <h2>{selectedGame.code}</h2>
           </div>
@@ -334,21 +363,25 @@ function GameView({
         <div className="game-toolbar-meta">
           <span className="game-status-pill">
             <span className="live-dot" />{' '}
-            {spectatorMode ? 'Zuschauer' : selectedGame.status === 'active' ? 'Live' : 'Wartet'}
+            {spectatorMode
+              ? t('game.spectator')
+              : selectedGame.status === 'active'
+                ? t('game.live')
+                : t('game.waiting')}
           </span>
           <span className="game-code-label">{gameStatus}</span>
           {!spectatorMode && (
             <button className="secondary-button" type="button" onClick={onCopyLink}>
-              {linkCopied ? 'Link kopiert' : 'Link kopieren'}
+              {linkCopied ? t('game.linkCopied') : t('game.copyLink')}
             </button>
           )}
           <button className="secondary-button" type="button" onClick={onCopySpectatorLink}>
-            {spectatorLinkCopied ? 'Zuschauerlink kopiert' : 'Zuschauerlink kopieren'}
+            {spectatorLinkCopied ? t('game.spectatorLinkCopied') : t('game.copySpectatorLink')}
           </button>
         </div>
       </div>
       <div className="game-layout">
-        <div className="scene-card" aria-label="3D-Schachbrett">
+        <div className="scene-card" aria-label={t('game.board')}>
           <div className="player-strip">
             <div
               className={gameState.activeColor === 'white' ? 'player-card active' : 'player-card'}
@@ -356,9 +389,9 @@ function GameView({
               <span className="player-avatar light">♙</span>
               <div>
                 <strong>
-                  {viewerPlayerLabel(selectedGame.whitePlayerId, user.id, spectatorMode)}
+                  {viewerPlayerLabel(selectedGame.whitePlayerId, user.id, spectatorMode, t)}
                 </strong>
-                <span>Weiß</span>
+                <span>{t('game.white')}</span>
               </div>
               <strong className="player-clock">{formatClock(selectedGame.whiteRemainingMs)}</strong>
             </div>
@@ -369,9 +402,9 @@ function GameView({
               <span className="player-avatar dark">♟</span>
               <div>
                 <strong>
-                  {viewerPlayerLabel(selectedGame.blackPlayerId, user.id, spectatorMode)}
+                  {viewerPlayerLabel(selectedGame.blackPlayerId, user.id, spectatorMode, t)}
                 </strong>
-                <span>Schwarz</span>
+                <span>{t('game.black')}</span>
               </div>
               <strong className="player-clock">{formatClock(selectedGame.blackRemainingMs)}</strong>
             </div>
@@ -396,50 +429,50 @@ function GameView({
             <span>
               <span className="live-dot" />{' '}
               {spectatorMode
-                ? `${turnLabel} am Zug · nur Zuschauen`
+                ? `${turnLabel} ${t('game.spectatorTurn')}`
                 : selectedGame.status === 'active'
-                  ? `${turnLabel} am Zug`
-                  : 'Warte auf einen Gegner'}
+                  ? `${turnLabel} ${t('game.turn')}`
+                  : t('game.waitingForOpponent')}
             </span>
             <span>
-              {selectedSquare
-                ? `${selectedSquare} ausgewählt`
-                : 'Brett mit rechter Maustaste verschieben'}
+              {selectedSquare ? `${selectedSquare} ${t('game.selected')}` : t('game.moveBoard')}
             </span>
           </div>
         </div>
-        <aside className="game-panel" aria-label="Partieinformationen">
+        <aside className="game-panel" aria-label={t('game.info')}>
           <div className="game-panel-header">
             <div>
-              <span className="panel-label">Partieübersicht</span>
-              <h3>
-                {selectedGame.mode === 'ranked' ? 'Ranked' : 'Casual'} · {selectedGame.code}
-              </h3>
+              <span className="panel-label">{t('game.overview')}</span>
+              <h3>{gameLabel(selectedGame, t)}</h3>
             </div>
-            <span className="move-count">{moveHistory.length} Züge</span>
+            <span className="move-count">
+              {moveHistory.length} {t('game.moves')}
+            </span>
           </div>
           <div className="game-facts">
             <div>
-              <span className="muted">Status</span>
-              <strong>{statusLabel(gameState.status)}</strong>
+              <span className="muted">{t('game.status')}</span>
+              <strong>{statusLabel(gameState.status, t)}</strong>
             </div>
             <div>
-              <span className="muted">Zeitkontrolle</span>
-              <strong>{Math.round(selectedGame.timeControl.initialMs / 60000)} min</strong>
+              <span className="muted">{t('game.timeControl')}</span>
+              <strong>
+                {Math.round(selectedGame.timeControl.initialMs / 60000)} {t('game.minutes')}
+              </strong>
             </div>
           </div>
           <div className="panel-section move-history">
             <div className="moves-heading">
-              <span className="panel-label">Zugverlauf</span>
-              <span className="muted">SAN</span>
+              <span className="panel-label">{t('game.moveHistory')}</span>
+              <span className="muted">{t('game.san')}</span>
             </div>
             {moveHistory.length === 0 ? (
               <div className="moves-empty">
                 <span className="empty-icon" aria-hidden="true">
                   ♟
                 </span>
-                <span>Noch keine Züge</span>
-                <small>Die Partie beginnt, sobald beide Spieler bereit sind.</small>
+                <span>{t('game.noMoves')}</span>
+                <small>{t('game.startsWhenReady')}</small>
               </div>
             ) : (
               moveHistory.map((move, index) => (
@@ -454,7 +487,7 @@ function GameView({
             )}
           </div>
           <div className="fen-box">
-            <span className="panel-label">FEN</span>
+            <span className="panel-label">{t('game.fen')}</span>
             <code>{gameState.fen}</code>
           </div>
           <button
@@ -462,17 +495,17 @@ function GameView({
             type="button"
             onClick={() => setView('lobby')}
           >
-            ← Zurück zur Lobby
+            ← {t('game.backToLobby')}
           </button>
         </aside>
-        <aside className="chat-column" aria-label="Partiechat">
+        <aside className="chat-column" aria-label={t('chat.title')}>
           <div className="chat-column-header">
             <div>
-              <span className="panel-label">Partiechat</span>
-              <h3>Spielraum</h3>
+              <span className="panel-label">{t('chat.title')}</span>
+              <h3>{t('chat.room')}</h3>
             </div>
             <span className="chat-presence">
-              <span className="live-dot" /> {spectatorMode ? 'Nur lesen' : 'Live'}
+              <span className="live-dot" /> {spectatorMode ? t('chat.readOnly') : t('chat.live')}
             </span>
           </div>
           <div className="chat-log-shell">
@@ -488,29 +521,31 @@ function GameView({
               {chatMessages.length ? (
                 chatMessages.map((message) => (
                   <div
-                    aria-label={`${message.senderUsername}: ${message.message} um ${formatChatTime(message.createdAt)}`}
+                    aria-label={`${message.senderUsername}: ${message.message} um ${formatChatTime(message.createdAt, language)}`}
                     className={`chat-message ${message.senderId === user.id ? 'outgoing' : 'incoming'}`}
                     key={message.id}
                   >
                     <div className="chat-message-meta">
                       <strong>{message.senderUsername}</strong>
-                      <time dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time>
+                      <time dateTime={message.createdAt}>
+                        {formatChatTime(message.createdAt, language)}
+                      </time>
                     </div>
                     <span>{message.message}</span>
                   </div>
                 ))
               ) : (
-                <span className="muted">Noch keine Nachrichten.</span>
+                <span className="muted">{t('chat.noMessages')}</span>
               )}
             </div>
             {showNewMessages ? (
               <button className="chat-new-messages" type="button" onClick={scrollToLatestChat}>
-                Neue Nachrichten
+                {t('chat.newMessages')}
               </button>
             ) : null}
           </div>
           {spectatorMode ? (
-            <span className="muted">Als Zuschauer kannst du den Chat mitlesen.</span>
+            <span className="muted">{t('chat.spectatorHint')}</span>
           ) : (
             <form
               className="chat-form"
@@ -519,17 +554,17 @@ function GameView({
                 onSendChat();
               }}
             >
-              <label htmlFor="chat-message">Chatnachricht</label>
+              <label htmlFor="chat-message">{t('chat.messageLabel')}</label>
               <div className="chat-input-row">
                 <input
                   id="chat-message"
                   maxLength={500}
                   value={chatDraft}
                   onChange={(event) => onChatDraftChange(event.target.value)}
-                  placeholder="Nachricht schreiben …"
+                  placeholder={t('chat.placeholder')}
                 />
                 <button className="tiny-button" type="submit">
-                  Senden
+                  {t('chat.send')}
                 </button>
               </div>
             </form>
@@ -618,10 +653,10 @@ export function App() {
   useEffect(() => {
     if (!user) return;
     void refreshLobby().catch((error_: unknown) =>
-      setError(error_ instanceof Error ? error_.message : 'Lobby konnte nicht geladen werden'),
+      setError(error_ instanceof Error ? error_.message : t('error.lobbyLoad')),
     );
     void refreshFriends().catch((error_: unknown) =>
-      setError(error_ instanceof Error ? error_.message : 'Freunde konnten nicht geladen werden'),
+      setError(error_ instanceof Error ? error_.message : t('error.friendsLoad')),
     );
     void refreshNotifications().catch(() => undefined);
   }, [refreshFriends, refreshLobby, refreshNotifications, user]);
@@ -669,17 +704,15 @@ export function App() {
       );
     });
     socket.on('chat:error', (payload: { error?: string }) =>
-      setError(payload.error ?? 'Nachricht konnte nicht gesendet werden'),
+      setError(payload.error ?? t('error.chat')),
     );
     socket.on('game:error', (payload: { error?: string }) =>
-      setError(payload.error ?? 'Partie konnte nicht synchronisiert werden'),
+      setError(payload.error ?? t('error.sync')),
     );
     socket.on('move:rejected', (payload: { reason?: string }) =>
-      setError(payload.reason ?? 'Zug wurde abgelehnt'),
+      setError(payload.reason ?? t('error.move')),
     );
-    socket.on('connect_error', () =>
-      setError('Die Echtzeitverbindung zur Partie konnte nicht aufgebaut werden'),
-    );
+    socket.on('connect_error', () => setError(t('error.connection')));
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -706,11 +739,11 @@ export function App() {
             : invitedGame;
 
         if (!isParticipant && invitedGame.status !== 'waiting') {
-          throw new Error('Du bist nicht Teil dieser Partie');
+          throw new Error(t('error.gameOpen'));
         }
         openGame(nextGame);
       } catch (error_) {
-        setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht geöffnet werden');
+        setError(error_ instanceof Error ? error_.message : t('error.gameOpen'));
       }
     }
 
@@ -725,7 +758,7 @@ export function App() {
         const sync = await requestApi<GameSync>(API_URL, `/games/${spectatorCode}/spectate`);
         openSpectatorGame(sync);
       } catch (error_) {
-        setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht geöffnet werden');
+        setError(error_ instanceof Error ? error_.message : t('error.gameOpen'));
       }
     }
 
@@ -762,7 +795,7 @@ export function App() {
       setUser(response.user);
       setAuthForm({ username: '', email: '', password: '' });
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Authentifizierung fehlgeschlagen');
+      setError(error_ instanceof Error ? error_.message : t('error.authentication'));
     }
   }
 
@@ -817,7 +850,7 @@ export function App() {
       );
       setLinkCopied(true);
     } catch {
-      setError('Der Partie-Link konnte nicht kopiert werden');
+      setError(t('error.copyGameLink'));
     }
   }
 
@@ -829,7 +862,7 @@ export function App() {
       );
       setSpectatorLinkCopied(true);
     } catch {
-      setError('Der Zuschauerlink konnte nicht kopiert werden');
+      setError(t('error.copySpectatorLink'));
     }
   }
 
@@ -842,7 +875,7 @@ export function App() {
       openGame(created);
       await refreshLobby();
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht erstellt werden');
+      setError(error_ instanceof Error ? error_.message : t('error.gameCreate'));
     }
   }
 
@@ -860,7 +893,7 @@ export function App() {
       openGame(joined);
       await refreshLobby();
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht beigetreten werden');
+      setError(error_ instanceof Error ? error_.message : t('error.gameJoin'));
     }
   }
 
@@ -871,7 +904,7 @@ export function App() {
       });
       setLobbyGames((games) => games.filter((game) => game.code !== code));
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Partie konnte nicht gelöscht werden');
+      setError(error_ instanceof Error ? error_.message : t('error.gameDelete'));
     }
   }
 
@@ -885,7 +918,7 @@ export function App() {
         users.map((adminUser) => (adminUser.id === id ? response.user : adminUser)),
       );
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Rolle konnte nicht geändert werden');
+      setError(error_ instanceof Error ? error_.message : t('error.roleUpdate'));
     }
   }
 
@@ -898,7 +931,7 @@ export function App() {
       );
       setSearchResults(response.users);
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Benutzersuche fehlgeschlagen');
+      setError(error_ instanceof Error ? error_.message : t('error.userSearch'));
     }
   }
 
@@ -910,7 +943,7 @@ export function App() {
       });
       await refreshFriends();
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Freundschaftsanfrage fehlgeschlagen');
+      setError(error_ instanceof Error ? error_.message : t('error.friendRequest'));
     }
   }
 
@@ -922,9 +955,7 @@ export function App() {
       });
       await refreshFriends();
     } catch (error_) {
-      setError(
-        error_ instanceof Error ? error_.message : 'Anfrage konnte nicht verarbeitet werden',
-      );
+      setError(error_ instanceof Error ? error_.message : t('error.request'));
     }
   }
 
@@ -935,9 +966,9 @@ export function App() {
         method: 'POST',
         body: JSON.stringify({ username }),
       });
-      setError('Einladung wurde gesendet');
+      setError(t('friends.invite'));
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Einladung konnte nicht gesendet werden');
+      setError(error_ instanceof Error ? error_.message : t('error.invitation'));
     }
   }
 
@@ -948,13 +979,9 @@ export function App() {
         method: 'POST',
         body: JSON.stringify({ username }),
       });
-      setError('Zuschauereinladung wurde gesendet');
+      setError(t('friends.inviteSpectator'));
     } catch (error_) {
-      setError(
-        error_ instanceof Error
-          ? error_.message
-          : 'Zuschauereinladung konnte nicht gesendet werden',
-      );
+      setError(error_ instanceof Error ? error_.message : t('error.spectatorInvitation'));
     }
   }
 
@@ -970,11 +997,7 @@ export function App() {
           items.map((item) => (item.id === updated.id ? { ...item, read: true } : item)),
         );
       } catch (error_) {
-        setError(
-          error_ instanceof Error
-            ? error_.message
-            : 'Benachrichtigung konnte nicht aktualisiert werden',
-        );
+        setError(error_ instanceof Error ? error_.message : t('error.notificationsUpdate'));
       }
     }
   }
@@ -1013,12 +1036,12 @@ export function App() {
     setLegalTargets([...new Set(moves.map((move) => move.to))]);
   }
 
-  if (loading) return <main className="centered-message">Verbindung wird hergestellt …</main>;
+  if (loading) return <main className="centered-message">{t('guest.connectionHint')} …</main>;
   if (!user && spectatorCode) {
     const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
     const gameStatus = selectedGame
-      ? `${gameLabel(selectedGame)} · ${selectedGame.status}`
-      : statusLabel(gameState.status);
+      ? `${gameLabel(selectedGame, t)} · ${gameStatusLabel(selectedGame.status, t)}`
+      : statusLabel(gameState.status, t);
 
     return (
       <main className="app-shell game-mode guest-spectator-shell">
@@ -1026,18 +1049,22 @@ export function App() {
           <section className="dashboard-main">
             <div className="page-heading">
               <div>
-                <span className="eyebrow">ZUSCHAUEN</span>
-                <h1>Am Brett</h1>
-                <p>Du siehst diese Partie als Gast im schreibgeschützten Modus.</p>
+                <span className="eyebrow">{t('guest.eyebrow')}</span>
+                <h1>{t('page.game.title')}</h1>
+                <p>{t('guest.description')}</p>
               </div>
             </div>
             {error ? (
               <div className="error-banner" role="alert" aria-live="polite">
                 <span>
-                  <strong>Verbindungshinweis</strong>
+                  <strong>{t('guest.connectionHint')}</strong>
                   {error}
                 </span>
-                <button aria-label="Hinweis schließen" type="button" onClick={() => setError('')}>
+                <button
+                  aria-label={t('guest.closeHint')}
+                  type="button"
+                  onClick={() => setError('')}
+                >
                   ×
                 </button>
               </div>
@@ -1045,6 +1072,8 @@ export function App() {
             {selectedGame ? (
               <GameView
                 user={GUEST_SPECTATOR}
+                language={language}
+                t={t}
                 selectedGame={selectedGame}
                 gameState={gameState}
                 selectedSquare={selectedSquare}
@@ -1065,7 +1094,7 @@ export function App() {
                 onSendChat={() => undefined}
               />
             ) : (
-              <div className="centered-message">Partie wird geladen …</div>
+              <div className="centered-message">{t('guest.loadingGame')}</div>
             )}
           </section>
         </div>
@@ -1077,10 +1106,13 @@ export function App() {
       <AuthScreen
         authMode={authMode}
         setAuthMode={setAuthMode}
+        language={language}
+        onLanguageChange={setLanguage}
         form={authForm}
         setForm={setAuthForm}
         error={error}
         onSubmit={submitAuth}
+        t={t}
       />
     );
 
@@ -1090,9 +1122,9 @@ export function App() {
     const user = authenticatedUser;
     const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
     const gameStatus = selectedGame
-      ? `${gameLabel(selectedGame)} · ${selectedGame.status}`
-      : statusLabel(gameState.status);
-    const pageHeading = pageHeadingFor(view);
+      ? `${gameLabel(selectedGame, t)} · ${gameStatusLabel(selectedGame.status, t)}`
+      : statusLabel(gameState.status, t);
+    const pageHeading = pageHeadingFor(view, t);
 
     return (
       <main className={view === 'game' ? 'app-shell game-mode' : 'app-shell'}>
@@ -1120,13 +1152,13 @@ export function App() {
                 </select>
               </label>
               <span className="live-chip">
-                <span className="live-dot" /> Online
+                <span className="live-dot" /> {t('header.online')}
               </span>
               <div className="notification-wrapper">
                 <button
                   className="notification-button"
                   type="button"
-                  aria-label={`Benachrichtigungen (${notifications.filter((item) => !item.read).length})`}
+                  aria-label={`${t('notifications.label')} (${notifications.filter((item) => !item.read).length})`}
                   onClick={() => setNotificationsOpen((open) => !open)}
                 >
                   ♢
@@ -1137,15 +1169,19 @@ export function App() {
                   ) : null}
                 </button>
                 {notificationsOpen ? (
-                  <div className="notification-panel" role="region" aria-label="Benachrichtigungen">
+                  <div
+                    className="notification-panel"
+                    role="region"
+                    aria-label={t('notifications.label')}
+                  >
                     <div className="notification-panel-header">
-                      <strong>Benachrichtigungen</strong>
+                      <strong>{t('notifications.label')}</strong>
                       <button
                         className="quiet-button"
                         type="button"
                         onClick={() => void refreshNotifications()}
                       >
-                        Aktualisieren
+                        {t('notifications.refresh')}
                       </button>
                     </div>
                     {notifications.length ? (
@@ -1164,12 +1200,12 @@ export function App() {
                               key={notification.id}
                               onClick={() => void markNotificationRead(notification)}
                             >
-                              <strong>{notification.title}</strong>
-                              <span>{notification.message}</span>
+                              <strong>{notificationTitle(notification, language, t)}</strong>
+                              <span>{notificationMessage(notification, language, t)}</span>
                               <span className="notification-action">
                                 {notification.type === 'spectator_invitation'
-                                  ? 'Zuschaueransicht öffnen'
-                                  : 'Partie öffnen'}
+                                  ? t('notifications.openSpectator')
+                                  : t('notifications.openGame')}
                               </span>
                             </a>
                           ) : (
@@ -1181,14 +1217,14 @@ export function App() {
                               type="button"
                               onClick={() => void markNotificationRead(notification)}
                             >
-                              <strong>{notification.title}</strong>
-                              <span>{notification.message}</span>
+                              <strong>{notificationTitle(notification, language, t)}</strong>
+                              <span>{notificationMessage(notification, language, t)}</span>
                             </button>
                           ),
                         )}
                       </div>
                     ) : (
-                      <p className="muted">Keine neuen Benachrichtigungen.</p>
+                      <p className="muted">{t('notifications.empty')}</p>
                     )}
                   </div>
                 ) : null}
@@ -1199,15 +1235,15 @@ export function App() {
                 <span className="profile-rating">{user.rating}</span>
               </div>
               <button className="quiet-button" type="button" onClick={() => void logout()}>
-                Abmelden
+                {t('auth.logout')}
               </button>
             </div>
           </header>
           <div className="dashboard-grid">
             <aside className="sidebar">
               <div>
-                <span className="sidebar-label">Arbeitsbereich</span>
-                <nav className="sidebar-nav" aria-label="Hauptnavigation">
+                <span className="sidebar-label">{t('sidebar.workspace')}</span>
+                <nav className="sidebar-nav" aria-label={t('sidebar.navigation')}>
                   <button
                     className={view === 'lobby' ? 'nav-button active' : 'nav-button'}
                     type="button"
@@ -1216,7 +1252,7 @@ export function App() {
                     <span className="nav-icon" aria-hidden="true">
                       ⌂
                     </span>
-                    <span>Lobby</span>
+                    <span>{t('sidebar.lobby')}</span>
                     <span className="nav-count">{lobbyGames.length}</span>
                   </button>
                   {user.role === 'admin' ? (
@@ -1231,7 +1267,7 @@ export function App() {
                       <span className="nav-icon" aria-hidden="true">
                         ⚙
                       </span>
-                      <span>Administration</span>
+                      <span>{t('sidebar.administration')}</span>
                       <span className="nav-count">{adminUsers.length}</span>
                     </button>
                   ) : null}
@@ -1246,7 +1282,7 @@ export function App() {
                     <span className="nav-icon" aria-hidden="true">
                       ♙
                     </span>
-                    <span>Freunde</span>
+                    <span>{t('sidebar.friends')}</span>
                     <span className="nav-count">{friends?.friends.length ?? 0}</span>
                   </button>
                   {selectedGame ? (
@@ -1258,16 +1294,18 @@ export function App() {
                       <span className="nav-icon" aria-hidden="true">
                         ♜
                       </span>
-                      <span>Aktive Partie</span>
+                      <span>{t('sidebar.activeGame')}</span>
                       <span className="nav-live-dot" />
                     </button>
                   ) : null}
                 </nav>
               </div>
               <div className="sidebar-note">
-                <span className="sidebar-label">Dein Profil</span>
+                <span className="sidebar-label">{t('sidebar.profile')}</span>
                 <strong>{user.username}</strong>
-                <span className="muted">Wertung {user.rating}</span>
+                <span className="muted">
+                  {t('sidebar.rating')} {user.rating}
+                </span>
                 <div className="rating-bar">
                   <span
                     style={{ width: `${Math.min(100, Math.max(8, (user.rating - 800) / 8))}%` }}
@@ -1279,10 +1317,14 @@ export function App() {
               {error ? (
                 <div className="error-banner" role="alert" aria-live="polite">
                   <span>
-                    <strong>Verbindungshinweis</strong>
+                    <strong>{t('guest.connectionHint')}</strong>
                     {error}
                   </span>
-                  <button aria-label="Hinweis schließen" type="button" onClick={() => setError('')}>
+                  <button
+                    aria-label={t('guest.closeHint')}
+                    type="button"
+                    onClick={() => setError('')}
+                  >
                     ×
                   </button>
                 </div>
@@ -1299,6 +1341,7 @@ export function App() {
               </div>
               {view === 'lobby' ? (
                 <LobbyView
+                  t={t}
                   games={lobbyGames}
                   onRefresh={() => void refreshLobby()}
                   onCreate={(mode) => void createGame(mode)}
@@ -1308,6 +1351,7 @@ export function App() {
               ) : null}
               {view === 'friends' ? (
                 <FriendsView
+                  t={t}
                   friends={friends}
                   canInvite={Boolean(
                     selectedGame?.status === 'waiting' && selectedGame.whitePlayerId === user.id,
@@ -1329,6 +1373,7 @@ export function App() {
               ) : null}
               {view === 'admin' && user.role === 'admin' ? (
                 <AdminView
+                  t={t}
                   users={adminUsers}
                   onRefresh={() => void refreshAdminUsers()}
                   onRoleChange={(id, role) => void updateAdminRole(id, role)}
@@ -1337,6 +1382,8 @@ export function App() {
               {view === 'game' && selectedGame ? (
                 <GameView
                   user={user}
+                  language={language}
+                  t={t}
                   selectedGame={selectedGame}
                   gameState={gameState}
                   selectedSquare={selectedSquare}
@@ -1361,43 +1408,43 @@ export function App() {
             <aside className="insights-panel">
               <div className="insight-card profile-insight">
                 <div className="insight-heading">
-                  <span>DEIN STATUS</span>
+                  <span>{t('insight.status')}</span>
                   <span className="live-chip small">
                     <span className="live-dot" /> Live
                   </span>
                 </div>
                 <div className="insight-avatar">{user.username.slice(0, 1).toUpperCase()}</div>
                 <strong>{user.username}</strong>
-                <span className="muted">Bereit für eine Partie?</span>
+                <span className="muted">{t('insight.ready')}</span>
                 <div className="insight-stats">
                   <div>
                     <strong>{user.rating}</strong>
-                    <span>Wertung</span>
+                    <span>{t('insight.rating')}</span>
                   </div>
                   <div>
                     <strong>{friends?.friends.length ?? 0}</strong>
-                    <span>Freunde</span>
+                    <span>{t('insight.friends')}</span>
                   </div>
                 </div>
               </div>
               <div className="insight-card quick-match">
-                <span className="panel-label">Schnellstart</span>
-                <h3>Direkt ins Spiel</h3>
-                <p className="muted">Eröffne eine Casual-Partie für deinen nächsten Zug.</p>
+                <span className="panel-label">{t('insight.quickStart')}</span>
+                <h3>{t('insight.directGame')}</h3>
+                <p className="muted">{t('insight.quickStartDescription')}</p>
                 <button
                   className="primary-button"
                   type="button"
                   onClick={() => void createGame('casual')}
                 >
-                  Partie erstellen <span aria-hidden="true">→</span>
+                  {t('insight.createGame')} <span aria-hidden="true">→</span>
                 </button>
               </div>
             </aside>
           </div>
         </div>
         {promotionMove ? (
-          <dialog open className="promotion-dialog" aria-label="Bauernumwandlung">
-            <strong>Umwandeln zu</strong>
+          <dialog open className="promotion-dialog" aria-label={t('promotion.label')}>
+            <strong>{t('promotion.label')}</strong>
             <div className="promotion-actions">
               {PROMOTION_OPTIONS.map((promotion) => (
                 <button
@@ -1405,7 +1452,15 @@ export function App() {
                   type="button"
                   onClick={() => commitMove({ ...promotionMove, promotion })}
                 >
-                  {PROMOTION_LABELS[promotion]}
+                  {t(
+                    promotion === 'q'
+                      ? 'promotion.queen'
+                      : promotion === 'r'
+                        ? 'promotion.rook'
+                        : promotion === 'b'
+                          ? 'promotion.bishop'
+                          : 'promotion.knight',
+                  )}
                 </button>
               ))}
             </div>
@@ -1421,24 +1476,41 @@ export function App() {
 function AuthScreen({
   authMode,
   setAuthMode,
+  language,
+  onLanguageChange,
   form,
   setForm,
   error,
   onSubmit,
+  t,
 }: Readonly<{
   authMode: 'login' | 'register';
   setAuthMode: (mode: 'login' | 'register') => void;
+  language: Language;
+  onLanguageChange: (language: Language) => void;
   form: { username: string; email: string; password: string };
   setForm: (form: { username: string; email: string; password: string }) => void;
   error: string;
   onSubmit: (event: React.SyntheticEvent<HTMLFormElement>) => void;
+  t: Translator;
 }>) {
   return (
     <main className="auth-shell">
+      <label className="language-switcher auth-language-switcher">
+        <span className="sr-only">{t('language.label')}</span>
+        <select
+          aria-label={t('language.label')}
+          value={language}
+          onChange={(event) => onLanguageChange(event.target.value as Language)}
+        >
+          <option value="de">{t('language.de')}</option>
+          <option value="en">{t('language.en')}</option>
+        </select>
+      </label>
       <section className="auth-card">
         <p className="eyebrow">3D ONLINE-SCHACH</p>
-        <h1>{authMode === 'login' ? 'Willkommen zurück' : 'Konto erstellen'}</h1>
-        <p className="muted">Spiele online, finde Freunde und tritt einer Lobby bei.</p>
+        <h1>{authMode === 'login' ? t('auth.welcome') : t('auth.createAccount')}</h1>
+        <p className="muted">{t('auth.description')}</p>
         {error ? (
           <div className="error-banner" role="alert">
             {error}
@@ -1446,7 +1518,7 @@ function AuthScreen({
         ) : null}
         <form className="auth-form" onSubmit={onSubmit}>
           <label>
-            <span>Benutzername</span>
+            <span>{t('auth.username')}</span>
             <input
               autoComplete="username"
               name="username"
@@ -1459,7 +1531,7 @@ function AuthScreen({
           </label>
           {authMode === 'register' ? (
             <label>
-              E-Mail <span className="muted">(optional)</span>
+              {t('auth.email')} <span className="muted">({t('auth.optional')})</span>
               <input
                 autoComplete="email"
                 name="email"
@@ -1470,7 +1542,7 @@ function AuthScreen({
             </label>
           ) : null}
           <label>
-            <span>Passwort</span>
+            <span>{t('auth.password')}</span>
             <input
               autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
               name="password"
@@ -1482,7 +1554,7 @@ function AuthScreen({
             />
           </label>
           <button className="primary-button" type="submit">
-            {authMode === 'login' ? 'Anmelden' : 'Registrieren'}
+            {authMode === 'login' ? t('auth.login') : t('auth.register')}
           </button>
         </form>
         <button
@@ -1490,7 +1562,7 @@ function AuthScreen({
           type="button"
           onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
         >
-          {authMode === 'login' ? 'Noch kein Konto? Registrieren' : 'Bereits registriert? Anmelden'}
+          {authMode === 'login' ? t('auth.noAccount') : t('auth.alreadyRegistered')}
         </button>
       </section>
     </main>
@@ -1498,12 +1570,14 @@ function AuthScreen({
 }
 
 function LobbyView({
+  t,
   games,
   onRefresh,
   onCreate,
   onJoin,
   onDelete,
 }: Readonly<{
+  t: Translator;
   games: LobbyGame[];
   onRefresh: () => void;
   onCreate: (mode: GameMode) => void;
@@ -1521,15 +1595,15 @@ function LobbyView({
     <div className="lobby-content">
       <section className="welcome-card">
         <div>
-          <span className="panel-label">Dein nächster Zug</span>
-          <h2>Finde deine nächste Partie.</h2>
-          <p>Spiele entspannt gegen Freunde oder setze deine Wertung aufs Spiel.</p>
+          <span className="panel-label">{t('lobby.nextMove')}</span>
+          <h2>{t('lobby.findGame')}</h2>
+          <p>{t('lobby.description')}</p>
           <div className="action-row">
             <button className="primary-button" type="button" onClick={() => onCreate('casual')}>
-              Casual-Spiel erstellen <span aria-hidden="true">→</span>
+              {t('lobby.createCasual')} <span aria-hidden="true">→</span>
             </button>
             <button className="ghost-button" type="button" onClick={() => onCreate('ranked')}>
-              Ranked spielen
+              {t('lobby.playRanked')}
             </button>
           </div>
         </div>
@@ -1543,7 +1617,7 @@ function LobbyView({
             ◈
           </span>
           <div>
-            <span className="muted">Offene Partien</span>
+            <span className="muted">{t('lobby.openGames')}</span>
             <strong>{games.length}</strong>
           </div>
         </div>
@@ -1552,8 +1626,10 @@ function LobbyView({
             ✦
           </span>
           <div>
-            <span className="muted">Spielmodi</span>
-            <strong>Casual &amp; Ranked</strong>
+            <span className="muted">{t('lobby.gameModes')}</span>
+            <strong>
+              {t('mode.casual')} &amp; {t('mode.ranked')}
+            </strong>
           </div>
         </div>
         <div className="metric-card">
@@ -1561,19 +1637,19 @@ function LobbyView({
             ◉
           </span>
           <div>
-            <span className="muted">Serverstatus</span>
-            <strong>Online</strong>
+            <span className="muted">{t('lobby.serverStatus')}</span>
+            <strong>{t('header.online')}</strong>
           </div>
         </div>
       </div>
       <section className="content-card lobby-card">
         <div className="section-heading">
           <div>
-            <span className="panel-label">Live-Spiele</span>
-            <h2>Öffentliche Lobby</h2>
+            <span className="panel-label">{t('lobby.liveGames')}</span>
+            <h2>{t('lobby.title')}</h2>
           </div>
           <button className="quiet-button" type="button" onClick={onRefresh}>
-            <span aria-hidden="true">↻</span> Aktualisieren
+            <span aria-hidden="true">↻</span> {t('lobby.refresh')}
           </button>
         </div>
         {games.length === 0 ? (
@@ -1581,8 +1657,8 @@ function LobbyView({
             <div className="empty-icon" aria-hidden="true">
               ♟
             </div>
-            <strong>Noch keine offenen Partien</strong>
-            <span className="muted">Eröffne ein Spiel und lade andere Spieler ein.</span>
+            <strong>{t('lobby.emptyTitle')}</strong>
+            <span className="muted">{t('lobby.emptyDescription')}</span>
           </div>
         ) : (
           <div className="lobby-list">
@@ -1592,9 +1668,9 @@ function LobbyView({
                   {game.mode === 'ranked' ? '♛' : '♙'}
                 </div>
                 <div>
-                  <strong>{gameLabel(game)}</strong>
+                  <strong>{gameLabel(game, t)}</strong>
                   <span className="muted">
-                    5 Minuten · offen
+                    5 {t('game.minutes')} · {t('lobby.openGameDescription')}
                     {game.expiresAt
                       ? ` · verfällt in ${formatClock(Math.max(0, game.expiresAt - now))}`
                       : ''}
@@ -1602,23 +1678,24 @@ function LobbyView({
                 </div>
                 <span className="waiting-label">
                   <span className="live-dot" />
-                  {game.isOwner ? 'Deine Partie' : 'Wartet'}
+                  {game.isOwner ? t('lobby.yourGame') : t('lobby.waiting')}
                 </span>
                 <button
                   className="secondary-button"
                   type="button"
                   onClick={() => onJoin(game.code)}
                 >
-                  {game.isOwner ? 'Öffnen' : 'Beitreten'} <span aria-hidden="true">→</span>
+                  {game.isOwner ? t('lobby.open') : t('lobby.join')}{' '}
+                  <span aria-hidden="true">→</span>
                 </button>
                 {game.isOwner ? (
                   <button
                     className="quiet-button"
                     type="button"
-                    aria-label={`Partie ${game.code} löschen`}
+                    aria-label={`${t('lobby.deleteGame')} ${game.code} ${t('lobby.deleteSuffix')}`}
                     onClick={() => onDelete(game.code)}
                   >
-                    Löschen
+                    {t('lobby.delete')}
                   </button>
                 ) : null}
               </div>
@@ -1631,10 +1708,12 @@ function LobbyView({
 }
 
 function AdminView({
+  t,
   users,
   onRefresh,
   onRoleChange,
 }: Readonly<{
+  t: Translator;
   users: AdminUser[];
   onRefresh: () => void;
   onRoleChange: (id: string, role: UserRole) => void;
@@ -1643,11 +1722,11 @@ function AdminView({
     <section className="content-card admin-card">
       <div className="section-heading">
         <div>
-          <span className="panel-label">Admin</span>
-          <h2>Benutzer und Rollen</h2>
+          <span className="panel-label">{t('admin.label')}</span>
+          <h2>{t('admin.title')}</h2>
         </div>
         <button className="quiet-button" type="button" onClick={onRefresh}>
-          ↻ Aktualisieren
+          ↻ {t('admin.refresh')}
         </button>
       </div>
       <div className="user-list">
@@ -1656,19 +1735,21 @@ function AdminView({
             <div>
               <strong>{adminUser.username}</strong>
               <span className="muted">
-                {adminUser.email ?? 'Keine E-Mail'} · Wertung {adminUser.rating}
+                {adminUser.email ?? t('admin.noEmail')} · {t('admin.rating')} {adminUser.rating}
               </span>
             </div>
             <label>
-              <span className="sr-only">Rolle für {adminUser.username}</span>
+              <span className="sr-only">
+                {t('admin.roleFor')} {adminUser.username}
+              </span>
               <select
-                aria-label={`Rolle für ${adminUser.username}`}
+                aria-label={`${t('admin.roleFor')} ${adminUser.username}`}
                 value={adminUser.role}
                 onChange={(event) => onRoleChange(adminUser.id, event.target.value as UserRole)}
               >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-                <option value="spectator">Zuschauer</option>
+                <option value="user">{t('admin.user')}</option>
+                <option value="admin">{t('admin.admin')}</option>
+                <option value="spectator">{t('admin.spectator')}</option>
               </select>
             </label>
           </div>
@@ -1679,6 +1760,7 @@ function AdminView({
 }
 
 function FriendsView({
+  t,
   friends,
   canInvite,
   canInviteSpectator,
@@ -1691,6 +1773,7 @@ function FriendsView({
   onInvite,
   onInviteSpectator,
 }: Readonly<{
+  t: Translator;
   friends: FriendsOverview | null;
   canInvite: boolean;
   canInviteSpectator: boolean;
@@ -1708,8 +1791,8 @@ function FriendsView({
       <div className="content-card">
         <div className="section-heading">
           <div>
-            <span className="panel-label">Social</span>
-            <h2>Freundesliste</h2>
+            <span className="panel-label">{t('friends.social')}</span>
+            <h2>{t('friends.title')}</h2>
           </div>
         </div>
         {friends?.friends.length ? (
@@ -1725,7 +1808,7 @@ function FriendsView({
                     type="button"
                     onClick={() => onInvite(friend.username)}
                   >
-                    Einladen
+                    {t('friends.invite')}
                   </button>
                 ) : null}
                 {canInviteSpectator ? (
@@ -1734,16 +1817,16 @@ function FriendsView({
                     type="button"
                     onClick={() => onInviteSpectator(friend.username)}
                   >
-                    Zuschauer einladen
+                    {t('friends.inviteSpectator')}
                   </button>
                 ) : null}
               </div>
             ))}
           </div>
         ) : (
-          <p className="muted">Noch keine Freunde.</p>
+          <p className="muted">{t('friends.empty')}</p>
         )}
-        <h3>Eingehend</h3>
+        <h3>{t('friends.incoming')}</h3>
         {friends?.incomingRequests.map((request) => (
           <div className="user-row" key={request.id}>
             <strong>{request.sender.username}</strong>
@@ -1752,32 +1835,32 @@ function FriendsView({
               type="button"
               onClick={() => onRespond(request.id, 'accept')}
             >
-              Annehmen
+              {t('friends.accept')}
             </button>
             <button
               className="tiny-button danger"
               type="button"
               onClick={() => onRespond(request.id, 'reject')}
             >
-              Ablehnen
+              {t('friends.reject')}
             </button>
           </div>
         ))}
       </div>
       <div className="content-card">
-        <span className="panel-label">Spieler finden</span>
-        <h2>Benutzersuche</h2>
+        <span className="panel-label">{t('friends.findPlayers')}</span>
+        <h2>{t('friends.searchTitle')}</h2>
         <form className="search-row" onSubmit={onSearch}>
           <input
             autoComplete="off"
             name="user-search"
-            placeholder="z. B. niklas…"
+            placeholder={t('friends.searchPlaceholder')}
             spellCheck={false}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
           />
           <button className="secondary-button" type="submit">
-            Suchen
+            {t('friends.search')}
           </button>
         </form>
         <div className="user-list">
@@ -1787,7 +1870,7 @@ function FriendsView({
               <strong>{result.username}</strong>
               <span className="muted">{result.rating}</span>
               <button className="tiny-button" type="button" onClick={() => onAdd(result.username)}>
-                + Freund
+                {t('friends.add')}
               </button>
             </div>
           ))}

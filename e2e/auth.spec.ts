@@ -123,6 +123,29 @@ test.describe('Authentifizierung', () => {
     ).not.toBeVisible();
   });
 
+  test('wechselt Authentifizierung und Lobby ohne Reload auf Englisch', async ({ page }) => {
+    const credentials = createCredentials();
+
+    await openLogin(page);
+    await page.getByRole('combobox', { name: 'Sprache' }).selectOption('en');
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'No account yet? Register' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'No account yet? Register' }).click();
+    await expect(page.getByRole('heading', { name: 'Create account' })).toBeVisible();
+    await page.getByLabel('Username').fill(credentials.username);
+    await page.getByLabel('Password').fill(credentials.password);
+    await page.getByRole('button', { name: 'Register', exact: true }).click();
+
+    await expect(page.getByRole('heading', { name: 'Ready for your next move?' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Public lobby' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Ready for your next move?' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
+  });
+
   test('spannt das Dashboard ohne äußeren Rand über den gesamten Viewport', async ({ page }) => {
     const credentials = createCredentials();
 

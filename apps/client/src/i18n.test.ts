@@ -28,5 +28,6 @@ describe('i18n', () => {
     expect(createTranslator('en')('language.label')).toBe('Language');
     expect(createTranslator('en')('language.de')).toBe('German');
     expect(createTranslator('en')('language.en')).toBe('English');
+    expect(createTranslator('en')('notification.gameInvitation')).toBe('Game invitation');
   });
 });

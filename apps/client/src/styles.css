@@ -806,6 +806,12 @@ input:focus-visible {
   font-size: 0.78rem;
 }
 
+.auth-language-switcher {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+}
+
 .avatar,
 .insight-avatar {
   display: grid;
