@@ -352,6 +352,19 @@ describe('server HTTP routes', () => {
       (await app.inject({ method: 'GET', url: `/games/${waiting.code}/spectate` })).statusCode,
     ).toBe(409);
   });
+
+  it('serves an active game snapshot to guests without authentication', async () => {
+    const manager = new GameManager();
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+    const authProvider = createAuthProvider(undefined);
+    app = buildApp(manager, authProvider, createSocialProvider(), createNotificationProvider());
+
+    const response = await app.inject({ method: 'GET', url: `/games/${created.code}/spectate` });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().game.status).toBe('active');
+  });
 });
 
 function createAuthProvider(

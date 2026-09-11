@@ -155,6 +155,29 @@ describe('App', () => {
     );
   });
 
+  it('opens a spectator link without requiring an account', async () => {
+    const activeGame = { ...waitingGame, status: 'active' as const, blackPlayerId: 'opponent-1' };
+    const sync = {
+      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      game: activeGame,
+      moves: [],
+    };
+    window.history.replaceState({}, '', '/watch/ABC123');
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') throw new Error('Nicht angemeldet');
+      if (path === '/games/ABC123/spectate') return sync;
+      if (path === '/games/ABC123/chat') throw new Error('Gast darf Chat nicht laden');
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Am Brett' })).toBeTruthy();
+    expect(screen.getByText('Zuschauer', { exact: true })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Willkommen zurück' })).toBeNull();
+    expect(mocks.socket.emit).toHaveBeenCalledWith('game:spectate', { code: 'ABC123' });
+  });
+
   it('deletes an own waiting game from the lobby', async () => {
     mocks.requestJson.mockImplementation(
       async (_baseUrl: string, path: string, options?: RequestInit) => {

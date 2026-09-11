@@ -321,13 +321,14 @@ export function buildApp(
   );
 
   app.get<{ Params: { code: string } }>('/games/:code/spectate', async (request, reply) => {
-    const user = await requireUser(request, reply, authProvider);
-    if (!user) return;
+    const user = await authProvider.authenticate(readSessionToken(request.headers.cookie));
     const game = gameManager.getGame(request.params.code);
     if (!game) return reply.code(404).send({ error: 'Game not found' });
 
     try {
-      return reply.send(gameManager.getGameSyncForViewer(request.params.code, user.id, true));
+      return reply.send(
+        gameManager.getGameSyncForViewer(request.params.code, user?.id ?? 'guest-spectator', true),
+      );
     } catch (error) {
       return reply.code(409).send({
         error: error instanceof Error ? error.message : 'Game is not ready for spectators',

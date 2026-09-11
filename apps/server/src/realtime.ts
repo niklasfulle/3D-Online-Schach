@@ -53,18 +53,25 @@ export function registerRealtime(
       ? await authProvider.authenticate(readSessionToken(socket.handshake.headers.cookie))
       : undefined;
     const playerId = user?.id ?? legacyPlayerId;
-    if (!playerId) {
+    const guestSpectator = socket.handshake.auth.spectator === true;
+    if (!playerId && !guestSpectator) {
       next(new Error('Authentication required'));
       return;
     }
     socket.data.playerId = playerId;
+    socket.data.guestSpectator = guestSpectator;
     next();
   });
 
   io.on('connection', (socket) => {
     const playerId = socket.data.playerId as string;
+    const guestSpectator = socket.data.guestSpectator === true;
 
     socket.on('game:create', async () => {
+      if (guestSpectator) {
+        socket.emit('game:error', { error: 'Authentication required' });
+        return;
+      }
       try {
         const game = gameManager.createGame(playerId);
         await gameManager.flushPersistence();
@@ -78,6 +85,10 @@ export function registerRealtime(
     });
 
     socket.on('game:join', async (payload: JoinPayload) => {
+      if (guestSpectator) {
+        socket.emit('game:error', { error: 'Authentication required' });
+        return;
+      }
       if (!payload.code) {
         socket.emit('game:error', { error: 'code is required' });
         return;
@@ -96,6 +107,10 @@ export function registerRealtime(
     });
 
     socket.on('game:sync', async (payload: SyncPayload) => {
+      if (guestSpectator) {
+        socket.emit('game:error', { error: 'Authentication required' });
+        return;
+      }
       if (!payload.code) {
         socket.emit('game:error', { error: 'code is required' });
         return;
@@ -131,6 +146,10 @@ export function registerRealtime(
     });
 
     socket.on('move:request', async (payload: MovePayload) => {
+      if (guestSpectator) {
+        socket.emit('move:rejected', { reason: 'Authentication required' });
+        return;
+      }
       if (!payload.code || !payload.from || !payload.to) {
         socket.emit('move:rejected', { reason: 'code, from and to are required' });
         return;
@@ -163,6 +182,10 @@ export function registerRealtime(
     });
 
     socket.on('chat:send', async (payload: ChatPayload) => {
+      if (guestSpectator) {
+        socket.emit('chat:error', { error: 'Only game participants can use the chat' });
+        return;
+      }
       if (!payload.code || payload.message === undefined) {
         socket.emit('chat:error', { error: 'code and message are required' });
         return;

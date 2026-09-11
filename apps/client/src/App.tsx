@@ -29,6 +29,13 @@ interface AuthUser {
   role?: UserRole;
 }
 
+const GUEST_SPECTATOR: AuthUser = {
+  id: 'guest-spectator',
+  username: 'Gastzuschauer',
+  rating: 0,
+  role: 'spectator',
+};
+
 type AppView = 'lobby' | 'friends' | 'admin' | 'game';
 
 interface PageHeading {
@@ -543,8 +550,11 @@ export function App() {
   }, [selectedGame]);
 
   useEffect(() => {
-    if (!user) return;
-    const socket = io(API_URL, { withCredentials: true });
+    if (!user && !spectatorCode) return;
+    const socket = io(API_URL, {
+      withCredentials: true,
+      auth: user ? undefined : { spectator: true },
+    });
     socketRef.current = socket;
     socket.on('game:state', (sync: GameSync) => applyGameSync(sync));
     socket.on('game:started', (nextGame: GameSummary) => {
@@ -593,7 +603,7 @@ export function App() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [user]);
+  }, [spectatorCode, user]);
 
   useEffect(() => {
     if (!user || !inviteCode) return;
@@ -627,7 +637,7 @@ export function App() {
   }, [inviteCode, user]);
 
   useEffect(() => {
-    if (!user || !spectatorCode) return;
+    if (!spectatorCode) return;
 
     async function openSpectatorView() {
       try {
@@ -906,6 +916,64 @@ export function App() {
   }
 
   if (loading) return <main className="centered-message">Verbindung wird hergestellt …</main>;
+  if (!user && spectatorCode) {
+    const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
+    const gameStatus = selectedGame
+      ? `${gameLabel(selectedGame)} · ${selectedGame.status}`
+      : statusLabel(gameState.status);
+
+    return (
+      <main className="app-shell game-mode guest-spectator-shell">
+        <div className="dashboard-shell">
+          <section className="dashboard-main">
+            <div className="page-heading">
+              <div>
+                <span className="eyebrow">ZUSCHAUEN</span>
+                <h1>Am Brett</h1>
+                <p>Du siehst diese Partie als Gast im schreibgeschützten Modus.</p>
+              </div>
+            </div>
+            {error ? (
+              <div className="error-banner" role="alert" aria-live="polite">
+                <span>
+                  <strong>Verbindungshinweis</strong>
+                  {error}
+                </span>
+                <button aria-label="Hinweis schließen" type="button" onClick={() => setError('')}>
+                  ×
+                </button>
+              </div>
+            ) : null}
+            {selectedGame ? (
+              <GameView
+                user={GUEST_SPECTATOR}
+                selectedGame={selectedGame}
+                gameState={gameState}
+                selectedSquare={selectedSquare}
+                legalTargets={legalTargets}
+                moveHistory={moveHistory}
+                turnLabel={turnLabel}
+                gameStatus={gameStatus}
+                setView={() => globalThis.location.assign('/')}
+                handleSelectSquare={handleSelectSquare}
+                onCopyLink={() => undefined}
+                linkCopied={false}
+                spectatorMode
+                onCopySpectatorLink={() => void copySpectatorLink()}
+                spectatorLinkCopied={spectatorLinkCopied}
+                chatMessages={chatMessages}
+                chatDraft=""
+                onChatDraftChange={() => undefined}
+                onSendChat={() => undefined}
+              />
+            ) : (
+              <div className="centered-message">Partie wird geladen …</div>
+            )}
+          </section>
+        </div>
+      </main>
+    );
+  }
   if (!user)
     return (
       <AuthScreen

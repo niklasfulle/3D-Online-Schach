@@ -188,4 +188,44 @@ describe('realtime game rooms', () => {
 
     await expect(removedPromise).resolves.toEqual({ code: created.code });
   });
+
+  it('allows an explicitly marked guest socket to spectate read-only', async () => {
+    const gameManager = new GameManager();
+    const created = gameManager.createGame('player-a');
+    gameManager.joinGame(created.code, 'player-b');
+    app = buildApp(gameManager);
+    realtime = registerRealtime(app, gameManager);
+    await app.listen({ host: '127.0.0.1', port: 0 });
+
+    const address = app.server.address();
+    if (!address || typeof address === 'string') throw new Error('Server address unavailable');
+    const url = `http://127.0.0.1:${address.port}`;
+    const guest = connect(url, { auth: { spectator: true }, transports: ['websocket'] });
+    clients = [guest];
+
+    await waitForEvent(guest, 'connect');
+    const statePromise = waitForEvent<{ game: { status: string } }>(guest, 'game:state');
+    guest.emit('game:spectate', { code: created.code });
+
+    await expect(statePromise).resolves.toMatchObject({ game: { status: 'active' } });
+  });
+
+  it('rejects an unmarked guest socket', async () => {
+    const gameManager = new GameManager();
+    app = buildApp(gameManager);
+    realtime = registerRealtime(app, gameManager);
+    await app.listen({ host: '127.0.0.1', port: 0 });
+
+    const address = app.server.address();
+    if (!address || typeof address === 'string') throw new Error('Server address unavailable');
+    const url = `http://127.0.0.1:${address.port}`;
+    const guest = connect(url, { transports: ['websocket'], reconnection: false });
+    clients = [guest];
+
+    await expect(
+      new Promise<string>((resolve) =>
+        guest.once('connect_error', (error) => resolve(error.message)),
+      ),
+    ).resolves.toBe('Authentication required');
+  });
 });
