@@ -21,6 +21,7 @@ const API_URL = resolveApiUrl(
   import.meta.env.VITE_API_URL,
   globalThis.location ?? { protocol: 'http:', hostname: 'localhost' },
 );
+const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '0.1.0';
 const PROMOTION_OPTIONS: PromotionPiece[] = ['q', 'r', 'b', 'n'];
 interface AuthUser {
   id: string;
@@ -1354,7 +1355,8 @@ export function App() {
   if (loading)
     return (
       <main className="centered-message" data-theme={theme}>
-        {t('guest.connectionHint')} …
+        <div>{t('guest.connectionHint')} …</div>
+        <AppFooter t={t} />
       </main>
     );
   if (!user && spectatorCode) {
@@ -1419,6 +1421,7 @@ export function App() {
             )}
           </section>
         </div>
+        <AppFooter t={t} />
       </main>
     );
   }
@@ -1830,11 +1833,28 @@ export function App() {
             </div>
           </dialog>
         ) : null}
+        <AppFooter t={t} />
       </main>
     );
   }
 
   return renderAuthenticatedView();
+}
+
+function AppFooter({ t }: Readonly<{ t: Translator }>) {
+  return (
+    <footer className="app-footer" aria-label={t('footer.label')}>
+      <span className="app-footer-brand">♞ Chessboard</span>
+      <span>
+        {t('footer.version')} {APP_VERSION}
+      </span>
+      <nav aria-label={t('footer.links')}>
+        <a href="https://github.com/niklasfulle/3D-Online-Schach">{t('footer.repository')}</a>
+        <a href="/datenschutz">{t('footer.privacy')}</a>
+        <a href="/impressum">{t('footer.imprint')}</a>
+      </nav>
+    </footer>
+  );
 }
 
 function AuthScreen({
@@ -1926,6 +1946,7 @@ function AuthScreen({
           {authMode === 'login' ? t('auth.noAccount') : t('auth.alreadyRegistered')}
         </button>
       </section>
+      <AppFooter t={t} />
     </main>
   );
 }

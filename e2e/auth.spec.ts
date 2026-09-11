@@ -181,6 +181,37 @@ test.describe('Authentifizierung', () => {
     expect(dashboardBounds.height).toBeGreaterThanOrEqual(dashboardBounds.viewportHeight);
   });
 
+  test('zeigt den responsiven Footer mit Version und Produktlinks', async ({ page }) => {
+    const credentials = createCredentials();
+
+    await openLogin(page);
+    await switchToRegistration(page);
+    await page.getByLabel('Benutzername').fill(credentials.username);
+    await page.getByLabel('Passwort').fill(credentials.password);
+    await page.getByRole('button', { name: 'Registrieren', exact: true }).click();
+    await expectAuthenticated(page, credentials.username);
+
+    const footer = page.locator('.app-footer');
+    await expect(footer).toBeVisible();
+    await expect(footer.getByText('Version 0.1.0')).toBeVisible();
+    await expect(footer.getByRole('link', { name: 'Repository' })).toHaveAttribute(
+      'href',
+      'https://github.com/niklasfulle/3D-Online-Schach',
+    );
+    await expect(footer.getByRole('link', { name: 'Datenschutz' })).toHaveAttribute(
+      'href',
+      '/datenschutz',
+    );
+
+    await page.getByRole('button', { name: 'Sprache' }).click();
+    await page.getByRole('menuitem', { name: 'Englisch' }).click();
+    await expect(footer.getByRole('link', { name: 'Privacy' })).toBeVisible();
+    await expect(footer.getByRole('link', { name: 'Imprint' })).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(footer).toHaveCSS('flex-direction', 'column');
+  });
+
   test('öffnet eine Partie über den Einladungslink und tritt ihr bei', async ({
     page,
     browser,

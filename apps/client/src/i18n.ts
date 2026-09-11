@@ -10,6 +10,12 @@ export type TranslationKey =
   | 'theme.label'
   | 'theme.dark'
   | 'theme.light'
+  | 'footer.label'
+  | 'footer.version'
+  | 'footer.links'
+  | 'footer.repository'
+  | 'footer.privacy'
+  | 'footer.imprint'
   | 'mode.ranked'
   | 'mode.casual'
   | 'status.check'
@@ -250,6 +256,12 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'theme.label': 'Darstellung',
     'theme.dark': 'Dunkel',
     'theme.light': 'Hell',
+    'footer.label': 'Footer',
+    'footer.version': 'Version',
+    'footer.links': 'Produktlinks',
+    'footer.repository': 'Repository',
+    'footer.privacy': 'Datenschutz',
+    'footer.imprint': 'Impressum',
     'mode.ranked': 'Ranked',
     'mode.casual': 'Casual',
     'status.check': 'Schach',
@@ -486,6 +498,12 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'theme.label': 'Theme',
     'theme.dark': 'Dark',
     'theme.light': 'Light',
+    'footer.label': 'Footer',
+    'footer.version': 'Version',
+    'footer.links': 'Product links',
+    'footer.repository': 'Repository',
+    'footer.privacy': 'Privacy',
+    'footer.imprint': 'Imprint',
     'mode.ranked': 'Ranked',
     'mode.casual': 'Casual',
     'status.check': 'Check',

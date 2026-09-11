@@ -266,10 +266,51 @@ h1 {
 .auth-shell {
   position: relative;
   display: grid;
+  grid-template-rows: 1fr auto;
   min-height: 100vh;
   place-items: center;
   padding: 1.5rem;
   background: radial-gradient(circle at top right, #1a2940 0, #0b0f16 45%);
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.85rem clamp(1rem, 3vw, 2rem);
+  border-top: 1px solid rgb(111 151 201 / 13%);
+  background: rgb(9 15 25 / 42%);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.app-footer-brand {
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.app-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.9rem;
+}
+
+.app-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  color: var(--text-strong);
+  text-decoration: underline;
+}
+
+.auth-shell .app-footer,
+.centered-message .app-footer {
+  max-width: 920px;
 }
 
 .auth-card,
@@ -1763,6 +1804,18 @@ input:focus-visible {
 
   .social-grid {
     grid-template-columns: 1fr;
+  }
+
+  .app-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .app-footer nav {
+    justify-content: flex-start;
+    gap: 0.7rem;
   }
 }
 

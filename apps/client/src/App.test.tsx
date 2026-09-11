@@ -65,6 +65,37 @@ afterEach(() => {
 });
 
 describe('App', () => {
+  it('renders a localized footer with version and product links', async () => {
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+
+    expect(screen.getByRole('contentinfo', { name: 'Footer' })).toBeTruthy();
+    expect(screen.getByText('Version 0.1.0')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Repository' }).getAttribute('href')).toBe(
+      'https://github.com/niklasfulle/3D-Online-Schach',
+    );
+    expect(screen.getByRole('link', { name: 'Datenschutz' }).getAttribute('href')).toBe(
+      '/datenschutz',
+    );
+    expect(screen.getByRole('link', { name: 'Impressum' }).getAttribute('href')).toBe('/impressum');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sprache' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Englisch' }));
+
+    expect(screen.getByRole('contentinfo', { name: 'Footer' })).toBeTruthy();
+    expect(screen.getByText('Version 0.1.0')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Privacy' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Imprint' })).toBeTruthy();
+  });
+
   it('switches language and persists the preference', async () => {
     mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
       if (path === '/auth/me') return { user };
