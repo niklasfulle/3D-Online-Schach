@@ -9,11 +9,13 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "test": "pnpm -r test",
+    "test:e2e": "playwright test",
     "test:coverage": "node scripts/run-coverage.mjs",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.10.0",
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.39.2",

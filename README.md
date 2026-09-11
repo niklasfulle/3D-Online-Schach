@@ -109,12 +109,29 @@ Die Kamerabewegung ist auf einen Bereich rund um das Schachbrett begrenzt.
 ```bash
 pnpm typecheck
 pnpm test
+pnpm test:e2e
 pnpm coverage
 pnpm lint
 pnpm build
 ```
 
 `pnpm coverage` erzeugt für Client, Server und Packages jeweils `coverage/lcov.info`.
+
+Die Authentifizierungs-Flows werden zusätzlich mit Playwright in einem echten Chromium-Browser geprüft:
+
+- Registrierung inklusive optionaler E-Mail
+- Session-Wiederherstellung nach einem Reload
+- Login mit korrekten und falschen Zugangsdaten
+- doppelte Registrierung
+- Abmeldung inklusive gelöschtem Session-Cookie
+- Browser-Validierung für zu kurze Passwörter
+
+Der E2E-Lauf startet bei Bedarf Client und Server selbst. Für den Server wird eine laufende PostgreSQL-Instanz mit angewendeten Prisma-Migrationen benötigt.
+
+```bash
+pnpm test:e2e
+```
+
 Die SonarQube-Konfiguration liest diese Reports automatisch ein. Die WebGL-Renderfläche
 (`ChessScene.tsx`) und der reine Vite-Einstieg (`main.tsx`) sind als Browser-/Rendering-
 Integrationsgrenzen aus der Coverage-Kennzahl ausgenommen; die fachliche Client-Logik
