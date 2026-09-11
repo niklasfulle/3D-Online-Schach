@@ -409,49 +409,6 @@ function GameView({
             <span className="panel-label">FEN</span>
             <code>{gameState.fen}</code>
           </div>
-          <div className="panel-section chat-panel" aria-label="Partiechat">
-            <div className="moves-heading">
-              <span className="panel-label">Partiechat</span>
-              <span className="muted">{spectatorMode ? 'Nur lesen' : 'Teilnehmer'}</span>
-            </div>
-            <div className="chat-messages" role="log" aria-live="polite">
-              {chatMessages.length ? (
-                chatMessages.map((message) => (
-                  <div className="chat-message" key={message.id}>
-                    <strong>{message.senderUsername}</strong>
-                    <span>{message.message}</span>
-                  </div>
-                ))
-              ) : (
-                <span className="muted">Noch keine Nachrichten.</span>
-              )}
-            </div>
-            {spectatorMode ? (
-              <span className="muted">Als Zuschauer kannst du den Chat mitlesen.</span>
-            ) : (
-              <form
-                className="chat-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  onSendChat();
-                }}
-              >
-                <label htmlFor="chat-message">Chatnachricht</label>
-                <div className="chat-input-row">
-                  <input
-                    id="chat-message"
-                    maxLength={500}
-                    value={chatDraft}
-                    onChange={(event) => onChatDraftChange(event.target.value)}
-                    placeholder="Nachricht schreiben …"
-                  />
-                  <button className="tiny-button" type="submit">
-                    Senden
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
           <button
             className="quiet-button panel-back-button"
             type="button"
@@ -459,6 +416,57 @@ function GameView({
           >
             ← Zurück zur Lobby
           </button>
+        </aside>
+        <aside className="chat-column" aria-label="Partiechat">
+          <div className="chat-column-header">
+            <div>
+              <span className="panel-label">Partiechat</span>
+              <h3>Spielraum</h3>
+            </div>
+            <span className="chat-presence">
+              <span className="live-dot" /> {spectatorMode ? 'Nur lesen' : 'Live'}
+            </span>
+          </div>
+          <div className="chat-messages" role="log" aria-live="polite">
+            {chatMessages.length ? (
+              chatMessages.map((message) => (
+                <div
+                  className={`chat-message ${message.senderId === user.id ? 'outgoing' : 'incoming'}`}
+                  key={message.id}
+                >
+                  <strong>{message.senderUsername}</strong>
+                  <span>{message.message}</span>
+                </div>
+              ))
+            ) : (
+              <span className="muted">Noch keine Nachrichten.</span>
+            )}
+          </div>
+          {spectatorMode ? (
+            <span className="muted">Als Zuschauer kannst du den Chat mitlesen.</span>
+          ) : (
+            <form
+              className="chat-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onSendChat();
+              }}
+            >
+              <label htmlFor="chat-message">Chatnachricht</label>
+              <div className="chat-input-row">
+                <input
+                  id="chat-message"
+                  maxLength={500}
+                  value={chatDraft}
+                  onChange={(event) => onChatDraftChange(event.target.value)}
+                  placeholder="Nachricht schreiben …"
+                />
+                <button className="tiny-button" type="submit">
+                  Senden
+                </button>
+              </div>
+            </form>
+          )}
         </aside>
       </div>
     </section>

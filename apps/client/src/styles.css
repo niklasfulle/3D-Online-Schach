@@ -80,10 +80,10 @@ h1 {
 
 .game-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 300px) minmax(260px, 320px);
   gap: 1.5rem;
   width: 100%;
-  max-width: 1320px;
+  max-width: none;
   margin: 0 auto;
 }
 
@@ -110,7 +110,8 @@ h1 {
   font-size: 0.9rem;
 }
 
-.game-panel {
+.game-panel,
+.chat-column {
   display: grid;
   align-content: start;
   gap: 1rem;
@@ -118,6 +119,34 @@ h1 {
   border: 1px solid #26364e;
   border-radius: 1.25rem;
   background: rgb(16 21 31 / 88%);
+}
+
+.chat-column {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: clamp(560px, 72vh, 820px);
+  overflow: hidden;
+}
+
+.chat-column-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.chat-column-header h3 {
+  margin: 0.25rem 0 0;
+  color: #edf4ff;
+  font-size: 1.05rem;
+}
+
+.chat-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #91a3bd;
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 
 .panel-section {
@@ -458,7 +487,8 @@ button {
   }
 
   .scene-card,
-  .scene-card canvas {
+  .scene-card canvas,
+  .chat-column {
     min-height: min(68vh, 680px);
   }
 }
@@ -612,7 +642,8 @@ input:focus-visible {
 
 .chat-messages {
   display: grid;
-  max-height: 12rem;
+  align-content: start;
+  max-height: none;
   gap: 0.45rem;
   overflow-y: auto;
   padding-right: 0.2rem;
@@ -620,10 +651,20 @@ input:focus-visible {
 
 .chat-message {
   display: grid;
+  width: fit-content;
+  max-width: 92%;
   gap: 0.15rem;
-  border-radius: 0.55rem;
+  border: 1px solid rgb(111 151 201 / 16%);
+  border-radius: 0.85rem 0.85rem 0.85rem 0.25rem;
   padding: 0.5rem 0.6rem;
-  background: rgb(36 57 84 / 48%);
+  background: rgb(36 57 84 / 58%);
+}
+
+.chat-message.outgoing {
+  justify-self: end;
+  border-color: rgb(112 168 255 / 34%);
+  border-radius: 0.85rem 0.85rem 0.25rem 0.85rem;
+  background: rgb(45 96 157 / 68%);
 }
 
 .chat-message strong {

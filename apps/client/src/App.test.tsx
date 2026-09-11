@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode } from 'react';
 
@@ -491,6 +491,11 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
     await screen.findByRole('heading', { name: 'Am Brett' });
     expect(await screen.findByText('Viel Erfolg!')).toBeTruthy();
+    const chatColumn = screen.getByRole('complementary', { name: 'Partiechat' });
+    expect(chatColumn.className).toContain('chat-column');
+    expect(
+      within(chatColumn).getByText('Viel Erfolg!').closest('.chat-message')?.className,
+    ).toContain('incoming');
 
     fireEvent.change(screen.getByLabelText('Chatnachricht'), {
       target: { value: 'Danke!' },
