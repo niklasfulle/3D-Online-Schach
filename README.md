@@ -125,6 +125,10 @@ benötigt:
 .\sonar.ps1 -SonarHostUrl "http://sonarqube:9000" -Token $env:SONAR_TOKEN -ProjectKey "3D-Online-Schach"
 ```
 
+Die beiden R3F-Dateien enthalten gültige React-Three-Fiber-Intrinsic-Properties.
+Da der Sonar-TypeScript-Analyzer diese JSX-Erweiterungen nicht erkennt, ist nur die
+Regel `typescript:S6747` für diese beiden Renderflächen gezielt ausgenommen.
+
 ## Projektstruktur
 
 ```text

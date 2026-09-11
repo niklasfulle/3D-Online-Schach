@@ -35,6 +35,7 @@ Object.values(MODEL_URLS).forEach((url) => useGLTF.preload(url));
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+type BoardSquare = `${(typeof FILES)[number]}${(typeof RANKS)[number]}`;
 
 interface SquareTileProps {
   highlighted: boolean;
@@ -155,10 +156,13 @@ export function ChessScene({
 }: ChessSceneProps) {
   const controlsRef = useRef<ComponentRef<typeof OrbitControls>>(null);
   const { camera } = useThree();
-  const squares = useMemo(
-    () => RANKS.flatMap((rank) => FILES.map((file) => `${file}${rank}` as Square)),
-    [],
-  );
+  const squares = useMemo<BoardSquare[]>(() => {
+    const result: BoardSquare[] = [];
+    for (const rank of RANKS) {
+      for (const file of FILES) result.push(`${file}${rank}` as BoardSquare);
+    }
+    return result;
+  }, []);
   const pieces = useMemo(() => piecesFromFen(fen), [fen]);
 
   useFrame(() => {

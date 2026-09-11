@@ -492,7 +492,7 @@ input:focus-visible {
   border-radius: 0.8rem;
   background: linear-gradient(145deg, #d9a64c, #70481b);
   box-shadow: 0 8px 22px rgb(209 160 72 / 22%);
-  color: #fff3cf;
+  color: #fff;
   font-size: 1.45rem;
   line-height: 1;
 }
@@ -514,8 +514,8 @@ input:focus-visible {
   border: 1px solid rgb(95 214 153 / 25%);
   border-radius: 999px;
   padding: 0.38rem 0.65rem;
-  background: rgb(39 111 75 / 16%);
-  color: #86e2ac;
+  background: #153d2b;
+  color: #b6f4cb;
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -548,7 +548,7 @@ input:focus-visible {
   place-items: center;
   border-radius: 50%;
   background: linear-gradient(145deg, #588cc6, #29466b);
-  color: #f7fbff;
+  color: #fff;
   font-weight: 800;
 }
 
@@ -639,8 +639,8 @@ input:focus-visible {
   min-width: 1.15rem;
   border-radius: 999px;
   padding: 0.14rem 0.32rem;
-  background: rgb(72 116 169 / 18%);
-  color: #91bced;
+  background: #1c385a;
+  color: #c0dcfa;
   font-size: 0.62rem;
   text-align: center;
 }
@@ -787,8 +787,8 @@ input:focus-visible {
   border: 1px solid rgb(145 186 231 / 27%);
   border-radius: 0.55rem;
   padding: 0.65rem 0.85rem;
-  background: rgb(255 255 255 / 4%);
-  color: #c4daf2;
+  background: #17283d;
+  color: #e3efff;
   cursor: pointer;
 }
 
@@ -796,7 +796,7 @@ input:focus-visible {
 .quiet-button:hover,
 .link-button:hover {
   color: #fff;
-  background: rgb(105 163 222 / 10%);
+  background: #1b4268;
 }
 
 .dashboard-stats {
@@ -839,16 +839,16 @@ input:focus-visible {
 }
 
 .metric-icon.blue {
-  background: rgb(74 145 217 / 17%);
-  color: #76b7f2;
+  background: #173858;
+  color: #a9d7ff;
 }
 .metric-icon.gold {
-  background: rgb(214 167 72 / 17%);
-  color: #e4b962;
+  background: #4a3717;
+  color: #ffe09a;
 }
 .metric-icon.green {
-  background: rgb(87 194 130 / 17%);
-  color: #7ee1a5;
+  background: #17442f;
+  color: #b3f1c8;
 }
 
 .content-card {
@@ -901,8 +901,8 @@ input:focus-visible {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 0.6rem;
-  background: rgb(92 148 211 / 15%);
-  color: #8ac1f5;
+  background: #1e3d5e;
+  color: #c0e3ff;
   font-size: 1.05rem;
 }
 
@@ -1214,8 +1214,8 @@ input:focus-visible {
   border: 1px solid rgb(95 214 153 / 24%);
   border-radius: 999px;
   padding: 0.4rem 0.65rem;
-  background: rgb(39 111 75 / 14%);
-  color: #8be2ad;
+  background: #143b2a;
+  color: #b8f1cb;
   font-size: 0.7rem;
   font-weight: 700;
 }
@@ -1302,7 +1302,7 @@ input:focus-visible {
 
 .player-avatar.light {
   background: #dbe7f4;
-  color: #58789d;
+  color: #294c70;
 }
 
 .player-avatar.dark {
@@ -1381,8 +1381,8 @@ input:focus-visible {
 .move-count {
   border-radius: 999px;
   padding: 0.28rem 0.45rem;
-  background: rgb(77 133 193 / 16%);
-  color: #94bee8;
+  background: #1b385a;
+  color: #c7e2ff;
   font-size: 0.62rem;
   white-space: nowrap;
 }

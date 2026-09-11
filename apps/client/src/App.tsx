@@ -9,7 +9,10 @@ import { resolveApiUrl } from './apiUrl';
 import { ChessScene } from './board/ChessScene';
 import { requestJson as requestApi } from './request';
 
-const API_URL = resolveApiUrl(import.meta.env.VITE_API_URL, globalThis.location);
+const API_URL = resolveApiUrl(
+  import.meta.env.VITE_API_URL,
+  globalThis.location ?? { protocol: 'http:', hostname: 'localhost' },
+);
 const PROMOTION_OPTIONS: PromotionPiece[] = ['q', 'r', 'b', 'n'];
 const PROMOTION_LABELS: Record<PromotionPiece, string> = {
   q: 'Dame',
@@ -23,6 +26,14 @@ interface AuthUser {
   username: string;
   email?: string;
   rating: number;
+}
+
+type AppView = 'lobby' | 'friends' | 'game';
+
+interface PageHeading {
+  eyebrow: string;
+  title: string;
+  description: string;
 }
 
 interface SocialUser extends AuthUser {
@@ -94,13 +105,54 @@ function playerLabel(playerId: string | undefined, currentUserId: string) {
   return playerId === currentUserId ? 'Du' : 'Gegner';
 }
 
+function pageHeadingFor(view: AppView): PageHeading {
+  if (view === 'game') {
+    return {
+      eyebrow: 'DEINE PARTIE',
+      title: 'Am Brett',
+      description: 'Konzentriert bleiben. Jeder Zug zählt.',
+    };
+  }
+  if (view === 'friends') {
+    return {
+      eyebrow: 'COMMUNITY',
+      title: 'Deine Freunde',
+      description: 'Finde Spieler, vernetze dich und bleib in Kontakt.',
+    };
+  }
+  return {
+    eyebrow: 'SPIELZENTRALE',
+    title: 'Bereit für den nächsten Zug?',
+    description: 'Finde eine Partie oder eröffne deinen eigenen Raum.',
+  };
+}
+
+function playerColorForGame(game: GameSummary, userId: string): 'white' | 'black' | null {
+  if (game.whitePlayerId === userId) return 'white';
+  if (game.blackPlayerId === userId) return 'black';
+  return null;
+}
+
+function canSelectSquare(
+  promotionMove: Move | null,
+  selectedGame: GameSummary | null,
+  user: AuthUser | null,
+  activeColor: 'white' | 'black',
+): boolean {
+  if (promotionMove || (selectedGame && selectedGame.status !== 'active')) return false;
+  if (!selectedGame && user) return true;
+  if (!selectedGame || !user) return false;
+  const ownColor = playerColorForGame(selectedGame, user.id);
+  return ownColor === activeColor;
+}
+
 export function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
-  const [view, setView] = useState<'lobby' | 'friends' | 'game'>('lobby');
+  const [view, setView] = useState<AppView>('lobby');
   const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
   const [friends, setFriends] = useState<FriendsOverview | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -303,13 +355,7 @@ export function App() {
   }
 
   function handleSelectSquare(square: Square) {
-    if (promotionMove || (selectedGame && selectedGame.status !== 'active')) return;
-    if (selectedGame && user) {
-      let ownColor: 'white' | 'black' | null = null;
-      if (selectedGame.whitePlayerId === user.id) ownColor = 'white';
-      else if (selectedGame.blackPlayerId === user.id) ownColor = 'black';
-      if (ownColor !== gameState.activeColor) return;
-    }
+    if (!canSelectSquare(promotionMove, selectedGame, user, gameState.activeColor)) return;
 
     if (selectedSquare && legalTargets.includes(square)) {
       const candidate = game.legalMoves(selectedSquare).find((move) => move.to === square);
@@ -341,362 +387,352 @@ export function App() {
       />
     );
 
-  const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
-  const gameStatus = selectedGame
-    ? `${gameLabel(selectedGame)} · ${selectedGame.status}`
-    : statusLabel(gameState.status);
+  const authenticatedUser = user;
 
-  return (
-    <main className="app-shell">
-      <div className="dashboard-shell">
-        <header className="topbar">
-          <div className="brand-lockup">
-            <div className="brand-mark" aria-hidden="true">
-              ♞
+  function AuthenticatedView() {
+    const user = authenticatedUser;
+    const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
+    const gameStatus = selectedGame
+      ? `${gameLabel(selectedGame)} · ${selectedGame.status}`
+      : statusLabel(gameState.status);
+    const pageHeading = pageHeadingFor(view);
+
+    return (
+      <main className="app-shell">
+        <div className="dashboard-shell">
+          <header className="topbar">
+            <div className="brand-lockup">
+              <div className="brand-mark" aria-hidden="true">
+                ♞
+              </div>
+              <div>
+                <p className="eyebrow">3D ONLINE-SCHACH</p>
+                <strong className="brand-title">Chessboard</strong>
+              </div>
             </div>
-            <div>
-              <p className="eyebrow">3D ONLINE-SCHACH</p>
-              <strong className="brand-title">Chessboard</strong>
+            <div className="header-actions">
+              <span className="live-chip">
+                <span className="live-dot" /> Online
+              </span>
+              <div className="profile-chip">
+                <span className="avatar">{user.username.slice(0, 1).toUpperCase()}</span>
+                <span>{user.username}</span>
+                <span className="profile-rating">{user.rating}</span>
+              </div>
+              <button className="quiet-button" type="button" onClick={() => void logout()}>
+                Abmelden
+              </button>
             </div>
-          </div>
-          <div className="header-actions">
-            <span className="live-chip">
-              <span className="live-dot" /> Online
-            </span>
-            <div className="profile-chip">
-              <span className="avatar">{user.username.slice(0, 1).toUpperCase()}</span>
-              <span>{user.username}</span>
-              <span className="profile-rating">{user.rating}</span>
-            </div>
-            <button className="quiet-button" type="button" onClick={() => void logout()}>
-              Abmelden
-            </button>
-          </div>
-        </header>
-        <div className="dashboard-grid">
-          <aside className="sidebar">
-            <div>
-              <span className="sidebar-label">Arbeitsbereich</span>
-              <nav className="sidebar-nav" aria-label="Hauptnavigation">
-                <button
-                  className={view === 'lobby' ? 'nav-button active' : 'nav-button'}
-                  type="button"
-                  onClick={() => setView('lobby')}
-                >
-                  <span className="nav-icon" aria-hidden="true">
-                    ⌂
-                  </span>
-                  <span>Lobby</span>
-                  <span className="nav-count">{lobbyGames.length}</span>
-                </button>
-                <button
-                  className={view === 'friends' ? 'nav-button active' : 'nav-button'}
-                  type="button"
-                  onClick={() => {
-                    setView('friends');
-                    void refreshFriends();
-                  }}
-                >
-                  <span className="nav-icon" aria-hidden="true">
-                    ♙
-                  </span>
-                  <span>Freunde</span>
-                  <span className="nav-count">{friends?.friends.length ?? 0}</span>
-                </button>
-                {selectedGame ? (
+          </header>
+          <div className="dashboard-grid">
+            <aside className="sidebar">
+              <div>
+                <span className="sidebar-label">Arbeitsbereich</span>
+                <nav className="sidebar-nav" aria-label="Hauptnavigation">
                   <button
-                    className={view === 'game' ? 'nav-button active' : 'nav-button'}
+                    className={view === 'lobby' ? 'nav-button active' : 'nav-button'}
                     type="button"
-                    onClick={() => setView('game')}
+                    onClick={() => setView('lobby')}
                   >
                     <span className="nav-icon" aria-hidden="true">
-                      ♜
+                      ⌂
                     </span>
-                    <span>Aktive Partie</span>
-                    <span className="nav-live-dot" />
+                    <span>Lobby</span>
+                    <span className="nav-count">{lobbyGames.length}</span>
                   </button>
-                ) : null}
-              </nav>
-            </div>
-            <div className="sidebar-note">
-              <span className="sidebar-label">Dein Profil</span>
-              <strong>{user.username}</strong>
-              <span className="muted">Wertung {user.rating}</span>
-              <div className="rating-bar">
-                <span
-                  style={{ width: `${Math.min(100, Math.max(8, (user.rating - 800) / 8))}%` }}
-                />
+                  <button
+                    className={view === 'friends' ? 'nav-button active' : 'nav-button'}
+                    type="button"
+                    onClick={() => {
+                      setView('friends');
+                      void refreshFriends();
+                    }}
+                  >
+                    <span className="nav-icon" aria-hidden="true">
+                      ♙
+                    </span>
+                    <span>Freunde</span>
+                    <span className="nav-count">{friends?.friends.length ?? 0}</span>
+                  </button>
+                  {selectedGame ? (
+                    <button
+                      className={view === 'game' ? 'nav-button active' : 'nav-button'}
+                      type="button"
+                      onClick={() => setView('game')}
+                    >
+                      <span className="nav-icon" aria-hidden="true">
+                        ♜
+                      </span>
+                      <span>Aktive Partie</span>
+                      <span className="nav-live-dot" />
+                    </button>
+                  ) : null}
+                </nav>
               </div>
-            </div>
-          </aside>
-          <section className="dashboard-main">
-            {error ? (
-              <div className="error-banner" role="alert" aria-live="polite">
-                <span>
-                  <strong>Verbindungshinweis</strong>
-                  {error}
-                </span>
-                <button aria-label="Hinweis schließen" type="button" onClick={() => setError('')}>
-                  ×
+              <div className="sidebar-note">
+                <span className="sidebar-label">Dein Profil</span>
+                <strong>{user.username}</strong>
+                <span className="muted">Wertung {user.rating}</span>
+                <div className="rating-bar">
+                  <span
+                    style={{ width: `${Math.min(100, Math.max(8, (user.rating - 800) / 8))}%` }}
+                  />
+                </div>
+              </div>
+            </aside>
+            <section className="dashboard-main">
+              {error ? (
+                <div className="error-banner" role="alert" aria-live="polite">
+                  <span>
+                    <strong>Verbindungshinweis</strong>
+                    {error}
+                  </span>
+                  <button aria-label="Hinweis schließen" type="button" onClick={() => setError('')}>
+                    ×
+                  </button>
+                </div>
+              ) : null}
+              <div className="page-heading">
+                <div>
+                  <span className="eyebrow">{pageHeading.eyebrow}</span>
+                  <h1>{pageHeading.title}</h1>
+                  <p>{pageHeading.description}</p>
+                </div>
+                <div className="heading-accent" aria-hidden="true">
+                  ✦
+                </div>
+              </div>
+              {view === 'lobby' ? (
+                <LobbyView
+                  games={lobbyGames}
+                  onRefresh={() => void refreshLobby()}
+                  onCreate={(mode) => void createGame(mode)}
+                  onJoin={(code) => void joinGame(code)}
+                />
+              ) : null}
+              {view === 'friends' ? (
+                <FriendsView
+                  friends={friends}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  searchResults={searchResults}
+                  onSearch={searchUsers}
+                  onAdd={(username) => void sendFriendRequest(username)}
+                  onRespond={(id, action) => void respondToRequest(id, action)}
+                />
+              ) : null}
+              {view === 'game' && selectedGame ? (
+                <section className="game-view">
+                  <div className="game-toolbar">
+                    <div className="game-toolbar-title">
+                      <button
+                        className="back-button"
+                        aria-label="Zurück zur Lobby"
+                        type="button"
+                        onClick={() => setView('lobby')}
+                      >
+                        ←
+                      </button>
+                      <div>
+                        <span className="panel-label">
+                          {selectedGame.mode === 'ranked' ? 'Ranked-Partie' : 'Casual-Partie'}
+                        </span>
+                        <h2>{selectedGame.code}</h2>
+                      </div>
+                    </div>
+                    <div className="game-toolbar-meta">
+                      <span className="game-status-pill">
+                        <span className="live-dot" />{' '}
+                        {selectedGame.status === 'active' ? 'Live' : 'Wartet'}
+                      </span>
+                      <span className="game-code-label">{gameStatus}</span>
+                    </div>
+                  </div>
+                  <div className="game-layout">
+                    <div className="scene-card" aria-label="3D-Schachbrett">
+                      <div className="player-strip">
+                        <div
+                          className={
+                            gameState.activeColor === 'white' ? 'player-card active' : 'player-card'
+                          }
+                        >
+                          <span className="player-avatar light">♙</span>
+                          <div>
+                            <strong>{playerLabel(selectedGame.whitePlayerId, user.id)}</strong>
+                            <span>Weiß</span>
+                          </div>
+                          <strong className="player-clock">
+                            {formatClock(selectedGame.whiteRemainingMs)}
+                          </strong>
+                        </div>
+                        <span className="versus-badge">VS</span>
+                        <div
+                          className={
+                            gameState.activeColor === 'black' ? 'player-card active' : 'player-card'
+                          }
+                        >
+                          <span className="player-avatar dark">♟</span>
+                          <div>
+                            <strong>{playerLabel(selectedGame.blackPlayerId, user.id)}</strong>
+                            <span>Schwarz</span>
+                          </div>
+                          <strong className="player-clock">
+                            {formatClock(selectedGame.blackRemainingMs)}
+                          </strong>
+                        </div>
+                      </div>
+                      <div className="board-canvas">
+                        <Canvas
+                          camera={{ position: [0, 9.6, 11.8], fov: 46 }}
+                          onContextMenu={(event) => event.preventDefault()}
+                          shadows
+                        >
+                          <color attach="background" args={['#10151f']} />
+                          <ChessScene
+                            fen={gameState.fen}
+                            highlightedSquares={legalTargets}
+                            lastMove={moveHistory.at(-1)}
+                            selectedSquare={selectedSquare}
+                            onSelectSquare={handleSelectSquare}
+                          />
+                        </Canvas>
+                      </div>
+                      <div className="board-footer">
+                        <span>
+                          <span className="live-dot" />{' '}
+                          {selectedGame.status === 'active'
+                            ? `${turnLabel} am Zug`
+                            : 'Warte auf einen Gegner'}
+                        </span>
+                        <span>
+                          {selectedSquare
+                            ? `${selectedSquare} ausgewählt`
+                            : 'Brett mit rechter Maustaste verschieben'}
+                        </span>
+                      </div>
+                    </div>
+                    <aside className="game-panel" aria-label="Partieinformationen">
+                      <div className="game-panel-header">
+                        <div>
+                          <span className="panel-label">Partieübersicht</span>
+                          <h3>
+                            {selectedGame.mode === 'ranked' ? 'Ranked' : 'Casual'} ·{' '}
+                            {selectedGame.code}
+                          </h3>
+                        </div>
+                        <span className="move-count">{moveHistory.length} Züge</span>
+                      </div>
+                      <div className="game-facts">
+                        <div>
+                          <span className="muted">Status</span>
+                          <strong>{statusLabel(gameState.status)}</strong>
+                        </div>
+                        <div>
+                          <span className="muted">Zeitkontrolle</span>
+                          <strong>
+                            {Math.round(selectedGame.timeControl.initialMs / 60000)} min
+                          </strong>
+                        </div>
+                      </div>
+                      <div className="panel-section move-history">
+                        <div className="moves-heading">
+                          <span className="panel-label">Zugverlauf</span>
+                          <span className="muted">SAN</span>
+                        </div>
+                        {moveHistory.length === 0 ? (
+                          <div className="moves-empty">
+                            <span className="empty-icon" aria-hidden="true">
+                              ♟
+                            </span>
+                            <span>Noch keine Züge</span>
+                            <small>Die Partie beginnt, sobald beide Spieler bereit sind.</small>
+                          </div>
+                        ) : (
+                          moveHistory.map((move, index) => (
+                            <div className="move-row" key={`${move.san}-${index}`}>
+                              <span>
+                                {Math.floor(index / 2) + 1}
+                                {index % 2 === 0 ? '.' : '…'}
+                              </span>
+                              <strong>{move.san}</strong>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="fen-box">
+                        <span className="panel-label">FEN</span>
+                        <code>{gameState.fen}</code>
+                      </div>
+                      <button
+                        className="quiet-button panel-back-button"
+                        type="button"
+                        onClick={() => setView('lobby')}
+                      >
+                        ← Zurück zur Lobby
+                      </button>
+                    </aside>
+                  </div>
+                </section>
+              ) : null}
+            </section>
+            <aside className="insights-panel">
+              <div className="insight-card profile-insight">
+                <div className="insight-heading">
+                  <span>DEIN STATUS</span>
+                  <span className="live-chip small">
+                    <span className="live-dot" /> Live
+                  </span>
+                </div>
+                <div className="insight-avatar">{user.username.slice(0, 1).toUpperCase()}</div>
+                <strong>{user.username}</strong>
+                <span className="muted">Bereit für eine Partie?</span>
+                <div className="insight-stats">
+                  <div>
+                    <strong>{user.rating}</strong>
+                    <span>Wertung</span>
+                  </div>
+                  <div>
+                    <strong>{friends?.friends.length ?? 0}</strong>
+                    <span>Freunde</span>
+                  </div>
+                </div>
+              </div>
+              <div className="insight-card quick-match">
+                <span className="panel-label">Schnellstart</span>
+                <h3>Direkt ins Spiel</h3>
+                <p className="muted">Eröffne eine Casual-Partie für deinen nächsten Zug.</p>
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={() => void createGame('casual')}
+                >
+                  Partie erstellen <span aria-hidden="true">→</span>
                 </button>
               </div>
-            ) : null}
-            <div className="page-heading">
-              <div>
-                <span className="eyebrow">
-                  {view === 'game'
-                    ? 'DEINE PARTIE'
-                    : view === 'friends'
-                      ? 'COMMUNITY'
-                      : 'SPIELZENTRALE'}
-                </span>
-                <h1>
-                  {view === 'game'
-                    ? 'Am Brett'
-                    : view === 'friends'
-                      ? 'Deine Freunde'
-                      : 'Bereit für den nächsten Zug?'}
-                </h1>
-                <p>
-                  {view === 'game'
-                    ? 'Konzentriert bleiben. Jeder Zug zählt.'
-                    : view === 'friends'
-                      ? 'Finde Spieler, vernetze dich und bleib in Kontakt.'
-                      : 'Finde eine Partie oder eröffne deinen eigenen Raum.'}
-                </p>
-              </div>
-              <div className="heading-accent" aria-hidden="true">
-                ✦
-              </div>
-            </div>
-            {view === 'lobby' ? (
-              <LobbyView
-                games={lobbyGames}
-                onRefresh={() => void refreshLobby()}
-                onCreate={(mode) => void createGame(mode)}
-                onJoin={(code) => void joinGame(code)}
-              />
-            ) : null}
-            {view === 'friends' ? (
-              <FriendsView
-                friends={friends}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                searchResults={searchResults}
-                onSearch={searchUsers}
-                onAdd={(username) => void sendFriendRequest(username)}
-                onRespond={(id, action) => void respondToRequest(id, action)}
-              />
-            ) : null}
-            {view === 'game' && selectedGame ? (
-              <section className="game-view">
-                <div className="game-toolbar">
-                  <div className="game-toolbar-title">
-                    <button
-                      className="back-button"
-                      aria-label="Zurück zur Lobby"
-                      type="button"
-                      onClick={() => setView('lobby')}
-                    >
-                      ←
-                    </button>
-                    <div>
-                      <span className="panel-label">
-                        {selectedGame.mode === 'ranked' ? 'Ranked-Partie' : 'Casual-Partie'}
-                      </span>
-                      <h2>{selectedGame.code}</h2>
-                    </div>
-                  </div>
-                  <div className="game-toolbar-meta">
-                    <span className="game-status-pill">
-                      <span className="live-dot" />{' '}
-                      {selectedGame.status === 'active' ? 'Live' : 'Wartet'}
-                    </span>
-                    <span className="game-code-label">{gameStatus}</span>
-                  </div>
-                </div>
-                <div className="game-layout">
-                  <div className="scene-card" aria-label="3D-Schachbrett">
-                    <div className="player-strip">
-                      <div
-                        className={
-                          gameState.activeColor === 'white' ? 'player-card active' : 'player-card'
-                        }
-                      >
-                        <span className="player-avatar light">♙</span>
-                        <div>
-                          <strong>{playerLabel(selectedGame.whitePlayerId, user.id)}</strong>
-                          <span>Weiß</span>
-                        </div>
-                        <strong className="player-clock">
-                          {formatClock(selectedGame.whiteRemainingMs)}
-                        </strong>
-                      </div>
-                      <span className="versus-badge">VS</span>
-                      <div
-                        className={
-                          gameState.activeColor === 'black' ? 'player-card active' : 'player-card'
-                        }
-                      >
-                        <span className="player-avatar dark">♟</span>
-                        <div>
-                          <strong>{playerLabel(selectedGame.blackPlayerId, user.id)}</strong>
-                          <span>Schwarz</span>
-                        </div>
-                        <strong className="player-clock">
-                          {formatClock(selectedGame.blackRemainingMs)}
-                        </strong>
-                      </div>
-                    </div>
-                    <div className="board-canvas">
-                      <Canvas
-                        camera={{ position: [0, 9.6, 11.8], fov: 46 }}
-                        onContextMenu={(event) => event.preventDefault()}
-                        shadows
-                      >
-                        <color attach="background" args={['#10151f']} />
-                        <ChessScene
-                          fen={gameState.fen}
-                          highlightedSquares={legalTargets}
-                          lastMove={moveHistory.at(-1)}
-                          selectedSquare={selectedSquare}
-                          onSelectSquare={handleSelectSquare}
-                        />
-                      </Canvas>
-                    </div>
-                    <div className="board-footer">
-                      <span>
-                        <span className="live-dot" />{' '}
-                        {selectedGame.status === 'active'
-                          ? `${turnLabel} am Zug`
-                          : 'Warte auf einen Gegner'}
-                      </span>
-                      <span>
-                        {selectedSquare
-                          ? `${selectedSquare} ausgewählt`
-                          : 'Brett mit rechter Maustaste verschieben'}
-                      </span>
-                    </div>
-                  </div>
-                  <aside className="game-panel" aria-label="Partieinformationen">
-                    <div className="game-panel-header">
-                      <div>
-                        <span className="panel-label">Partieübersicht</span>
-                        <h3>
-                          {selectedGame.mode === 'ranked' ? 'Ranked' : 'Casual'} ·{' '}
-                          {selectedGame.code}
-                        </h3>
-                      </div>
-                      <span className="move-count">{moveHistory.length} Züge</span>
-                    </div>
-                    <div className="game-facts">
-                      <div>
-                        <span className="muted">Status</span>
-                        <strong>{statusLabel(gameState.status)}</strong>
-                      </div>
-                      <div>
-                        <span className="muted">Zeitkontrolle</span>
-                        <strong>
-                          {Math.round(selectedGame.timeControl.initialMs / 60000)} min
-                        </strong>
-                      </div>
-                    </div>
-                    <div className="panel-section move-history">
-                      <div className="moves-heading">
-                        <span className="panel-label">Zugverlauf</span>
-                        <span className="muted">SAN</span>
-                      </div>
-                      {moveHistory.length === 0 ? (
-                        <div className="moves-empty">
-                          <span className="empty-icon" aria-hidden="true">
-                            ♟
-                          </span>
-                          <span>Noch keine Züge</span>
-                          <small>Die Partie beginnt, sobald beide Spieler bereit sind.</small>
-                        </div>
-                      ) : (
-                        moveHistory.map((move, index) => (
-                          <div className="move-row" key={`${move.san}-${index}`}>
-                            <span>
-                              {Math.floor(index / 2) + 1}
-                              {index % 2 === 0 ? '.' : '…'}
-                            </span>
-                            <strong>{move.san}</strong>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    <div className="fen-box">
-                      <span className="panel-label">FEN</span>
-                      <code>{gameState.fen}</code>
-                    </div>
-                    <button
-                      className="quiet-button panel-back-button"
-                      type="button"
-                      onClick={() => setView('lobby')}
-                    >
-                      ← Zurück zur Lobby
-                    </button>
-                  </aside>
-                </div>
-              </section>
-            ) : null}
-          </section>
-          <aside className="insights-panel">
-            <div className="insight-card profile-insight">
-              <div className="insight-heading">
-                <span>DEIN STATUS</span>
-                <span className="live-chip small">
-                  <span className="live-dot" /> Live
-                </span>
-              </div>
-              <div className="insight-avatar">{user.username.slice(0, 1).toUpperCase()}</div>
-              <strong>{user.username}</strong>
-              <span className="muted">Bereit für eine Partie?</span>
-              <div className="insight-stats">
-                <div>
-                  <strong>{user.rating}</strong>
-                  <span>Wertung</span>
-                </div>
-                <div>
-                  <strong>{friends?.friends.length ?? 0}</strong>
-                  <span>Freunde</span>
-                </div>
-              </div>
-            </div>
-            <div className="insight-card quick-match">
-              <span className="panel-label">Schnellstart</span>
-              <h3>Direkt ins Spiel</h3>
-              <p className="muted">Eröffne eine Casual-Partie für deinen nächsten Zug.</p>
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => void createGame('casual')}
-              >
-                Partie erstellen <span aria-hidden="true">→</span>
-              </button>
-            </div>
-          </aside>
-        </div>
-      </div>
-      {promotionMove ? (
-        <dialog open className="promotion-dialog" aria-label="Bauernumwandlung">
-          <strong>Umwandeln zu</strong>
-          <div className="promotion-actions">
-            {PROMOTION_OPTIONS.map((promotion) => (
-              <button
-                key={promotion}
-                type="button"
-                onClick={() => commitMove({ ...promotionMove, promotion })}
-              >
-                {PROMOTION_LABELS[promotion]}
-              </button>
-            ))}
+            </aside>
           </div>
-        </dialog>
-      ) : null}
-    </main>
-  );
+        </div>
+        {promotionMove ? (
+          <dialog open className="promotion-dialog" aria-label="Bauernumwandlung">
+            <strong>Umwandeln zu</strong>
+            <div className="promotion-actions">
+              {PROMOTION_OPTIONS.map((promotion) => (
+                <button
+                  key={promotion}
+                  type="button"
+                  onClick={() => commitMove({ ...promotionMove, promotion })}
+                >
+                  {PROMOTION_LABELS[promotion]}
+                </button>
+              ))}
+            </div>
+          </dialog>
+        ) : null}
+      </main>
+    );
+  }
+
+  return <AuthenticatedView />;
 }
 
 function AuthScreen({

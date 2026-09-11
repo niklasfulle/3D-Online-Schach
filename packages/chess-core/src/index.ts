@@ -64,7 +64,7 @@ export class ChessGame {
   }
 
   toPgn(headers: PgnHeaders = {}): string {
-    for (const [key, value] of Object.entries(headers)) this.chess.header(key, value);
+    for (const [key, value] of Object.entries(headers)) this.chess.setHeader(key, value);
     return this.chess.pgn();
   }
 

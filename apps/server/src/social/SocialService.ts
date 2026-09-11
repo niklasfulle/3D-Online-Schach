@@ -30,9 +30,11 @@ export interface SocialProvider {
   respondToRequest(
     userId: string,
     requestId: string,
-    action: 'accept' | 'reject' | 'cancel',
+    action: FriendRequestAction,
   ): Promise<FriendRequestView>;
 }
+
+export type FriendRequestAction = 'accept' | 'reject' | 'cancel';
 
 export class SocialError extends Error {
   constructor(
@@ -133,7 +135,7 @@ export class PrismaSocialProvider implements SocialProvider {
   async respondToRequest(
     userId: string,
     requestId: string,
-    action: 'accept' | 'reject' | 'cancel',
+    action: FriendRequestAction,
   ): Promise<FriendRequestView> {
     const request = await this.client.friendRequest.findUnique({
       where: { id: requestId },
@@ -188,7 +190,7 @@ export class PrismaSocialProvider implements SocialProvider {
   }
 }
 
-function requestStatusForAction(action: 'accept' | 'reject' | 'cancel'): string {
+function requestStatusForAction(action: FriendRequestAction): string {
   if (action === 'accept') return 'accepted';
   if (action === 'reject') return 'rejected';
   return 'cancelled';
