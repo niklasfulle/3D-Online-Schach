@@ -122,4 +122,32 @@ test.describe('Authentifizierung', () => {
       page.getByRole('heading', { name: 'Bereit für den nächsten Zug?' }),
     ).not.toBeVisible();
   });
+
+  test('spannt das Dashboard ohne äußeren Rand über den gesamten Viewport', async ({ page }) => {
+    const credentials = createCredentials();
+
+    await openLogin(page);
+    await switchToRegistration(page);
+    await page.getByLabel('Benutzername').fill(credentials.username);
+    await page.getByLabel('Passwort').fill(credentials.password);
+    await page.getByRole('button', { name: 'Registrieren', exact: true }).click();
+    await expectAuthenticated(page, credentials.username);
+
+    const dashboardBounds = await page.locator('.dashboard-shell').evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return {
+        left: bounds.left,
+        top: bounds.top,
+        width: bounds.width,
+        height: bounds.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      };
+    });
+
+    expect(dashboardBounds.left).toBe(0);
+    expect(dashboardBounds.top).toBe(0);
+    expect(dashboardBounds.width).toBe(dashboardBounds.viewportWidth);
+    expect(dashboardBounds.height).toBeGreaterThanOrEqual(dashboardBounds.viewportHeight);
+  });
 });

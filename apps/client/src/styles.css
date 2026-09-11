@@ -26,9 +26,9 @@ input {
 
 .app-shell {
   display: grid;
-  gap: 1.5rem;
+  gap: 0;
   min-height: 100vh;
-  padding: clamp(1rem, 4vw, 3rem);
+  padding: 0;
   background: radial-gradient(circle at top right, #1a2940 0, #0b0f16 45%);
 }
 
