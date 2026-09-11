@@ -13,7 +13,11 @@ Der Multiplayer-MVP ist umgesetzt:
 - lokale Konten mit Session-Cookies, Login und Registrierung
 - öffentliche Lobby mit Casual-/Ranked-Spielen
 - Benutzersuche, Online-Präsenz und Freundschaftsanfragen
-- serverseitige Zugvalidierung und Socket.IO-Synchronisierung
+- Benachrichtigungen für Freundschafts- und Spieleinladungen
+- teilbare Partienlinks über `/game/:code` und lesende Zuschauerlinks über `/watch/:code`
+- Partiechat für Teilnehmer mit historischer Speicherung und Live-Broadcast
+- serverseitige Zugvalidierung und Socket.IO-Synchronisierung inklusive automatischem Join-Update
+- responsiver Spielmodus, der das 3D-Brett auf der verfügbaren Browserfläche maximiert
 - Spieluhr, Timeout, Reconnect und State-Sync
 - Prisma-Persistenz für Games, Moves, FEN, Uhrwerte und Ergebnisse
 - versionierte PostgreSQL-Migrationen für Games, Sessions und soziale Beziehungen
@@ -103,9 +107,14 @@ GET  /users/search?q=...  # Benutzer suchen
 GET  /friends             # Freunde sowie eingehende/ausgehende Anfragen
 POST /friends/requests
 POST /friends/requests/:id/accept|reject|cancel
+GET  /notifications         # Benachrichtigungen des Kontos
+POST /notifications/:id/read
+GET  /games/:code/chat      # gespeicherte Partienachrichten laden
+POST /games/:code/chat      # Nachricht als Teilnehmer senden
+GET  /games/:code/spectate  # initialen Spielstand für Zuschauer laden
 ```
 
-Die Echtzeit-Partie läuft über Socket.IO. Authentifizierte Browser verbinden sich mit `withCredentials`; der Server prüft das Session-Cookie vor dem Beitritt zu einem Spielraum.
+Die Echtzeit-Partie läuft über Socket.IO. Authentifizierte Browser verbinden sich mit `withCredentials`; der Server prüft das Session-Cookie vor dem Beitritt zu einem Spielraum. Teilnehmer verwenden `game:sync`, Zuschauer `game:spectate`; beide erhalten `move:accepted` und Chatnachrichten live. Ein Join über die REST-Lobby löst zusätzlich ein `game:updated` für bereits verbundene Teilnehmer aus.
 
 ## 3D-Figuren neu erzeugen
 
@@ -129,12 +138,12 @@ Die Kamerabewegung ist auf einen Bereich rund um das Schachbrett begrenzt.
 pnpm typecheck
 pnpm test
 pnpm test:e2e
-pnpm coverage
+pnpm test:coverage
 pnpm lint
 pnpm build
 ```
 
-`pnpm coverage` erzeugt für Client, Server und Packages jeweils `coverage/lcov.info`.
+`pnpm test:coverage` erzeugt für Client, Server und Packages jeweils `coverage/lcov.info`.
 
 Die Authentifizierungs-Flows werden zusätzlich mit Playwright in einem echten Chromium-Browser geprüft:
 
@@ -144,6 +153,8 @@ Die Authentifizierungs-Flows werden zusätzlich mit Playwright in einem echten C
 - doppelte Registrierung
 - Abmeldung inklusive gelöschtem Session-Cookie
 - Browser-Validierung für zu kurze Passwörter
+- Zwei-Spieler-Einladung mit Chatnachricht und drittem Zuschauer
+- responsives 3D-Brett inklusive Resize auf 640px Breite
 
 Der E2E-Lauf startet bei Bedarf Client und Server selbst. Für den Server wird eine laufende PostgreSQL-Instanz mit angewendeten Prisma-Migrationen benötigt.
 
