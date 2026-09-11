@@ -6,7 +6,7 @@
     "build": "tsc -b && vite build",
     "dev": "vite",
     "test": "vitest run --passWithNoTests",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text",
     "typecheck": "tsc -b"
   },
   "dependencies": {
