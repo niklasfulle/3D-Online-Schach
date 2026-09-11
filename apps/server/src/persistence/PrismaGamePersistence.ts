@@ -25,6 +25,7 @@ export class PrismaGamePersistence implements GamePersistence {
         blackTimeMs: summary.blackRemainingMs,
         incrementMs: summary.timeControl.incrementMs,
         result: summary.result,
+        expiresAt: summary.expiresAt ? new Date(summary.expiresAt) : undefined,
         whitePlayerId,
         blackPlayerId,
         winnerId,
@@ -40,6 +41,7 @@ export class PrismaGamePersistence implements GamePersistence {
         blackTimeMs: summary.blackRemainingMs,
         incrementMs: summary.timeControl.incrementMs,
         result: summary.result,
+        expiresAt: summary.expiresAt ? new Date(summary.expiresAt) : null,
         whitePlayerId,
         blackPlayerId,
         winnerId,
@@ -85,6 +87,10 @@ export class PrismaGamePersistence implements GamePersistence {
         playerId,
       },
     });
+  }
+
+  async deleteGame(summary: GameSummary): Promise<void> {
+    await this.client.game.delete({ where: { id: summary.id } });
   }
 
   async loadHistory(code: string): Promise<GameHistory | undefined> {

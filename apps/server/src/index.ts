@@ -433,6 +433,7 @@ function toLobbyGame(
     status: game.status,
     timeControl: game.timeControl,
     whiteRemainingMs: game.whiteRemainingMs,
+    expiresAt: game.expiresAt,
     isOwner: game.whitePlayerId === currentUserId,
   };
 }

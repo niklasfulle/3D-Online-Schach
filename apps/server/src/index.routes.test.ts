@@ -173,6 +173,7 @@ describe('server HTTP routes', () => {
     });
     expect(lobbyGame.statusCode).toBe(201);
     const game = lobbyGame.json() as { code: string };
+    expect(lobbyGame.json().expiresAt).toEqual(expect.any(Number));
     expect((await app.inject({ method: 'GET', url: '/lobby' })).statusCode).toBe(200);
     authProvider.authenticate = vi.fn(async () => bob);
     expect(

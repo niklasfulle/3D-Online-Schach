@@ -52,6 +52,7 @@ model Game {
   incrementMs     Int       @default(0)
   result          String?
   createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
   startedAt       DateTime?
   finishedAt      DateTime?
   whitePlayerId   String?
@@ -62,6 +63,8 @@ model Game {
   winner          User?     @relation("Winner", fields: [winnerId], references: [id])
   moves           Move[]
   chatMessages    ChatMessage[]
+
+  @@index([status, expiresAt])
 }
 
 model FriendRequest {

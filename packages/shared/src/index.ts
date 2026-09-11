@@ -26,6 +26,7 @@ export interface GameSummary {
   timeControl: TimeControl;
   whiteRemainingMs: number;
   blackRemainingMs: number;
+  expiresAt?: number;
   turnStartedAt?: number;
   result?: 'white' | 'black' | 'draw';
 }

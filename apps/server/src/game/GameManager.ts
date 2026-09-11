@@ -12,6 +12,7 @@ import type { GameMode, GameSummary, TimeControl } from '@chess3d/shared';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 const DEFAULT_TIME_CONTROL: TimeControl = { initialMs: 5 * 60 * 1000, incrementMs: 0 };
+export const WAITING_GAME_TTL_MS = 30 * 60 * 1000;
 
 interface ManagedGame {
   chess: ChessGame;
@@ -26,6 +27,7 @@ export interface GamePersistence {
     fenAfterMove: string,
     moveNumber: number,
   ): Promise<void>;
+  deleteGame?: (summary: GameSummary) => Promise<void>;
   loadHistory?: (code: string) => Promise<GameHistory | undefined>;
 }
 
@@ -118,6 +120,7 @@ export class GameManager {
         timeControl,
         whiteRemainingMs: timeControl.initialMs,
         blackRemainingMs: timeControl.initialMs,
+        expiresAt: this.now() + WAITING_GAME_TTL_MS,
       },
     };
     this.games.set(code, game);
@@ -129,6 +132,7 @@ export class GameManager {
     const game = this.getManagedGame(code);
     if (!game) throw new Error('Game not found');
     if (game.summary.status !== 'waiting') throw new Error('Game is not waiting for a player');
+    if (this.isExpired(game.summary)) throw new Error('Game has expired');
     if (game.summary.whitePlayerId === blackPlayerId)
       throw new Error('Player is already in this game');
 
@@ -136,6 +140,7 @@ export class GameManager {
       ...game.summary,
       blackPlayerId,
       status: 'active',
+      expiresAt: undefined,
       turnStartedAt: this.now(),
     };
     this.enqueuePersistence(() =>
@@ -227,8 +232,26 @@ export class GameManager {
 
   listWaitingGames(): GameSummary[] {
     return [...this.games.values()]
-      .filter(({ summary }) => summary.status === 'waiting')
+      .filter(({ summary }) => summary.status === 'waiting' && !this.isExpired(summary))
       .map((game) => this.snapshot(game));
+  }
+
+  getExpiredWaitingGames(): GameSummary[] {
+    return [...this.games.values()]
+      .filter(({ summary }) => summary.status === 'waiting' && this.isExpired(summary))
+      .map((game) => this.snapshot(game));
+  }
+
+  removeExpiredGame(code: string): boolean {
+    const game = this.getManagedGame(code);
+    if (!game || game.summary.status !== 'waiting' || !this.isExpired(game.summary)) return false;
+
+    this.games.delete(code.toUpperCase());
+    this.moveQueues.delete(code.toUpperCase());
+    if (this.persistence.deleteGame) {
+      this.enqueuePersistence(() => this.persistence.deleteGame!(game.summary));
+    }
+    return true;
   }
 
   getGameSync(code: string, playerId: string): GameSync {
@@ -299,6 +322,10 @@ export class GameManager {
 
   private publishGameUpdate(game: GameSummary): void {
     for (const listener of this.gameUpdateListeners) listener(game);
+  }
+
+  private isExpired(summary: GameSummary): boolean {
+    return summary.expiresAt !== undefined && summary.expiresAt <= this.now();
   }
 
   private snapshot(game: ManagedGame): GameSummary {

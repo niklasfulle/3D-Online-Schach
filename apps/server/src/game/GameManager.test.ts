@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { GameManager, GameTimeoutError, type GamePersistence } from './GameManager.js';
+import {
+  GameManager,
+  GameTimeoutError,
+  WAITING_GAME_TTL_MS,
+  type GamePersistence,
+} from './GameManager.js';
 
 describe('GameManager', () => {
   let manager: GameManager;
@@ -18,6 +23,15 @@ describe('GameManager', () => {
     expect(game.whitePlayerId).toBe('player-a');
   });
 
+  it('assigns a 30 minute expiration to waiting games', () => {
+    const now = 1_000;
+    manager = new GameManager(() => now);
+
+    const game = manager.createGame('player-a');
+
+    expect(game.expiresAt).toBe(now + WAITING_GAME_TTL_MS);
+  });
+
   it('assigns the second player and activates the game', () => {
     manager = new GameManager();
     const created = manager.createGame('player-a');
@@ -27,6 +41,20 @@ describe('GameManager', () => {
     expect(joined.status).toBe('active');
     expect(joined.whitePlayerId).toBe('player-a');
     expect(joined.blackPlayerId).toBe('player-b');
+    expect(joined.expiresAt).toBeUndefined();
+  });
+
+  it('rejects and exposes expired waiting games for cleanup', () => {
+    let now = 1_000;
+    manager = new GameManager(() => now);
+    const created = manager.createGame('player-a');
+    now += WAITING_GAME_TTL_MS;
+
+    expect(manager.listWaitingGames()).toEqual([]);
+    expect(manager.getExpiredWaitingGames()).toHaveLength(1);
+    expect(() => manager.joinGame(created.code, 'player-b')).toThrow('Game has expired');
+    expect(manager.removeExpiredGame(created.code)).toBe(true);
+    expect(manager.getGame(created.code)).toBeUndefined();
   });
 
   it('publishes a game update when a second player joins', () => {

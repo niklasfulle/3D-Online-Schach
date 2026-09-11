@@ -47,6 +47,7 @@ const waitingGame = {
   timeControl: { initialMs: 300000, incrementMs: 0 },
   whiteRemainingMs: 300000,
   blackRemainingMs: 300000,
+  expiresAt: Date.now() + 30 * 60 * 1000,
   isOwner: true,
 };
 
@@ -103,6 +104,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Casual · ABC123')).toBeTruthy();
+    expect(screen.getByText(/verfällt in/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Abmelden' }));
 
     expect(await screen.findByRole('heading', { name: 'Willkommen zurück' })).toBeTruthy();

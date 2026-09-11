@@ -526,6 +526,7 @@ export function App() {
     socket.on('game:state', (sync: GameSync) => applyGameSync(sync));
     socket.on('game:started', (nextGame: GameSummary) => {
       setSelectedGame(nextGame);
+      selectedGameCodeRef.current = nextGame.code;
       setView('game');
       setGamePath(nextGame.code);
       socket.emit('game:sync', { code: nextGame.code });
@@ -616,6 +617,7 @@ export function App() {
   function applyGameSync(sync: GameSync) {
     const nextGame = new ChessGame(sync.fen);
     setSelectedGame(sync.game);
+    selectedGameCodeRef.current = sync.game.code;
     setGame(nextGame);
     setGameState(nextGame.getState());
     setMoveHistory(sync.moves);
@@ -650,6 +652,7 @@ export function App() {
     await requestApi(API_URL, '/auth/logout', { method: 'POST' });
     setUser(null);
     setSelectedGame(null);
+    selectedGameCodeRef.current = null;
     setView('lobby');
     setChatMessages([]);
     setChatDraft('');
@@ -662,6 +665,7 @@ export function App() {
   function openGame(nextGame: GameSummary) {
     setError('');
     setSelectedGame(nextGame);
+    selectedGameCodeRef.current = nextGame.code;
     setSpectatorMode(false);
     setView('game');
     setLinkCopied(false);
@@ -1237,6 +1241,13 @@ function LobbyView({
   onCreate: (mode: GameMode) => void;
   onJoin: (code: string) => void;
 }>) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = globalThis.setInterval(() => setNow(Date.now()), 1_000);
+    return () => globalThis.clearInterval(timer);
+  }, []);
+
   return (
     <div className="lobby-content">
       <section className="welcome-card">
@@ -1313,7 +1324,12 @@ function LobbyView({
                 </div>
                 <div>
                   <strong>{gameLabel(game)}</strong>
-                  <span className="muted">5 Minuten · offen</span>
+                  <span className="muted">
+                    5 Minuten · offen
+                    {game.expiresAt
+                      ? ` · verfällt in ${formatClock(Math.max(0, game.expiresAt - now))}`
+                      : ''}
+                  </span>
                 </div>
                 <span className="waiting-label">
                   <span className="live-dot" />
