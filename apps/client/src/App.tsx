@@ -29,7 +29,7 @@ interface AuthUser {
   role?: UserRole;
 }
 
-type AppView = 'lobby' | 'friends' | 'game';
+type AppView = 'lobby' | 'friends' | 'admin' | 'game';
 
 interface PageHeading {
   eyebrow: string;
@@ -53,6 +53,15 @@ interface FriendsOverview {
   friends: SocialUser[];
   incomingRequests: FriendRequest[];
   outgoingRequests: FriendRequest[];
+}
+
+interface AdminUser {
+  id: string;
+  username: string;
+  email?: string;
+  rating: number;
+  role: UserRole;
+  lastOnline?: string;
 }
 
 interface NotificationItem {
@@ -148,6 +157,13 @@ function pageHeadingFor(view: AppView): PageHeading {
       eyebrow: 'COMMUNITY',
       title: 'Deine Freunde',
       description: 'Finde Spieler, vernetze dich und bleib in Kontakt.',
+    };
+  }
+  if (view === 'admin') {
+    return {
+      eyebrow: 'VERWALTUNG',
+      title: 'Benutzerverwaltung',
+      description: 'Rollen und Zugänge der Community im Blick behalten.',
     };
   }
   return {
@@ -451,6 +467,7 @@ export function App() {
   const [view, setView] = useState<AppView>('lobby');
   const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
   const [friends, setFriends] = useState<FriendsOverview | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -480,6 +497,11 @@ export function App() {
 
   const refreshFriends = useCallback(async () => {
     setFriends(await requestApi<FriendsOverview>(API_URL, '/friends'));
+  }, []);
+
+  const refreshAdminUsers = useCallback(async () => {
+    const response = await requestApi<{ users: AdminUser[] }>(API_URL, '/admin/users');
+    setAdminUsers(response.users);
   }, []);
 
   const refreshNotifications = useCallback(async () => {
@@ -762,6 +784,20 @@ export function App() {
     }
   }
 
+  async function updateAdminRole(id: string, role: UserRole) {
+    try {
+      const response = await requestApi<{ user: AdminUser }>(API_URL, `/admin/users/${id}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      });
+      setAdminUsers((users) =>
+        users.map((adminUser) => (adminUser.id === id ? response.user : adminUser)),
+      );
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : 'Rolle konnte nicht geändert werden');
+    }
+  }
+
   async function searchUsers(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
@@ -998,6 +1034,22 @@ export function App() {
                     <span>Lobby</span>
                     <span className="nav-count">{lobbyGames.length}</span>
                   </button>
+                  {user.role === 'admin' ? (
+                    <button
+                      className={view === 'admin' ? 'nav-button active' : 'nav-button'}
+                      type="button"
+                      onClick={() => {
+                        setView('admin');
+                        void refreshAdminUsers();
+                      }}
+                    >
+                      <span className="nav-icon" aria-hidden="true">
+                        ⚙
+                      </span>
+                      <span>Administration</span>
+                      <span className="nav-count">{adminUsers.length}</span>
+                    </button>
+                  ) : null}
                   <button
                     className={view === 'friends' ? 'nav-button active' : 'nav-button'}
                     type="button"
@@ -1082,6 +1134,13 @@ export function App() {
                   onAdd={(username) => void sendFriendRequest(username)}
                   onRespond={(id, action) => void respondToRequest(id, action)}
                   onInvite={(username) => void inviteFriend(username)}
+                />
+              ) : null}
+              {view === 'admin' && user.role === 'admin' ? (
+                <AdminView
+                  users={adminUsers}
+                  onRefresh={() => void refreshAdminUsers()}
+                  onRoleChange={(id, role) => void updateAdminRole(id, role)}
                 />
               ) : null}
               {view === 'game' && selectedGame ? (
@@ -1377,6 +1436,54 @@ function LobbyView({
         )}
       </section>
     </div>
+  );
+}
+
+function AdminView({
+  users,
+  onRefresh,
+  onRoleChange,
+}: Readonly<{
+  users: AdminUser[];
+  onRefresh: () => void;
+  onRoleChange: (id: string, role: UserRole) => void;
+}>) {
+  return (
+    <section className="content-card admin-card">
+      <div className="section-heading">
+        <div>
+          <span className="panel-label">Admin</span>
+          <h2>Benutzer und Rollen</h2>
+        </div>
+        <button className="quiet-button" type="button" onClick={onRefresh}>
+          ↻ Aktualisieren
+        </button>
+      </div>
+      <div className="user-list">
+        {users.map((adminUser) => (
+          <div className="user-row admin-user-row" key={adminUser.id}>
+            <div>
+              <strong>{adminUser.username}</strong>
+              <span className="muted">
+                {adminUser.email ?? 'Keine E-Mail'} · Wertung {adminUser.rating}
+              </span>
+            </div>
+            <label>
+              <span className="sr-only">Rolle für {adminUser.username}</span>
+              <select
+                aria-label={`Rolle für ${adminUser.username}`}
+                value={adminUser.role}
+                onChange={(event) => onRoleChange(adminUser.id, event.target.value as UserRole)}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+                <option value="spectator">Zuschauer</option>
+              </select>
+            </label>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

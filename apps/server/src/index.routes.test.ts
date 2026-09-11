@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthError, type AuthProvider, type AuthResult } from './auth/AuthService.js';
+import type { AdminProvider } from './admin/AdminService.js';
 import { GameManager, type GamePersistence } from './game/GameManager.js';
 import { buildApp } from './index.js';
 import type { NotificationProvider } from './notifications/NotificationService.js';
@@ -85,6 +86,64 @@ describe('server HTTP routes', () => {
       ).statusCode,
     ).toBe(200);
     expect(authProvider.logout).toHaveBeenCalledWith(undefined);
+  });
+
+  it('protects admin user management and prevents self-demotion', async () => {
+    const admin = { ...user, id: 'admin-1', role: 'admin' as const };
+    const adminProvider: AdminProvider = {
+      listUsers: vi.fn(async () => [
+        { id: user.id, username: user.username, rating: user.rating, role: 'user' as const },
+      ]),
+      updateRole: vi.fn(async (id, role) => ({
+        id,
+        username: 'bob',
+        rating: 1200,
+        role,
+      })),
+    };
+    const authProvider = createAuthProvider(user);
+    app = buildApp(
+      new GameManager(),
+      authProvider,
+      createSocialProvider(),
+      createNotificationProvider(),
+      undefined,
+      adminProvider,
+    );
+
+    expect((await app.inject({ method: 'GET', url: '/admin/users' })).statusCode).toBe(403);
+
+    authProvider.authenticate = vi.fn(async () => admin);
+    expect((await app.inject({ method: 'GET', url: '/admin/users' })).json()).toEqual({
+      users: [{ id: user.id, username: user.username, rating: user.rating, role: 'user' }],
+    });
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/admin/users/${admin.id}/role`,
+          payload: { role: 'user' },
+        })
+      ).statusCode,
+    ).toBe(409);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: '/admin/users/user-2/role',
+          payload: { role: 'moderator' },
+        })
+      ).statusCode,
+    ).toBe(400);
+
+    const update = await app.inject({
+      method: 'PATCH',
+      url: '/admin/users/user-2/role',
+      payload: { role: 'spectator' },
+    });
+    expect(update.statusCode).toBe(200);
+    expect(update.json().user).toMatchObject({ id: 'user-2', role: 'spectator' });
+    expect(adminProvider.updateRole).toHaveBeenCalledWith('user-2', 'spectator');
   });
 
   it('maps authentication and social failures to API responses', async () => {

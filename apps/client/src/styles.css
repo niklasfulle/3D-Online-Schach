@@ -389,6 +389,33 @@ button {
   margin-right: auto;
 }
 
+.admin-user-row > div {
+  display: grid;
+  flex: 1;
+  gap: 0.2rem;
+}
+
+.admin-user-row select {
+  min-width: 8.5rem;
+  border: 1px solid #385170;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: #17243a;
+  color: #e6f0ff;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .online-dot,
 .offline-dot {
   width: 0.55rem;

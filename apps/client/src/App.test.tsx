@@ -115,6 +115,46 @@ describe('App', () => {
     );
   });
 
+  it('shows the admin area only for admins and updates a user role', async () => {
+    const adminUser = { ...user, role: 'admin' as const };
+    const managedUsers = [
+      { id: adminUser.id, username: adminUser.username, rating: 1200, role: 'admin' as const },
+      { id: 'user-2', username: 'Mara', rating: 1250, role: 'user' as const },
+    ];
+    mocks.requestJson.mockImplementation(
+      async (_baseUrl: string, path: string, options?: RequestInit) => {
+        if (path === '/auth/me') return { user: adminUser };
+        if (path === '/lobby') return { games: [] };
+        if (path === '/friends') return emptyFriends;
+        if (path === '/admin/users' && !options?.method) return { users: managedUsers };
+        if (path === '/admin/users/user-2/role' && options?.method === 'PATCH') {
+          return { user: { ...managedUsers[1], role: 'spectator' as const } };
+        }
+        throw new Error(`Unexpected request: ${path}`);
+      },
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Administration/ }));
+
+    expect(await screen.findByRole('heading', { name: 'Benutzer und Rollen' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Rolle für Mara' }), {
+      target: { value: 'spectator' },
+    });
+
+    await waitFor(() =>
+      expect(mocks.requestJson).toHaveBeenCalledWith(
+        expect.any(String),
+        '/admin/users/user-2/role',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ role: 'spectator' }),
+        }),
+      ),
+    );
+  });
+
   it('deletes an own waiting game from the lobby', async () => {
     mocks.requestJson.mockImplementation(
       async (_baseUrl: string, path: string, options?: RequestInit) => {

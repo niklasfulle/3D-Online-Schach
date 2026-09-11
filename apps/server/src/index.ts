@@ -4,7 +4,7 @@ import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 
 import type { Move } from '@chess3d/chess-core';
-import type { GameMode } from '@chess3d/shared';
+import type { GameMode, UserRole } from '@chess3d/shared';
 
 import {
   AuthError,
@@ -26,6 +26,7 @@ import {
   type NotificationProvider,
 } from './notifications/NotificationService.js';
 import { PrismaSocialProvider, SocialError, type SocialProvider } from './social/SocialService.js';
+import { AdminError, PrismaAdminProvider, type AdminProvider } from './admin/AdminService.js';
 import { ExpiredGamesWorker } from './workers/ExpiredGamesWorker.js';
 
 export function buildApp(
@@ -34,6 +35,7 @@ export function buildApp(
   socialProvider: SocialProvider = new PrismaSocialProvider(prisma),
   notificationProvider: NotificationProvider = new PrismaNotificationProvider(prisma),
   chatProvider: ChatProvider = new PrismaChatProvider(prisma),
+  adminProvider: AdminProvider = new PrismaAdminProvider(prisma),
 ): FastifyInstance {
   const app = Fastify({ logger: true });
 
@@ -67,6 +69,39 @@ export function buildApp(
     if (!user) return reply.code(401).send({ error: 'Authentication required' });
     return reply.send({ user });
   });
+
+  app.get('/admin/users', async (request, reply) => {
+    const user = await requireAdmin(request, reply, authProvider);
+    if (!user) return;
+
+    try {
+      return reply.send({ users: await adminProvider.listUsers() });
+    } catch (error) {
+      return sendAdminError(reply, error);
+    }
+  });
+
+  app.patch<{ Params: { id: string }; Body: { role?: UserRole } }>(
+    '/admin/users/:id/role',
+    async (request, reply) => {
+      const user = await requireAdmin(request, reply, authProvider);
+      if (!user) return;
+      if (!isUserRole(request.body?.role)) {
+        return reply.code(400).send({ error: 'role must be user, admin or spectator' });
+      }
+      if (request.params.id === user.id && request.body.role !== 'admin') {
+        return reply.code(409).send({ error: 'You cannot remove your own admin role' });
+      }
+
+      try {
+        const updatedUser = await adminProvider.updateRole(request.params.id, request.body.role);
+        if (!updatedUser) return reply.code(404).send({ error: 'User not found' });
+        return reply.send({ user: updatedUser });
+      } catch (error) {
+        return sendAdminError(reply, error);
+      }
+    },
+  );
 
   app.get<{ Querystring: { q?: string } }>('/users/search', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
@@ -438,6 +473,20 @@ async function requireUser(
   return user;
 }
 
+async function requireAdmin(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  authProvider: AuthProvider,
+): Promise<AuthUser | undefined> {
+  const user = await requireUser(request, reply, authProvider);
+  if (!user) return undefined;
+  if (user.role !== 'admin') {
+    reply.code(403).send({ error: 'Admin role required' });
+    return undefined;
+  }
+  return user;
+}
+
 function sendSocialError(reply: FastifyReply, error: unknown) {
   if (error instanceof SocialError)
     return reply.code(error.statusCode).send({ error: error.message });
@@ -497,6 +546,16 @@ function sendChatError(reply: FastifyReply, error: unknown) {
   if (error instanceof ChatError)
     return reply.code(error.statusCode).send({ error: error.message });
   return reply.code(503).send({ error: 'Chat service unavailable' });
+}
+
+function sendAdminError(reply: FastifyReply, error: unknown) {
+  if (error instanceof AdminError)
+    return reply.code(error.statusCode).send({ error: error.message });
+  return reply.code(503).send({ error: 'Admin service unavailable' });
+}
+
+function isUserRole(value: unknown): value is UserRole {
+  return value === 'user' || value === 'admin' || value === 'spectator';
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
