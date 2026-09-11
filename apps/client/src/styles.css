@@ -490,7 +490,7 @@ input:focus-visible {
   place-items: center;
   border: 1px solid rgb(255 212 117 / 42%);
   border-radius: 0.8rem;
-  background: linear-gradient(145deg, #d9a64c, #70481b);
+  background: linear-gradient(145deg, #304a68, #1d2e45);
   box-shadow: 0 8px 22px rgb(209 160 72 / 22%);
   color: #fff;
   font-size: 1.45rem;
@@ -547,7 +547,7 @@ input:focus-visible {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(145deg, #588cc6, #29466b);
+  background: linear-gradient(145deg, #365f8f, #203854);
   color: #fff;
   font-weight: 800;
 }

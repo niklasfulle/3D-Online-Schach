@@ -146,6 +146,172 @@ function canSelectSquare(
   return ownColor === activeColor;
 }
 
+interface GameViewProps {
+  user: AuthUser;
+  selectedGame: GameSummary;
+  gameState: ReturnType<ChessGame['getState']>;
+  selectedSquare: Square | null;
+  legalTargets: Square[];
+  moveHistory: MoveRecord[];
+  turnLabel: string;
+  gameStatus: string;
+  setView: (view: AppView) => void;
+  handleSelectSquare: (square: Square) => void;
+}
+
+function GameView({
+  user,
+  selectedGame,
+  gameState,
+  selectedSquare,
+  legalTargets,
+  moveHistory,
+  turnLabel,
+  gameStatus,
+  setView,
+  handleSelectSquare,
+}: Readonly<GameViewProps>) {
+  return (
+    <section className="game-view">
+      <div className="game-toolbar">
+        <div className="game-toolbar-title">
+          <button
+            className="back-button"
+            aria-label="Zurück zur Lobby"
+            type="button"
+            onClick={() => setView('lobby')}
+          >
+            ←
+          </button>
+          <div>
+            <span className="panel-label">
+              {selectedGame.mode === 'ranked' ? 'Ranked-Partie' : 'Casual-Partie'}
+            </span>
+            <h2>{selectedGame.code}</h2>
+          </div>
+        </div>
+        <div className="game-toolbar-meta">
+          <span className="game-status-pill">
+            <span className="live-dot" /> {selectedGame.status === 'active' ? 'Live' : 'Wartet'}
+          </span>
+          <span className="game-code-label">{gameStatus}</span>
+        </div>
+      </div>
+      <div className="game-layout">
+        <div className="scene-card" aria-label="3D-Schachbrett">
+          <div className="player-strip">
+            <div
+              className={gameState.activeColor === 'white' ? 'player-card active' : 'player-card'}
+            >
+              <span className="player-avatar light">♙</span>
+              <div>
+                <strong>{playerLabel(selectedGame.whitePlayerId, user.id)}</strong>
+                <span>Weiß</span>
+              </div>
+              <strong className="player-clock">{formatClock(selectedGame.whiteRemainingMs)}</strong>
+            </div>
+            <span className="versus-badge">VS</span>
+            <div
+              className={gameState.activeColor === 'black' ? 'player-card active' : 'player-card'}
+            >
+              <span className="player-avatar dark">♟</span>
+              <div>
+                <strong>{playerLabel(selectedGame.blackPlayerId, user.id)}</strong>
+                <span>Schwarz</span>
+              </div>
+              <strong className="player-clock">{formatClock(selectedGame.blackRemainingMs)}</strong>
+            </div>
+          </div>
+          <div className="board-canvas">
+            <Canvas
+              camera={{ position: [0, 9.6, 11.8], fov: 46 }}
+              onContextMenu={(event) => event.preventDefault()}
+              shadows
+            >
+              <color attach="background" args={['#10151f']} />
+              <ChessScene
+                fen={gameState.fen}
+                highlightedSquares={legalTargets}
+                lastMove={moveHistory.at(-1)}
+                selectedSquare={selectedSquare}
+                onSelectSquare={handleSelectSquare}
+              />
+            </Canvas>
+          </div>
+          <div className="board-footer">
+            <span>
+              <span className="live-dot" />{' '}
+              {selectedGame.status === 'active' ? `${turnLabel} am Zug` : 'Warte auf einen Gegner'}
+            </span>
+            <span>
+              {selectedSquare
+                ? `${selectedSquare} ausgewählt`
+                : 'Brett mit rechter Maustaste verschieben'}
+            </span>
+          </div>
+        </div>
+        <aside className="game-panel" aria-label="Partieinformationen">
+          <div className="game-panel-header">
+            <div>
+              <span className="panel-label">Partieübersicht</span>
+              <h3>
+                {selectedGame.mode === 'ranked' ? 'Ranked' : 'Casual'} · {selectedGame.code}
+              </h3>
+            </div>
+            <span className="move-count">{moveHistory.length} Züge</span>
+          </div>
+          <div className="game-facts">
+            <div>
+              <span className="muted">Status</span>
+              <strong>{statusLabel(gameState.status)}</strong>
+            </div>
+            <div>
+              <span className="muted">Zeitkontrolle</span>
+              <strong>{Math.round(selectedGame.timeControl.initialMs / 60000)} min</strong>
+            </div>
+          </div>
+          <div className="panel-section move-history">
+            <div className="moves-heading">
+              <span className="panel-label">Zugverlauf</span>
+              <span className="muted">SAN</span>
+            </div>
+            {moveHistory.length === 0 ? (
+              <div className="moves-empty">
+                <span className="empty-icon" aria-hidden="true">
+                  ♟
+                </span>
+                <span>Noch keine Züge</span>
+                <small>Die Partie beginnt, sobald beide Spieler bereit sind.</small>
+              </div>
+            ) : (
+              moveHistory.map((move, index) => (
+                <div className="move-row" key={`${move.san}-${index}`}>
+                  <span>
+                    {Math.floor(index / 2) + 1}
+                    {index % 2 === 0 ? '.' : '…'}
+                  </span>
+                  <strong>{move.san}</strong>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="fen-box">
+            <span className="panel-label">FEN</span>
+            <code>{gameState.fen}</code>
+          </div>
+          <button
+            className="quiet-button panel-back-button"
+            type="button"
+            onClick={() => setView('lobby')}
+          >
+            ← Zurück zur Lobby
+          </button>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
 export function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -389,7 +555,7 @@ export function App() {
 
   const authenticatedUser = user;
 
-  function AuthenticatedView() {
+  function renderAuthenticatedView() {
     const user = authenticatedUser;
     const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
     const gameStatus = selectedGame
@@ -522,157 +688,18 @@ export function App() {
                 />
               ) : null}
               {view === 'game' && selectedGame ? (
-                <section className="game-view">
-                  <div className="game-toolbar">
-                    <div className="game-toolbar-title">
-                      <button
-                        className="back-button"
-                        aria-label="Zurück zur Lobby"
-                        type="button"
-                        onClick={() => setView('lobby')}
-                      >
-                        ←
-                      </button>
-                      <div>
-                        <span className="panel-label">
-                          {selectedGame.mode === 'ranked' ? 'Ranked-Partie' : 'Casual-Partie'}
-                        </span>
-                        <h2>{selectedGame.code}</h2>
-                      </div>
-                    </div>
-                    <div className="game-toolbar-meta">
-                      <span className="game-status-pill">
-                        <span className="live-dot" />{' '}
-                        {selectedGame.status === 'active' ? 'Live' : 'Wartet'}
-                      </span>
-                      <span className="game-code-label">{gameStatus}</span>
-                    </div>
-                  </div>
-                  <div className="game-layout">
-                    <div className="scene-card" aria-label="3D-Schachbrett">
-                      <div className="player-strip">
-                        <div
-                          className={
-                            gameState.activeColor === 'white' ? 'player-card active' : 'player-card'
-                          }
-                        >
-                          <span className="player-avatar light">♙</span>
-                          <div>
-                            <strong>{playerLabel(selectedGame.whitePlayerId, user.id)}</strong>
-                            <span>Weiß</span>
-                          </div>
-                          <strong className="player-clock">
-                            {formatClock(selectedGame.whiteRemainingMs)}
-                          </strong>
-                        </div>
-                        <span className="versus-badge">VS</span>
-                        <div
-                          className={
-                            gameState.activeColor === 'black' ? 'player-card active' : 'player-card'
-                          }
-                        >
-                          <span className="player-avatar dark">♟</span>
-                          <div>
-                            <strong>{playerLabel(selectedGame.blackPlayerId, user.id)}</strong>
-                            <span>Schwarz</span>
-                          </div>
-                          <strong className="player-clock">
-                            {formatClock(selectedGame.blackRemainingMs)}
-                          </strong>
-                        </div>
-                      </div>
-                      <div className="board-canvas">
-                        <Canvas
-                          camera={{ position: [0, 9.6, 11.8], fov: 46 }}
-                          onContextMenu={(event) => event.preventDefault()}
-                          shadows
-                        >
-                          <color attach="background" args={['#10151f']} />
-                          <ChessScene
-                            fen={gameState.fen}
-                            highlightedSquares={legalTargets}
-                            lastMove={moveHistory.at(-1)}
-                            selectedSquare={selectedSquare}
-                            onSelectSquare={handleSelectSquare}
-                          />
-                        </Canvas>
-                      </div>
-                      <div className="board-footer">
-                        <span>
-                          <span className="live-dot" />{' '}
-                          {selectedGame.status === 'active'
-                            ? `${turnLabel} am Zug`
-                            : 'Warte auf einen Gegner'}
-                        </span>
-                        <span>
-                          {selectedSquare
-                            ? `${selectedSquare} ausgewählt`
-                            : 'Brett mit rechter Maustaste verschieben'}
-                        </span>
-                      </div>
-                    </div>
-                    <aside className="game-panel" aria-label="Partieinformationen">
-                      <div className="game-panel-header">
-                        <div>
-                          <span className="panel-label">Partieübersicht</span>
-                          <h3>
-                            {selectedGame.mode === 'ranked' ? 'Ranked' : 'Casual'} ·{' '}
-                            {selectedGame.code}
-                          </h3>
-                        </div>
-                        <span className="move-count">{moveHistory.length} Züge</span>
-                      </div>
-                      <div className="game-facts">
-                        <div>
-                          <span className="muted">Status</span>
-                          <strong>{statusLabel(gameState.status)}</strong>
-                        </div>
-                        <div>
-                          <span className="muted">Zeitkontrolle</span>
-                          <strong>
-                            {Math.round(selectedGame.timeControl.initialMs / 60000)} min
-                          </strong>
-                        </div>
-                      </div>
-                      <div className="panel-section move-history">
-                        <div className="moves-heading">
-                          <span className="panel-label">Zugverlauf</span>
-                          <span className="muted">SAN</span>
-                        </div>
-                        {moveHistory.length === 0 ? (
-                          <div className="moves-empty">
-                            <span className="empty-icon" aria-hidden="true">
-                              ♟
-                            </span>
-                            <span>Noch keine Züge</span>
-                            <small>Die Partie beginnt, sobald beide Spieler bereit sind.</small>
-                          </div>
-                        ) : (
-                          moveHistory.map((move, index) => (
-                            <div className="move-row" key={`${move.san}-${index}`}>
-                              <span>
-                                {Math.floor(index / 2) + 1}
-                                {index % 2 === 0 ? '.' : '…'}
-                              </span>
-                              <strong>{move.san}</strong>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                      <div className="fen-box">
-                        <span className="panel-label">FEN</span>
-                        <code>{gameState.fen}</code>
-                      </div>
-                      <button
-                        className="quiet-button panel-back-button"
-                        type="button"
-                        onClick={() => setView('lobby')}
-                      >
-                        ← Zurück zur Lobby
-                      </button>
-                    </aside>
-                  </div>
-                </section>
+                <GameView
+                  user={user}
+                  selectedGame={selectedGame}
+                  gameState={gameState}
+                  selectedSquare={selectedSquare}
+                  legalTargets={legalTargets}
+                  moveHistory={moveHistory}
+                  turnLabel={turnLabel}
+                  gameStatus={gameStatus}
+                  setView={setView}
+                  handleSelectSquare={handleSelectSquare}
+                />
               ) : null}
             </section>
             <aside className="insights-panel">
@@ -732,7 +759,7 @@ export function App() {
     );
   }
 
-  return <AuthenticatedView />;
+  return renderAuthenticatedView();
 }
 
 function AuthScreen({

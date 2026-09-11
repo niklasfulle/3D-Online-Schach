@@ -159,7 +159,7 @@ export function ChessScene({
   const squares = useMemo<BoardSquare[]>(() => {
     const result: BoardSquare[] = [];
     for (const rank of RANKS) {
-      for (const file of FILES) result.push(`${file}${rank}` as BoardSquare);
+      for (const file of FILES) result.push(`${file}${rank}`);
     }
     return result;
   }, []);
