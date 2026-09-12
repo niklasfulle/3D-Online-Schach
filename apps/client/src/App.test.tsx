@@ -283,19 +283,21 @@ describe('App', () => {
   });
 
   it('allows a guest to register and opens the lobby dashboard', async () => {
-    mocks.requestJson.mockImplementation(
-      async (_baseUrl: string, path: string, options?: RequestInit) => {
-        if (path === '/auth/me') throw new Error('Nicht angemeldet');
-        if (path === '/auth/register') return { user };
-        if (path === '/lobby') return { games: [] };
-        if (path === '/friends') return emptyFriends;
-        throw new Error(`Unexpected request: ${path}`);
-      },
-    );
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') throw new Error('Nicht angemeldet');
+      if (path === '/auth/register') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      throw new Error(`Unexpected request: ${path}`);
+    });
 
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Willkommen zurück' })).toBeTruthy();
+    expect(document.querySelector('.auth-board-background')).toBeTruthy();
+    expect(document.querySelector('.auth-board-background')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
     fireEvent.click(screen.getByRole('button', { name: /Noch kein Konto/ }));
     expect(await screen.findByRole('heading', { name: 'Konto erstellen' })).toBeTruthy();
 
@@ -424,7 +426,7 @@ describe('App', () => {
       expect(mocks.requestJson).toHaveBeenCalledWith(
         expect.any(String),
         '/lobby/games/ABC123',
-        expect.objectContaining({ method: 'DELETE' }),
+        expect.objectContaining({ method: 'DELETE', body: '{}' }),
       ),
     );
     expect(screen.queryByText('Casual · ABC123')).toBeNull();

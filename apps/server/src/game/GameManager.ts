@@ -281,7 +281,7 @@ export class GameManager {
 
   removeExpiredGame(code: string): boolean {
     const game = this.getManagedGame(code);
-    if (!game || game.summary.status !== 'waiting' || !this.isExpired(game.summary)) return false;
+    if (game?.summary.status !== 'waiting' || !this.isExpired(game.summary)) return false;
 
     this.removeWaitingGame(game);
     return true;
@@ -289,7 +289,7 @@ export class GameManager {
 
   deleteWaitingGame(code: string): boolean {
     const game = this.getManagedGame(code);
-    if (!game || game.summary.status !== 'waiting') return false;
+    if (game?.summary.status !== 'waiting') return false;
 
     this.removeWaitingGame(game);
     return true;

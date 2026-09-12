@@ -39,6 +39,7 @@ type BoardSquare = `${(typeof FILES)[number]}${(typeof RANKS)[number]}`;
 
 interface SquareTileProps {
   highlighted: boolean;
+  interactive: boolean;
   selected: boolean;
   square: Square;
   onSelect: (square: Square) => void;
@@ -46,6 +47,7 @@ interface SquareTileProps {
 
 interface PieceProps {
   animationFrom?: Square;
+  interactive: boolean;
   piece: PieceDefinition;
   onSelect: (square: Square) => void;
 }
@@ -57,6 +59,7 @@ interface PieceModelProps {
 
 const SquareTile = memo(function SquareTile({
   highlighted,
+  interactive,
   selected,
   square,
   onSelect,
@@ -72,7 +75,11 @@ const SquareTile = memo(function SquareTile({
   }
 
   return (
-    <mesh position={[x, 0.08, z]} onClick={handleClick} receiveShadow>
+    <mesh
+      position={[x, 0.08, z]}
+      onClick={interactive ? handleClick : undefined}
+      receiveShadow
+    >
       <boxGeometry args={[0.98, 0.16, 0.98]} />
       <meshStandardMaterial color={tileColor(selected, highlighted, isLight)} />
     </mesh>
@@ -96,7 +103,7 @@ const PieceModel = memo(function PieceModel({ color, type }: PieceModelProps) {
   return <primitive object={model} />;
 });
 
-const Piece = memo(function Piece({ animationFrom, piece, onSelect }: PieceProps) {
+const Piece = memo(function Piece({ animationFrom, interactive, piece, onSelect }: PieceProps) {
   const groupRef = useRef<Group>(null);
   const target = useMemo(() => squareToWorld(piece.square), [piece.square]);
   const start = useMemo(
@@ -122,7 +129,7 @@ const Piece = memo(function Piece({ animationFrom, piece, onSelect }: PieceProps
       ref={groupRef}
       position={start}
       rotation={[0, pieceRotationY(piece.type, piece.color), 0]}
-      onClick={handleClick}
+      onClick={interactive ? handleClick : undefined}
     >
       <PieceModel color={piece.color} type={piece.type} />
     </group>
@@ -136,6 +143,7 @@ function clamp(value: number, min: number, max: number) {
 export type ChessSceneProps = Readonly<{
   fen: string;
   highlightedSquares: readonly Square[];
+  interactive?: boolean;
   lastMove?: Move;
   selectedSquare: Square | null;
   onSelectSquare: (square: Square) => void;
@@ -150,6 +158,7 @@ function tileColor(selected: boolean, highlighted: boolean, isLight: boolean): s
 export function ChessScene({
   fen,
   highlightedSquares,
+  interactive = true,
   lastMove,
   selectedSquare,
   onSelectSquare,
@@ -198,6 +207,7 @@ export function ChessScene({
       <directionalLight color="#8fb7ff" intensity={0.8} position={[-4, 5, -4]} />
       <OrbitControls
         ref={controlsRef}
+        enabled={interactive}
         enablePan
         mouseButtons={{
           LEFT: MOUSE.ROTATE,
@@ -218,6 +228,7 @@ export function ChessScene({
           key={square}
           square={square}
           highlighted={highlightedSquares.includes(square)}
+          interactive={interactive}
           selected={square === selectedSquare}
           onSelect={onSelectSquare}
         />
@@ -226,6 +237,7 @@ export function ChessScene({
         <Piece
           key={`${piece.color}-${piece.type}-${piece.square}`}
           animationFrom={lastMove?.to === piece.square ? lastMove.from : undefined}
+          interactive={interactive}
           piece={piece}
           onSelect={onSelectSquare}
         />

@@ -6,6 +6,8 @@ Browserbasierte 3D-Schachplattform mit React, Tailwind CSS v4, Three.js, Fastify
 
 Tailwind CSS v4 wird über das offizielle Vite-Plugin eingebunden. Die Design-Tokens liegen in `apps/client/src/styles.css`; bestehende Komponentenstyles werden während der schrittweisen Migration in einer Tailwind-Component-Layer gehalten. Neue UI-Komponenten verwenden Tailwind-Utilities direkt.
 
+Die React-Oberfläche ist nach fachlichen Modulen aufgeteilt. `apps/client/src/App.tsx` übernimmt nur noch Routing und Zustandsübergänge zwischen Lade-, Auth-, Zuschauer- und eingeloggter Ansicht. Der Hook `apps/client/src/app/useAppController.ts` kapselt API-, Socket-, Lobby-, Chat- und Spielzustand; die Darstellungs-Module liegen unter `apps/client/src/components/app/`. Gemeinsame Typen und reine Hilfsfunktionen befinden sich unter `apps/client/src/app/`.
+
 ## Aktueller Stand
 
 Der Multiplayer-MVP ist umgesetzt:

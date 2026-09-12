@@ -37,19 +37,66 @@ import {
 } from './history/HistoryService.js';
 import { PrismaProfileProvider, type ProfileProvider } from './profile/ProfileService.js';
 
+type BuildAppOptions = Partial<{
+  authProvider: AuthProvider;
+  socialProvider: SocialProvider;
+  notificationProvider: NotificationProvider;
+  chatProvider: ChatProvider;
+  adminProvider: AdminProvider;
+  historyProvider: HistoryProvider;
+  profileProvider: ProfileProvider;
+}>;
+
+type LegacyProviderArgs = [
+  SocialProvider?,
+  NotificationProvider?,
+  ChatProvider?,
+  AdminProvider?,
+  HistoryProvider?,
+  ProfileProvider?,
+];
+
+function isAuthProvider(value: AuthProvider | BuildAppOptions): value is AuthProvider {
+  return 'login' in value && 'register' in value;
+}
+
+function legacyProviderOptions([
+  socialProvider,
+  notificationProvider,
+  chatProvider,
+  adminProvider,
+  historyProvider,
+  profileProvider,
+]: LegacyProviderArgs): BuildAppOptions {
+  return {
+    socialProvider,
+    notificationProvider,
+    chatProvider,
+    adminProvider,
+    historyProvider,
+    profileProvider,
+  };
+}
+
 export function buildApp(
   gameManager = new GameManager(),
-  authProvider: AuthProvider = new PrismaAuthProvider(prisma),
-  socialProvider: SocialProvider = new PrismaSocialProvider(prisma),
-  notificationProvider: NotificationProvider = new PrismaNotificationProvider(prisma),
-  chatProvider: ChatProvider = new PrismaChatProvider(prisma),
-  adminProvider: AdminProvider = new PrismaAdminProvider(prisma),
-  historyProvider: HistoryProvider = new PrismaHistoryProvider(prisma),
-  profileProvider: ProfileProvider = new PrismaProfileProvider(prisma),
+  providersOrAuth: AuthProvider | BuildAppOptions = {},
+  ...legacyProviders: LegacyProviderArgs
 ): FastifyInstance {
+  const options = isAuthProvider(providersOrAuth)
+    ? { authProvider: providersOrAuth, ...legacyProviderOptions(legacyProviders) }
+    : providersOrAuth;
+  const authProvider = options.authProvider ?? new PrismaAuthProvider(prisma);
+  const socialProvider = options.socialProvider ?? new PrismaSocialProvider(prisma);
+  const notificationProvider =
+    options.notificationProvider ?? new PrismaNotificationProvider(prisma);
+  const chatProvider = options.chatProvider ?? new PrismaChatProvider(prisma);
+  const adminProvider = options.adminProvider ?? new PrismaAdminProvider(prisma);
+  const historyProvider = options.historyProvider ?? new PrismaHistoryProvider(prisma);
+  const profileProvider = options.profileProvider ?? new PrismaProfileProvider(prisma);
   const app = Fastify({ logger: true });
 
-  void app.register(cors, { origin: true, credentials: true });
+  app.register(cors, { origin: true, credentials: true });
 
   app.post<{ Body: RegisterInput }>('/auth/register', async (request, reply) => {
     try {

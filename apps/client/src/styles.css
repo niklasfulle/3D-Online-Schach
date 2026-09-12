@@ -2,6 +2,17 @@
 
 @theme {
   --font-app: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
+  --color-primary: var(--accent);
+  --color-secondary: var(--surface-muted);
+  --color-accent-cta: #d97706;
+  --color-background: var(--page-bg);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text-strong);
+  --color-muted: var(--surface-muted);
+  --color-muted-foreground: var(--text-muted);
+  --color-border: var(--border);
+  --color-ring: var(--accent);
   --color-app-page: var(--page-bg);
   --color-app-surface: var(--surface);
   --color-app-text: var(--text);
@@ -63,6 +74,22 @@
   input {
     font: inherit;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  :where(a, button, input, select, textarea):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   .app-shell {
@@ -278,12 +305,49 @@
   .centered-message,
   .auth-shell {
     position: relative;
+    isolation: isolate;
     display: grid;
     grid-template-rows: 1fr auto;
     min-height: 100vh;
     place-items: center;
     padding: 1.5rem;
     background: radial-gradient(circle at top right, #1a2940 0, #0b0f16 45%);
+  }
+
+  .auth-board-background {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    background: #0b1220;
+  }
+
+  .auth-board-background canvas {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 0.78;
+    pointer-events: none;
+  }
+
+  .auth-board-scrim,
+  .auth-board-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .auth-board-scrim {
+    background:
+      linear-gradient(90deg, rgb(7 12 21 / 93%) 0%, rgb(7 12 21 / 76%) 38%, rgb(7 12 21 / 42%) 100%),
+      linear-gradient(180deg, rgb(7 12 21 / 35%) 0%, rgb(7 12 21 / 78%) 100%);
+    backdrop-filter: blur(1px);
+  }
+
+  .auth-board-vignette {
+    background: radial-gradient(circle at 52% 44%, transparent 0, rgb(7 12 21 / 20%) 52%, rgb(7 12 21 / 70%) 100%);
   }
 
   .app-footer {
@@ -339,6 +403,10 @@
 
   .auth-card {
     max-width: 460px;
+    position: relative;
+    z-index: 1;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    backdrop-filter: blur(22px);
   }
 
   .auth-card h1,

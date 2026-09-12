@@ -70,7 +70,7 @@ function toAdminUserView(user: {
   username: string;
   email: string | null;
   rating: number;
-  role: PrismaUserRole | string;
+  role: PrismaUserRole;
   lastOnline: Date | null;
 }): AdminUserView {
   return {
@@ -83,7 +83,7 @@ function toAdminUserView(user: {
   };
 }
 
-function toUserRole(role: PrismaUserRole | string): UserRole {
+function toUserRole(role: PrismaUserRole): UserRole {
   if (String(role).toLowerCase() === 'admin') return 'admin';
   if (String(role).toLowerCase() === 'spectator') return 'spectator';
   return 'user';

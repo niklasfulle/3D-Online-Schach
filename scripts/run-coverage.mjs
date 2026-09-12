@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -6,6 +6,21 @@ import path from 'node:path';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const vitestBinary = process.platform === 'win32' ? 'vitest.cmd' : 'vitest';
 const workspaces = ['apps/client', 'apps/server', 'packages/chess-core', 'packages/shared'];
+
+function normalizeLcovSourcePaths(lcovFile, workspace) {
+  const workspacePrefix = `${workspace.replaceAll('\\', '/')}/`;
+  const lcov = readFileSync(lcovFile, 'utf8');
+  const normalizedLcov = lcov.replace(/^SF:(.+)$/gm, (_match, sourcePath) => {
+    const normalizedSourcePath = sourcePath.replaceAll('\\', '/').replace(/^\.\//, '');
+    const repositoryPath = normalizedSourcePath.startsWith(workspacePrefix)
+      ? normalizedSourcePath
+      : `${workspacePrefix}${normalizedSourcePath}`;
+
+    return `SF:${repositoryPath}`;
+  });
+
+  writeFileSync(lcovFile, normalizedLcov);
+}
 
 for (const workspace of workspaces) {
   const workspaceDir = path.resolve(rootDir, workspace);
@@ -44,6 +59,8 @@ for (const workspace of workspaces) {
     console.error(`Coverage completed without a usable LCOV report: ${lcovFile}`);
     process.exit(1);
   }
+
+  normalizeLcovSourcePaths(lcovFile, workspace);
 
   console.log(`LCOV report: ${lcovFile}`);
 }
