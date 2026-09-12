@@ -6,7 +6,7 @@
     "build": "tsc",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:validate": "prisma validate --schema prisma/schema.prisma",
-    "dev": "tsx watch src/index.ts",
+    "dev": "node --env-file=../../.env --import=tsx/esm --watch src/index.ts",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text",
     "typecheck": "tsc --noEmit"
