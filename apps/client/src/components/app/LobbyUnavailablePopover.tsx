@@ -7,7 +7,7 @@ export function LobbyUnavailablePopover({
 }: Readonly<{ code: string; onClose: () => void; t: Translator }>) {
   return (
     <dialog
-      className="fixed right-6 top-[5.5rem] z-20 flex w-[min(24rem,calc(100vw-2rem))] items-start justify-between gap-4 rounded-2xl border border-[#8e4654] bg-[#3d202b] p-4 text-[#ffdce3] shadow-[0_18px_45px_rgb(0_0_0_/_24%)] max-sm:right-4"
+      className="fixed left-1/2 top-1/2 z-50 m-0 flex w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 items-start justify-between gap-4 rounded-2xl border border-[#8e4654] bg-[#3d202b] p-4 text-[#ffdce3] shadow-[0_18px_45px_rgb(0_0_0_/_24%)]"
       open
       aria-label={t('lobby.unavailableTitle')}
     >

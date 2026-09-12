@@ -1,5 +1,5 @@
 import { OrbitControls, useGLTF } from '@react-three/drei';
-import { memo, useMemo, useRef, type ComponentRef } from 'react';
+import { memo, useEffect, useMemo, useRef, type ComponentRef } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { MOUSE, Mesh, MeshStandardMaterial, type Group } from 'three';
 
@@ -137,6 +137,8 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export type ChessSceneProps = Readonly<{
+  autoOrient?: boolean;
+  boardColor: 'black' | 'white';
   fen: string;
   highlightedSquares: readonly Square[];
   interactive?: boolean;
@@ -152,6 +154,8 @@ function tileColor(selected: boolean, highlighted: boolean, isLight: boolean): s
 }
 
 export function ChessScene({
+  autoOrient = true,
+  boardColor,
   fen,
   highlightedSquares,
   interactive = true,
@@ -169,6 +173,15 @@ export function ChessScene({
     return result;
   }, []);
   const pieces = useMemo(() => piecesFromFen(fen), [fen]);
+
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!autoOrient || !controls) return;
+
+    camera.position.set(0, 13.5, boardColor === 'black' ? -16.5 : 16.5);
+    controls.target.set(0, 0.35, 0);
+    controls.update();
+  }, [autoOrient, boardColor, camera]);
 
   useFrame(() => {
     const controls = controlsRef.current;
@@ -211,8 +224,8 @@ export function ChessScene({
           RIGHT: MOUSE.PAN,
         }}
         maxPolarAngle={Math.PI / 2.15}
-        minDistance={7}
-        maxDistance={18}
+        minDistance={9}
+        maxDistance={28}
         target={[0, 0.35, 0]}
       />
       <mesh position={[0, -0.12, 0]} receiveShadow>

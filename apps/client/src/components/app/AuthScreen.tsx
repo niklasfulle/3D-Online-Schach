@@ -32,7 +32,7 @@ export function AuthScreen({
 }>) {
   return (
     <main
-      className="relative isolate grid min-h-dvh grid-rows-[1fr_auto] place-items-center overflow-hidden bg-[radial-gradient(circle_at_top_right,#1a2940_0,#0b0f16_45%)] p-6 max-sm:p-4"
+      className="relative isolate grid min-h-dvh grid-rows-[1fr_auto] place-items-center overflow-hidden bg-[var(--app-bg)]"
       data-theme={theme}
     >
       <AuthBoardBackground />
@@ -40,7 +40,7 @@ export function AuthScreen({
         <ThemeMenu theme={theme} onChange={onThemeChange} t={t} />
         <LanguageMenu language={language} onChange={onLanguageChange} t={t} />
       </div>
-      <section className="relative z-[1] w-full max-w-[29rem] rounded-3xl border border-app-border bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] p-[clamp(1.25rem,4vw,2.5rem)] text-app-text shadow-[0_24px_80px_rgb(0_0_0_/_25%)] backdrop-blur-[22px]">
+      <section className="relative z-[1] w-[calc(100%-2rem)] max-w-[29rem] rounded-3xl border border-app-border bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] p-[clamp(1.25rem,4vw,2.5rem)] text-app-text shadow-[0_24px_80px_rgb(0_0_0_/_25%)] backdrop-blur-[22px]">
         <p className="mb-2 text-xs font-bold tracking-[0.14em] text-app-accent">3D ONLINE-SCHACH</p>
         <h1 className="mb-4 text-[clamp(2rem,5vw,4rem)] leading-none tracking-[-0.04em] text-app-text-strong">
           {authMode === 'login' ? t('auth.welcome') : t('auth.createAccount')}
@@ -58,7 +58,7 @@ export function AuthScreen({
           <label className="grid gap-2 text-sm text-app-text-strong">
             <span>{t('auth.username')}</span>
             <input
-              className="w-full rounded-xl border border-app-border-strong bg-[#0c131f] px-4 py-3 text-base text-app-text transition-colors placeholder:text-app-text-muted focus:border-app-accent focus:outline-none focus:ring-4 focus:ring-app-accent/20"
+              className="w-full rounded-xl border border-app-border-strong bg-[var(--auth-input)] px-4 py-3 text-base text-app-text transition-colors placeholder:text-app-text-muted focus:border-app-accent focus:outline-none focus:ring-4 focus:ring-app-accent/20"
               autoComplete="username"
               name="username"
               required
@@ -75,7 +75,7 @@ export function AuthScreen({
                 <span className="text-app-text-muted">({t('auth.optional')})</span>
               </span>
               <input
-                className="w-full rounded-xl border border-app-border-strong bg-[#0c131f] px-4 py-3 text-base text-app-text transition-colors placeholder:text-app-text-muted focus:border-app-accent focus:outline-none focus:ring-4 focus:ring-app-accent/20"
+                className="w-full rounded-xl border border-app-border-strong bg-[var(--auth-input)] px-4 py-3 text-base text-app-text transition-colors placeholder:text-app-text-muted focus:border-app-accent focus:outline-none focus:ring-4 focus:ring-app-accent/20"
                 autoComplete="email"
                 name="email"
                 type="email"
@@ -87,7 +87,7 @@ export function AuthScreen({
           <label className="grid gap-2 text-sm text-app-text-strong">
             <span>{t('auth.password')}</span>
             <input
-              className="w-full rounded-xl border border-app-border-strong bg-[#0c131f] px-4 py-3 text-base text-app-text transition-colors placeholder:text-app-text-muted focus:border-app-accent focus:outline-none focus:ring-4 focus:ring-app-accent/20"
+              className="w-full rounded-xl border border-app-border-strong bg-[var(--auth-input)] px-4 py-3 text-base text-app-text transition-colors placeholder:text-app-text-muted focus:border-app-accent focus:outline-none focus:ring-4 focus:ring-app-accent/20"
               autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
               name="password"
               required

@@ -15,6 +15,17 @@ import { GameView } from './GameView';
 import { LanguageMenu, ThemeMenu } from './Menus';
 import { LobbyUnavailablePopover } from './LobbyUnavailablePopover';
 
+const iconButtonClass =
+  'relative grid size-10 cursor-pointer place-items-center rounded-xl border border-[var(--chrome-border)] bg-[var(--chrome-control)] text-app-accent shadow-[inset_0_1px_0_rgb(255_255_255_/_4%)] transition-[border-color,background,color,transform] hover:-translate-y-px hover:border-app-accent hover:bg-[var(--chrome-control-hover)] hover:text-[var(--chrome-text)] active:scale-95 focus-visible:outline-3 focus-visible:outline-[rgb(112_168_255_/_42%)] focus-visible:outline-offset-2';
+const logoutButtonClass =
+  'relative grid size-10 cursor-pointer place-items-center rounded-xl border border-[var(--chrome-border)] bg-[var(--chrome-control)] text-[var(--chrome-danger)] shadow-[inset_0_1px_0_rgb(255_255_255_/_4%)] transition-[border-color,background,color,transform] hover:-translate-y-px hover:border-[var(--chrome-danger)] hover:bg-[var(--chrome-danger-bg-hover)] hover:text-[var(--chrome-danger-hover)] active:scale-95 focus-visible:outline-3 focus-visible:outline-[rgb(112_168_255_/_42%)] focus-visible:outline-offset-2';
+const navButtonClass =
+  'relative grid min-h-[2.85rem] w-full cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 text-left text-xs font-semibold text-[var(--chrome-muted)] transition-[border-color,background,color,transform] hover:translate-x-px hover:border-[var(--chrome-border)] hover:bg-[var(--chrome-control-hover)] hover:text-[var(--chrome-subtle)]';
+const activeNavButtonClass =
+  'border-app-accent/50 bg-[var(--chrome-nav-active)] text-[var(--chrome-text)] shadow-[var(--chrome-nav-active-shadow)]';
+const quietButtonClass =
+  'cursor-pointer rounded-xl px-3 py-2 text-app-accent transition hover:bg-app-muted';
+
 function promotionLabelKey(
   promotion: (typeof PROMOTION_OPTIONS)[number],
 ): Parameters<AppController['t']>[0] {
@@ -52,65 +63,82 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
   } = controller;
   const unreadCount = notifications.filter((item) => !item.read).length;
   return (
-    <header className="topbar flex items-center justify-between gap-4 border-b border-app-border px-[clamp(1rem,3vw,2rem)] py-4 max-lg:flex-wrap">
-      <div className="brand-lockup flex items-center gap-3">
+    <header className="flex min-h-[4.875rem] items-center justify-between gap-4 border-b border-[var(--chrome-border)] bg-[var(--chrome-surface)] px-[clamp(1rem,3vw,2rem)] py-4 max-lg:flex-wrap">
+      <div className="flex items-center gap-3">
         <div
-          className="brand-mark grid h-11 w-11 place-items-center rounded-2xl border border-app-border-strong bg-app-muted text-xl text-app-accent shadow-lg"
+          className="grid h-11 w-11 place-items-center rounded-2xl border border-[rgb(255_212_117_/_42%)] bg-[linear-gradient(145deg,#304a68,#1d2e45)] text-xl text-white shadow-[0_8px_22px_rgb(209_160_72_/_22%)]"
           aria-hidden="true"
         >
           ♞
         </div>
         <div>
-          <p className="eyebrow mb-1 text-xs font-bold tracking-[0.14em] text-app-accent">
+          <p className="mb-1 text-xs font-bold tracking-[0.14em] text-app-accent">
             3D ONLINE-SCHACH
           </p>
-          <strong className="brand-title text-lg text-app-text-strong">Chessboard</strong>
+          <strong className="text-base tracking-[-.02em] text-[var(--chrome-text)]">
+            Chessboard
+          </strong>
         </div>
       </div>
-      <div className="header-actions flex items-center gap-2 max-md:flex-wrap">
+      <div className="flex items-center gap-2 max-md:flex-wrap">
         <ThemeMenu theme={theme} onChange={setTheme} t={t} />
         <LanguageMenu language={language} onChange={setLanguage} t={t} />
-        <span className="live-chip">
-          <span className="live-dot" /> {t('header.online')}
+        <span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[rgb(95_214_153_/_25%)] bg-[#153d2b] px-3 py-1.5 text-[.72rem] font-bold text-[#b6f4cb]">
+          <span className="inline-block size-[.42rem] rounded-full bg-[#6de29d] shadow-[0_0_0_3px_rgb(109_226_157_/_12%)]" />{' '}
+          {t('header.online')}
         </span>
-        <div className="notification-wrapper">
+        <div className="relative">
           <button
-            className="notification-button"
+            className={iconButtonClass}
             type="button"
             aria-label={`${t('notifications.label')} (${unreadCount})`}
             title={t('notifications.label')}
             onClick={() => setNotificationsOpen((open) => !open)}
           >
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM9.75 21h4.5" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              className="size-5"
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM9.75 21h4.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
-            {unreadCount ? <span className="notification-count">{unreadCount}</span> : null}
+            {unreadCount ? (
+              <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#e28b63] px-1 py-0.5 text-center text-[.62rem] font-extrabold text-[#20151a]">
+                {unreadCount}
+              </span>
+            ) : null}
           </button>
           {notificationsOpen ? (
-            <section className="notification-panel" aria-label={t('notifications.label')}>
-              <div className="notification-panel-header">
+            <section
+              className="absolute right-0 top-[calc(100%+.65rem)] z-10 grid w-[min(22rem,calc(100vw-2rem))] gap-3 rounded-xl border border-[rgb(111_151_201_/_24%)] bg-[#101b2c] p-3.5 shadow-[0_18px_45px_rgb(0_0_0_/_28%)]"
+              aria-label={t('notifications.label')}
+            >
+              <div className="flex items-center justify-between gap-3">
                 <strong>{t('notifications.label')}</strong>
-                <button
-                  className="quiet-button"
-                  type="button"
-                  onClick={() => void refreshNotifications()}
-                >
+                <button className={quietButtonClass} type="button" onClick={refreshNotifications}>
                   {t('notifications.refresh')}
                 </button>
               </div>
               {notifications.length ? (
-                <div className="notification-list">
+                <div className="grid gap-2">
                   {notifications.map((notification) => {
                     const itemClass = notification.read
-                      ? 'notification-item'
-                      : 'notification-item unread';
+                      ? 'grid w-full cursor-pointer gap-1 rounded-lg border border-transparent bg-transparent p-2.5 text-left text-[#d8e7ff] no-underline transition hover:border-[rgb(105_171_235_/_25%)] hover:bg-[rgb(56_112_176_/_13%)]'
+                      : 'grid w-full cursor-pointer gap-1 rounded-lg border border-[rgb(105_171_235_/_25%)] bg-[rgb(56_112_176_/_13%)] p-2.5 text-left text-[#d8e7ff] no-underline transition';
                     const target = notificationTarget(notification);
                     const content = (
                       <>
                         <strong>{notificationTitle(notification, language, t)}</strong>
                         <span>{notificationMessage(notification, language, t)}</span>
                         {target ? (
-                          <span className="notification-action">
+                          <span className="text-xs font-bold text-[#9cc6ff]">
                             {notification.type === 'spectator_invitation'
                               ? t('notifications.openSpectator')
                               : t('notifications.openGame')}
@@ -123,7 +151,7 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
                         className={itemClass}
                         href={target}
                         key={notification.id}
-                        onClick={() => void markNotificationRead(notification)}
+                        onClick={() => markNotificationRead(notification)}
                       >
                         {content}
                       </a>
@@ -132,7 +160,7 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
                         className={itemClass}
                         key={notification.id}
                         type="button"
-                        onClick={() => void markNotificationRead(notification)}
+                        onClick={() => markNotificationRead(notification)}
                       >
                         {content}
                       </button>
@@ -140,31 +168,44 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
                   })}
                 </div>
               ) : (
-                <p className="muted">{t('notifications.empty')}</p>
+                <p className="text-app-text-muted">{t('notifications.empty')}</p>
               )}
             </section>
           ) : null}
         </div>
-          <button
-            className="profile-chip profile-trigger"
-            type="button"
-            aria-label={`${user?.username} · ${user?.rating}`}
-            title={t('sidebar.profile')}
-            onClick={() => void openProfile()}
-          >
-            <span className="avatar">{user?.username.slice(0, 1).toUpperCase()}</span>
-            <span>{user?.username}</span>
-            <span className="profile-rating">{user?.rating}</span>
-          </button>
         <button
-          className="header-icon-button logout-button"
+          className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-[var(--chrome-border)] bg-[var(--chrome-control)] px-1 py-1 pr-2 text-xs font-semibold text-[var(--chrome-subtle)] shadow-[inset_0_1px_0_rgb(255_255_255_/_4%)] transition hover:-translate-y-px hover:border-app-accent hover:bg-[var(--chrome-control-hover)] hover:text-[var(--chrome-text)] active:scale-[.98] focus-visible:outline-3 focus-visible:outline-[rgb(112_168_255_/_42%)] focus-visible:outline-offset-2"
+          type="button"
+          aria-label={`${user?.username} · ${user?.rating}`}
+          title={t('sidebar.profile')}
+          onClick={openProfile}
+        >
+          <span className="grid size-7 place-items-center rounded-full bg-[linear-gradient(145deg,#365f8f,#203854)] text-xs font-extrabold text-white">
+            {user?.username.slice(0, 1).toUpperCase()}
+          </span>
+          <span>{user?.username}</span>
+          <span className="tabular-nums text-[#83b6f0]">{user?.rating}</span>
+        </button>
+        <button
+          className={logoutButtonClass}
           type="button"
           aria-label={t('auth.logout')}
           title={t('auth.logout')}
-          onClick={() => void logout()}
+          onClick={logout}
         >
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M10 5H5.5A1.5 1.5 0 0 0 4 6.5v11A1.5 1.5 0 0 0 5.5 19H10" strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            className="size-5"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path
+              d="M10 5H5.5A1.5 1.5 0 0 0 4 6.5v11A1.5 1.5 0 0 0 5.5 19H10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
             <path d="m14 8 4 4-4 4M18 12H9" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
@@ -191,93 +232,192 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
   } = controller;
 
   return (
-    <aside className="sidebar flex min-h-0 flex-col justify-between max-lg:border-r-0 max-lg:border-b">
+    <aside className="flex min-h-0 flex-col justify-between border-r border-[var(--chrome-border)] bg-[var(--chrome-sidebar)] p-[1.35rem_.8rem] max-lg:border-r-0 max-lg:border-b">
       <div>
-        <span className="sidebar-label">{t('sidebar.workspace')}</span>
-        <nav className="sidebar-nav grid gap-1" aria-label={t('sidebar.navigation')}>
+        <span className="mb-3 ml-2 block text-[.6rem] font-extrabold uppercase tracking-[.14em] text-[#6f8dab]">
+          {t('sidebar.workspace')}
+        </span>
+        <nav className="grid gap-1" aria-label={t('sidebar.navigation')}>
           <button
-            className={view === 'lobby' ? 'nav-button active' : 'nav-button'}
+            className={`${navButtonClass} ${view === 'lobby' ? activeNavButtonClass : ''}`}
             type="button"
             onClick={() => setView('lobby')}
           >
-            <span className="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="m4 10 8-6 8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z" strokeLinejoin="round" />
+            <span
+              className="grid size-6 place-items-center rounded-lg text-[#83b4e6]"
+              aria-hidden="true"
+            >
+              <svg
+                className="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <path
+                  d="m4 10 8-6 8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z"
+                  strokeLinejoin="round"
+                />
                 <path d="M9.5 20v-5h5v5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
             <span>{t('sidebar.lobby')}</span>
-            <span className="nav-count">{lobbyGames.length}</span>
+            <span className="min-w-5 rounded-full bg-[var(--chrome-nav-badge)] px-1.5 py-0.5 text-center text-[.63rem] font-bold tabular-nums leading-none text-[var(--chrome-nav-badge-text)]">
+              {lobbyGames.length}
+            </span>
           </button>
           <button
-            className={view === 'history' ? 'nav-button active' : 'nav-button'}
+            className={`${navButtonClass} ${view === 'history' ? activeNavButtonClass : ''}`}
             type="button"
-            onClick={() => void openHistory()}
+            onClick={openHistory}
           >
-            <span className="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <span
+              className="grid size-6 place-items-center rounded-lg text-[#83b4e6]"
+              aria-hidden="true"
+            >
+              <svg
+                className="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
                 <circle cx="12" cy="12" r="8" />
                 <path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
             <span>{t('sidebar.history')}</span>
-            <span className="nav-count">{historyGames.length}</span>
+            <span className="min-w-5 rounded-full bg-[var(--chrome-nav-badge)] px-1.5 py-0.5 text-center text-[.63rem] font-bold tabular-nums leading-none text-[var(--chrome-nav-badge-text)]">
+              {historyGames.length}
+            </span>
           </button>
           {user?.role === 'admin' ? (
             <button
-              className={view === 'admin' ? 'nav-button active' : 'nav-button'}
+              className={`${navButtonClass} ${view === 'admin' ? activeNavButtonClass : ''}`}
               type="button"
               onClick={() => {
                 setView('admin');
-                void refreshAdminUsers();
+                refreshAdminUsers();
               }}
             >
-              <span className="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="m12 3 7 3.5v4.75c0 4.4-3.02 7.34-7 9.75-3.98-2.41-7-5.35-7-9.75V6.5L12 3Z" strokeLinejoin="round" />
-                  <path d="M9.5 12.1 11 13.6l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
+              <span
+                className="grid size-6 place-items-center rounded-lg text-[#83b4e6]"
+                aria-hidden="true"
+              >
+                <svg
+                  className="size-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path
+                    d="m12 3 7 3.5v4.75c0 4.4-3.02 7.34-7 9.75-3.98-2.41-7-5.35-7-9.75V6.5L12 3Z"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M9.5 12.1 11 13.6l3.5-3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </span>
               <span>{t('sidebar.administration')}</span>
-              <span className="nav-count">{adminUsers.length}</span>
+              <span className="min-w-5 rounded-full bg-[var(--chrome-nav-badge)] px-1.5 py-0.5 text-center text-[.63rem] font-bold tabular-nums leading-none text-[var(--chrome-nav-badge-text)]">
+                {adminUsers.length}
+              </span>
             </button>
           ) : null}
           <button
-            className={view === 'friends' ? 'nav-button active' : 'nav-button'}
+            className={`${navButtonClass} ${view === 'friends' ? activeNavButtonClass : ''}`}
             type="button"
             onClick={() => {
               setView('friends');
-              void refreshFriends();
+              refreshFriends();
             }}
           >
-            <span className="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <span
+              className="grid size-6 place-items-center rounded-lg text-[#83b4e6]"
+              aria-hidden="true"
+            >
+              <svg
+                className="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
                 <circle cx="9" cy="9" r="3" />
                 <path d="M3.8 20c.55-3.15 2.25-5 5.2-5s4.65 1.85 5.2 5" strokeLinecap="round" />
-                <path d="M15.5 7.1a2.5 2.5 0 0 1 0 4.8M16.2 15.3c2.1.42 3.38 1.94 3.9 4.7" strokeLinecap="round" />
+                <path
+                  d="M15.5 7.1a2.5 2.5 0 0 1 0 4.8M16.2 15.3c2.1.42 3.38 1.94 3.9 4.7"
+                  strokeLinecap="round"
+                />
               </svg>
             </span>
             <span>{t('sidebar.friends')}</span>
-            <span className="nav-count">{friends?.friends.length ?? 0}</span>
+            <span className="min-w-5 rounded-full bg-[var(--chrome-nav-badge)] px-1.5 py-0.5 text-center text-[.63rem] font-bold tabular-nums leading-none text-[var(--chrome-nav-badge-text)]">
+              {friends?.friends.length ?? 0}
+            </span>
           </button>
           {selectedGame ? (
             <button
-              className={view === 'game' ? 'nav-button active' : 'nav-button'}
+              className={`${navButtonClass} ${view === 'game' ? activeNavButtonClass : ''}`}
               type="button"
               onClick={openSelectedGame}
             >
-              <span className="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M7 5h10l-1 4-2-1-2 1-2-1-2 1-1-4ZM8.5 10h7l.8 6H7.7l.8-6ZM6 20h12M8 16h8v4H8z" strokeLinecap="round" strokeLinejoin="round" />
+              <span
+                className="grid size-6 place-items-center rounded-lg text-[#83b4e6]"
+                aria-hidden="true"
+              >
+                <svg
+                  className="size-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path
+                    d="M7 5h10l-1 4-2-1-2 1-2-1-2 1-1-4ZM8.5 10h7l.8 6H7.7l.8-6ZM6 20h12M8 16h8v4H8z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </span>
               <span>{t('sidebar.activeGame')}</span>
-              <span className="nav-live-dot" />
+              <span className="inline-block size-[.42rem] rounded-full bg-[#6de29d] shadow-[0_0_0_3px_rgb(109_226_157_/_12%)]" />
             </button>
           ) : null}
         </nav>
       </div>
     </aside>
+  );
+}
+
+function DashboardHeading({
+  view,
+  pageHeading,
+}: Readonly<{
+  view: AppController['view'];
+  pageHeading: ReturnType<typeof pageHeadingFor>;
+}>) {
+  if (view === 'game') return null;
+
+  return (
+    <div className="mb-7 flex items-start justify-between gap-4 max-sm:mb-5">
+      <div>
+        <span className="mb-2 text-xs font-bold tracking-[.14em] text-app-accent">
+          {pageHeading.eyebrow}
+        </span>
+        <h1 className="mt-1 mb-2 text-[clamp(2rem,4vw,3.2rem)] leading-none tracking-[-0.04em] text-app-text-strong">
+          {pageHeading.title}
+        </h1>
+        <p className="text-app-text-muted">{pageHeading.description}</p>
+      </div>
+      <div className="heading-accent pt-2 text-2xl text-app-accent opacity-80" aria-hidden="true">
+        ✦
+      </div>
+    </div>
   );
 }
 
@@ -353,7 +493,7 @@ function DashboardContent({
   }
 
   return (
-    <section className="dashboard-main min-w-0 px-[clamp(1rem,3vw,2rem)] py-6">
+    <section className="w-full min-w-0 px-[clamp(1rem,3vw,2rem)] py-6">
       {unavailableLobbyCode ? (
         <LobbyUnavailablePopover
           code={unavailableLobbyCode}
@@ -362,7 +502,11 @@ function DashboardContent({
         />
       ) : null}
       {error ? (
-        <div className="error-banner" role="alert" aria-live="polite">
+        <div
+          className="flex w-full items-start justify-between gap-4 rounded-xl border border-[#8e4654] bg-[#3d202b] px-4 py-3 text-sm leading-6 text-[#ffdce3]"
+          role="alert"
+          aria-live="polite"
+        >
           <span>
             <strong>{t('guest.connectionHint')}</strong>
             {error}
@@ -372,26 +516,15 @@ function DashboardContent({
           </button>
         </div>
       ) : null}
-      <div className="page-heading mb-7 flex items-start justify-between gap-4 max-sm:mb-5">
-        <div>
-          <span className="eyebrow">{pageHeading.eyebrow}</span>
-          <h1 className="mt-1 mb-2 text-[clamp(2rem,4vw,3.2rem)] leading-none tracking-[-0.04em] text-app-text-strong">
-            {pageHeading.title}
-          </h1>
-          <p className="text-app-text-muted">{pageHeading.description}</p>
-        </div>
-        <div className="heading-accent pt-2 text-2xl text-app-accent opacity-80" aria-hidden="true">
-          ✦
-        </div>
-      </div>
+      <DashboardHeading view={view} pageHeading={pageHeading} />
       {view === 'lobby' ? (
         <LobbyView
           t={t}
           games={lobbyGames}
-          onRefresh={() => void refreshLobby()}
-          onCreate={(mode) => void createGame(mode)}
-          onJoin={(code) => void joinGame(code)}
-          onDelete={(code) => void deleteGame(code)}
+          onRefresh={() => refreshLobby()}
+          onCreate={(mode) => createGame(mode)}
+          onJoin={(code) => joinGame(code)}
+          onDelete={(code) => deleteGame(code)}
         />
       ) : null}
       {view === 'history' ? (
@@ -408,7 +541,7 @@ function DashboardContent({
           onResultFilterChange={setHistoryResultFilter}
           onModeFilterChange={setHistoryModeFilter}
           onSelect={setSelectedHistoryGame}
-          onLoadMore={() => void refreshHistory(historyCursor)}
+          onLoadMore={() => refreshHistory(historyCursor)}
         />
       ) : null}
       {view === 'profile' ? profileContent : null}
@@ -430,19 +563,19 @@ function DashboardContent({
           setSearchQuery={setSearchQuery}
           searchResults={searchResults}
           onSearch={searchUsers}
-          onAdd={(username) => void sendFriendRequest(username)}
-          onRespond={(id, action) => void respondToRequest(id, action)}
-          onInvite={(username) => void inviteFriend(username)}
-          onInviteSpectator={(username) => void inviteSpectator(username)}
-          onViewProfile={(id) => void openPublicProfile(id)}
+          onAdd={(username) => sendFriendRequest(username)}
+          onRespond={(id, action) => respondToRequest(id, action)}
+          onInvite={(username) => inviteFriend(username)}
+          onInviteSpectator={(username) => inviteSpectator(username)}
+          onViewProfile={(id) => openPublicProfile(id)}
         />
       ) : null}
       {view === 'admin' && user.role === 'admin' ? (
         <AdminView
           t={t}
           users={adminUsers}
-          onRefresh={() => void refreshAdminUsers()}
-          onRoleChange={(id, role) => void updateAdminRole(id, role)}
+          onRefresh={() => refreshAdminUsers()}
+          onRoleChange={(id, role) => updateAdminRole(id, role)}
         />
       ) : null}
       {view === 'game' && selectedGame ? (
@@ -459,21 +592,21 @@ function DashboardContent({
           onBackToLobby={returnToLobby}
           onDeleteGame={() => {
             if (!selectedGame) return;
-            void deleteGame(selectedGame.code).then((deleted) => {
+            deleteGame(selectedGame.code).then((deleted) => {
               if (deleted) returnToLobby();
             });
           }}
           handleSelectSquare={handleSelectSquare}
-          onCopyLink={() => void copyGameLink()}
+          onCopyLink={() => copyGameLink()}
           linkCopied={linkCopied}
           spectatorMode={spectatorMode}
-          onCopySpectatorLink={() => void copySpectatorLink()}
+          onCopySpectatorLink={() => copySpectatorLink()}
           spectatorLinkCopied={spectatorLinkCopied}
           chatMessages={chatMessages}
           chatDraft={chatDraft}
           onChatDraftChange={setChatDraft}
           onSendChat={sendChat}
-          onResign={() => void resignGame()}
+          onResign={() => resignGame()}
         />
       ) : null}
     </section>
@@ -483,31 +616,38 @@ function DashboardContent({
 function InsightsPanel({ controller }: AuthenticatedComponentProps) {
   const { user, friends, openProfile, t } = controller;
   return (
-    <aside className="insights-panel grid content-start gap-4">
-      <div className="insight-card profile-insight rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
-        <div className="insight-heading">
+    <aside className="grid content-start gap-4 border-l border-[var(--chrome-border)] bg-[color-mix(in_srgb,var(--surface-muted)_42%,transparent)] p-4">
+      <div className="grid gap-2 rounded-2xl border border-app-border bg-[var(--chrome-surface)] p-4 shadow-lg">
+        <div className="flex items-center justify-between text-[.6rem] font-extrabold tracking-[.12em] text-app-text-muted">
           <span>{t('insight.status')}</span>
-          <span className="live-chip small">
-            <span className="live-dot" /> Live
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgb(95_214_153_/_25%)] bg-[#153d2b] px-2 py-1 text-[.65rem] font-bold tracking-normal text-[#b6f4cb]">
+            <span className="inline-block size-[.42rem] rounded-full bg-[#6de29d] shadow-[0_0_0_3px_rgb(109_226_157_/_12%)]" />{' '}
+            Live
           </span>
         </div>
-        <div className="insight-avatar">{user?.username.slice(0, 1).toUpperCase()}</div>
+        <div className="my-2 grid size-14 place-items-center rounded-full bg-[linear-gradient(145deg,#639bd7,#294a73)] text-xl font-extrabold text-white">
+          {user?.username.slice(0, 1).toUpperCase()}
+        </div>
         <strong>{user?.username}</strong>
-        <span className="muted">{t('insight.ready')}</span>
-        <div className="insight-stats">
+        <span className="text-app-text-muted">{t('insight.ready')}</span>
+        <div className="mt-2 flex items-center gap-5 border-t border-[rgb(111_151_201_/_14%)] pt-3">
           <div>
-            <strong>{user?.rating}</strong>
-            <span>{t('insight.rating')}</span>
+            <strong className="block text-[.92rem] tabular-nums text-app-text-strong">
+              {user?.rating}
+            </strong>
+            <span className="text-[.64rem] text-app-text-muted">{t('insight.rating')}</span>
           </div>
           <div>
-            <strong>{friends?.friends.length ?? 0}</strong>
-            <span>{t('insight.friends')}</span>
+            <strong className="block text-[.92rem] tabular-nums text-app-text-strong">
+              {friends?.friends.length ?? 0}
+            </strong>
+            <span className="text-[.64rem] text-app-text-muted">{t('insight.friends')}</span>
           </div>
         </div>
         <button
-          className="quiet-button profile-insight-action flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-app-border px-3 py-2 text-sm font-semibold transition hover:border-app-accent hover:bg-app-muted"
+          className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-app-border px-3 py-2 text-sm font-semibold text-app-accent transition hover:border-app-accent hover:bg-app-muted"
           type="button"
-          onClick={() => void openProfile()}
+          onClick={openProfile}
         >
           {t('sidebar.profile')}
           <span aria-hidden="true">→</span>
@@ -523,11 +663,11 @@ function PromotionDialog({ controller }: AuthenticatedComponentProps) {
   return (
     <dialog
       open
-      className="promotion-dialog fixed left-1/2 top-1/2 z-20 grid min-w-72 -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-app-border-strong bg-app-surface p-4 text-app-text shadow-2xl"
+      className="fixed left-1/2 top-1/2 z-20 grid min-w-72 -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-app-border-strong bg-app-surface p-4 text-app-text shadow-2xl"
       aria-label={t('promotion.label')}
     >
       <strong>{t('promotion.label')}</strong>
-      <div className="promotion-actions grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {PROMOTION_OPTIONS.map((promotion) => (
           <button
             key={promotion}
@@ -542,8 +682,7 @@ function PromotionDialog({ controller }: AuthenticatedComponentProps) {
   );
 }
 export function AuthenticatedView(controller: Readonly<AppController>) {
-  const { user, language, theme, view, selectedGame, gameState, profileLoading, profile, t } =
-    controller;
+  const { user, language, theme, view, gameState, profileLoading, profile, t } = controller;
 
   if (!user) {
     return null;
@@ -554,37 +693,37 @@ export function AuthenticatedView(controller: Readonly<AppController>) {
   const isGameView = view === 'game';
   let profileContent = null;
   if (profileLoading) {
-    profileContent = <div className="centered-message">{t('profile.loading')}</div>;
+    profileContent = (
+      <div className="grid min-h-dvh place-items-center bg-[var(--app-bg)] text-app-text-muted">
+        {t('profile.loading')}
+      </div>
+    );
   } else if (profile) {
     profileContent = <ProfileView t={t} language={language} profile={profile} />;
   }
 
   return (
     <main
-      className={
-        view === 'game'
-          ? 'app-shell game-mode grid min-h-dvh bg-app-page text-app-text'
-          : 'app-shell grid min-h-dvh bg-app-page text-app-text'
-      }
+      className="grid min-h-dvh grid-rows-[1fr_auto] bg-[var(--app-bg)] text-app-text"
       data-theme={theme}
     >
-      <div className="dashboard-shell grid w-full min-w-0">
+      <div className="grid min-h-0 w-full min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--app-shell)] backdrop-blur-3xl">
         <AuthenticatedHeader controller={controller} />
         <div
           className={
             isGameView
-              ? 'dashboard-grid grid min-w-0 grid-cols-[minmax(0,1fr)]'
-              : 'dashboard-grid grid min-w-0 grid-cols-[minmax(14rem,16rem)_minmax(0,1fr)_minmax(14rem,18rem)] max-xl:grid-cols-[minmax(13rem,15rem)_minmax(0,1fr)] max-xl:[&>.insights-panel]:hidden max-lg:grid-cols-1'
+              ? 'grid min-w-0 grid-cols-[minmax(0,1fr)]'
+              : 'grid min-w-0 grid-cols-[minmax(14rem,16rem)_minmax(0,1fr)_minmax(14rem,18rem)] max-xl:grid-cols-[minmax(13rem,15rem)_minmax(0,1fr)] max-xl:[&>aside:last-child]:hidden max-lg:grid-cols-1'
           }
         >
-          {!isGameView ? <DashboardSidebar controller={controller} /> : null}
+          {isGameView ? null : <DashboardSidebar controller={controller} />}
           <DashboardContent
             controller={controller}
             pageHeading={pageHeading}
             profileContent={profileContent}
             turnLabel={turnLabel}
           />
-          {!isGameView ? <InsightsPanel controller={controller} /> : null}
+          {isGameView ? null : <InsightsPanel controller={controller} />}
         </div>
       </div>
       <PromotionDialog controller={controller} />

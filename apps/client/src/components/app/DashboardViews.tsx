@@ -40,6 +40,24 @@ function profileMetricIcon(color: string): string {
   return '◈';
 }
 
+const panelLabelClass = 'text-xs font-bold uppercase tracking-[.12em] text-app-accent';
+const mutedClass = 'text-app-text-muted';
+const profileMetricClasses: Record<string, string> = {
+  blue: 'bg-[#1e3d5e] text-[#c0e3ff]',
+  green: 'bg-[#1e4938] text-[#9de4b8]',
+  red: 'bg-[#5a2535] text-[#ffd8de]',
+  gold: 'bg-[#4d3b20] text-[#f1cc79]',
+};
+
+function profileMetricClass(color: string) {
+  return profileMetricClasses[color] ?? profileMetricClasses.blue;
+}
+const cardClass = 'w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg';
+const secondaryButtonClass =
+  'inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-app-accent/45 bg-[var(--action-surface)] px-3.5 py-2.5 text-center text-xs font-bold leading-tight text-[var(--action-text)] transition hover:border-app-accent hover:bg-[var(--action-surface-hover)] hover:text-white active:translate-y-px';
+const tinyButtonClass =
+  'inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-app-accent/40 bg-[var(--action-surface)] px-2.5 py-1.5 text-[.7rem] font-bold leading-tight text-[var(--action-text)] transition hover:-translate-y-px hover:border-app-accent hover:bg-[var(--action-surface-hover)] hover:text-white';
+
 export function LobbyView({
   t,
   games,
@@ -63,24 +81,26 @@ export function LobbyView({
   }, []);
 
   return (
-    <div className="lobby-content lobby-content--wide grid w-full gap-4">
-      <section className="welcome-card relative flex min-h-[180px] items-center justify-between gap-6 overflow-hidden rounded-2xl border border-app-border bg-[radial-gradient(circle_at_84%_50%,rgb(105_171_235_/_18%),transparent_30%),linear-gradient(130deg,#172b45,#101c2c_65%,#14253b)] p-6 shadow-lg max-sm:flex-col max-sm:items-start">
+    <div className="grid w-full gap-4">
+      <section className="relative flex min-h-[180px] items-center justify-between gap-6 overflow-hidden rounded-2xl border border-[var(--lobby-hero-border)] bg-[var(--lobby-hero)] p-6 shadow-lg max-sm:flex-col max-sm:items-start">
         <div>
-          <span className="panel-label">{t('lobby.nextMove')}</span>
-          <h2 className="mb-2 text-2xl font-semibold text-app-text-strong">
+          <span className={panelLabelClass}>{t('lobby.nextMove')}</span>
+          <h2 className="mb-2 text-2xl font-semibold text-[var(--lobby-hero-text)]">
             {t('lobby.findGame')}
           </h2>
-          <p className="mb-4 max-w-prose text-app-text-muted">{t('lobby.description')}</p>
-          <div className="action-row flex flex-wrap items-center gap-2">
+          <p className="mb-4 max-w-prose text-[var(--lobby-hero-muted)]">
+            {t('lobby.description')}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              className="primary-button min-h-11 cursor-pointer rounded-xl bg-[#4777ae] px-4 py-3 font-semibold text-white transition hover:bg-[#568ac7]"
+              className="min-h-11 cursor-pointer rounded-xl bg-[var(--lobby-hero-primary)] px-4 py-3 font-semibold text-white transition hover:bg-[var(--lobby-hero-primary-hover)]"
               type="button"
               onClick={() => onCreate('casual')}
             >
               {t('lobby.createCasual')} <span aria-hidden="true">→</span>
             </button>
             <button
-              className="ghost-button min-h-11 cursor-pointer rounded-xl border border-app-border-strong bg-transparent px-4 py-3 text-app-accent transition hover:bg-app-muted"
+              className="min-h-11 cursor-pointer rounded-xl border border-[var(--lobby-hero-secondary-border)] bg-transparent px-4 py-3 text-[var(--lobby-hero-secondary-text)] transition hover:bg-app-muted"
               type="button"
               onClick={() => onCreate('ranked')}
             >
@@ -88,49 +108,63 @@ export function LobbyView({
             </button>
           </div>
         </div>
-        <div className="welcome-piece absolute right-[6%] top-1/2 -translate-y-1/2 text-[8rem] leading-none text-app-accent opacity-10 max-sm:bottom-[-1.5rem] max-sm:right-[4%] max-sm:top-auto max-sm:translate-y-0 max-sm:text-[6rem]" aria-hidden="true">
+        <div
+          className="absolute right-[6%] top-1/2 -translate-y-1/2 text-[8rem] leading-none text-app-accent opacity-10 max-sm:bottom-[-1.5rem] max-sm:right-[4%] max-sm:top-auto max-sm:translate-y-0 max-sm:text-[6rem]"
+          aria-hidden="true"
+        >
           ♞
         </div>
       </section>
-      <div className="dashboard-stats grid grid-cols-3 gap-3 max-sm:grid-cols-1">
-        <div className="metric-card flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
-          <span className="metric-icon blue grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1e3d5e] text-lg text-[#c0e3ff]" aria-hidden="true">
+      <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
+        <div className="flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
+          <span
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1e3d5e] text-lg text-[#c0e3ff]"
+            aria-hidden="true"
+          >
             ◈
           </span>
           <div className="grid min-w-0 gap-1">
-            <span className="muted">{t('lobby.openGames')}</span>
+            <span className={mutedClass}>{t('lobby.openGames')}</span>
             <strong className="block text-lg font-bold text-app-text-strong">{games.length}</strong>
           </div>
         </div>
-        <div className="metric-card flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
-          <span className="metric-icon gold grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#4d3b20] text-lg text-[#f1cc79]" aria-hidden="true">
+        <div className="flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
+          <span
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#4d3b20] text-lg text-[#f1cc79]"
+            aria-hidden="true"
+          >
             ✦
           </span>
           <div className="grid min-w-0 gap-1">
-            <span className="muted">{t('lobby.gameModes')}</span>
+            <span className={mutedClass}>{t('lobby.gameModes')}</span>
             <strong className="block text-lg font-bold text-app-text-strong">
               {t('mode.casual')} &amp; {t('mode.ranked')}
             </strong>
           </div>
         </div>
-        <div className="metric-card flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
-          <span className="metric-icon green grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1e4938] text-lg text-[#9de4b8]" aria-hidden="true">
+        <div className="flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
+          <span
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1e4938] text-lg text-[#9de4b8]"
+            aria-hidden="true"
+          >
             ◉
           </span>
           <div className="grid min-w-0 gap-1">
-            <span className="muted">{t('lobby.serverStatus')}</span>
-            <strong className="block text-lg font-bold text-app-text-strong">{t('header.online')}</strong>
+            <span className={mutedClass}>{t('lobby.serverStatus')}</span>
+            <strong className="block text-lg font-bold text-app-text-strong">
+              {t('header.online')}
+            </strong>
           </div>
         </div>
       </div>
-      <section className="content-card lobby-card lobby-overview-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
-        <div className="section-heading lobby-card-heading flex items-center justify-between gap-4">
+      <section className={cardClass}>
+        <div className="flex items-center justify-between gap-4 border-b border-app-border pb-4 max-[480px]:items-start max-[480px]:flex-col">
           <div>
-            <span className="panel-label">{t('lobby.liveGames')}</span>
+            <span className={panelLabelClass}>{t('lobby.liveGames')}</span>
             <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('lobby.title')}</h2>
           </div>
           <button
-            className="quiet-button min-h-11 cursor-pointer rounded-xl px-3 py-2 text-app-accent transition hover:bg-app-muted"
+            className="min-h-11 cursor-pointer rounded-xl px-3 py-2 text-app-accent transition hover:bg-app-muted"
             type="button"
             onClick={onRefresh}
           >
@@ -138,27 +172,35 @@ export function LobbyView({
           </button>
         </div>
         {games.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon" aria-hidden="true">
+          <div className="grid justify-items-center gap-2 p-6 text-center">
+            <div
+              className="grid size-10 place-items-center rounded-xl bg-[#1e3d5e] text-xl text-[#d4a34e]"
+              aria-hidden="true"
+            >
               ♟
             </div>
             <strong>{t('lobby.emptyTitle')}</strong>
-            <span className="muted">{t('lobby.emptyDescription')}</span>
+            <span className={mutedClass}>{t('lobby.emptyDescription')}</span>
           </div>
         ) : (
-          <div className="lobby-list mt-5 grid gap-2">
+          <div className="mt-5 grid gap-2">
             {games.map((game) => (
               <div
-                className="lobby-row lobby-game-row"
+                className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-[clamp(.75rem,1.5vw,1.25rem)] border-t border-app-border px-3 py-3.5 transition hover:bg-app-muted max-[720px]:grid-cols-[minmax(0,1fr)_auto] max-[480px]:grid-cols-1"
                 key={game.code}
               >
-                <div className="lobby-game-leading">
-                  <div className="game-mode-icon" aria-hidden="true">
+                <div className="flex min-w-0 max-w-[min(38rem,52vw)] items-center gap-3">
+                  <div
+                    className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#1e3d5e] text-lg text-[#c0e3ff]"
+                    aria-hidden="true"
+                  >
                     {game.mode === 'ranked' ? '♛' : '♙'}
                   </div>
-                  <div className="lobby-game-meta">
-                    <strong>{gameLabel(game, t)}</strong>
-                    <span>
+                  <div className="grid min-w-0 gap-0.5">
+                    <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-sm text-app-text-strong">
+                      {gameLabel(game, t)}
+                    </strong>
+                    <span className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-app-text-muted">
                       5 {t('game.minutes')} · {t('lobby.openGameDescription')}
                       {game.expiresAt
                         ? ` · verfällt in ${formatClock(Math.max(0, game.expiresAt - now))}`
@@ -166,13 +208,13 @@ export function LobbyView({
                     </span>
                   </div>
                 </div>
-                <span className="waiting-label lobby-game-status">
-                  <span className="live-dot" />
+                <span className="inline-flex min-h-9 min-w-max items-center gap-1.5 text-[.68rem] text-[#8acda5] max-[720px]:col-start-1 max-[720px]:justify-self-start">
+                  <span className="inline-block size-[.42rem] rounded-full bg-[#6de29d] shadow-[0_0_0_3px_rgb(109_226_157_/_12%)]" />
                   {game.isOwner ? t('lobby.yourGame') : t('lobby.waiting')}
                 </span>
-                <div className="lobby-game-actions">
+                <div className="grid grid-cols-[auto_2.55rem] items-center gap-2.5 max-[720px]:col-start-2 max-[720px]:row-span-2 max-[480px]:col-start-1 max-[480px]:row-auto max-[480px]:grid-cols-[minmax(0,1fr)_2.55rem]">
                   <button
-                    className="secondary-button lobby-open-button"
+                    className={`${secondaryButtonClass} h-[2.55rem] min-h-[2.55rem] gap-1.5 px-3 text-[.72rem]`}
                     type="button"
                     onClick={() => onJoin(game.code)}
                   >
@@ -181,14 +223,30 @@ export function LobbyView({
                   </button>
                   {game.isOwner ? (
                     <button
-                      className="quiet-button lobby-delete-button"
+                      className="grid size-[2.55rem] cursor-pointer place-items-center rounded-lg border border-[var(--danger-control-border)] bg-[var(--danger-control)] text-[var(--danger-control-text)] transition hover:-translate-y-px hover:border-[#f595a3] hover:bg-[var(--danger-control-hover)] hover:text-[var(--danger-control-hover-text)]"
                       type="button"
                       aria-label={`${t('lobby.deleteGame')} ${game.code} ${t('lobby.deleteSuffix')}`}
                       title={t('lobby.delete')}
                       onClick={() => onDelete(game.code)}
                     >
-                      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M4.5 7.5h15M9 7.5V5.8c0-.72.58-1.3 1.3-1.3h3.4c.72 0 1.3.58 1.3 1.3v1.7M7.25 7.5l.7 11.2c.05.82.73 1.45 1.55 1.45h5c.82 0 1.5-.63 1.55-1.45l.7-11.2M10 11v5.2M14 11v5.2" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        className="size-5"
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                      >
+                        <path
+                          d="M5 7h14M10 4h4a1 1 0 0 1 1 1v2H9V5a1 1 0 0 1 1-1Z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="m7 7 .8 12h8.4L17 7M10 11v5M14 11v5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </button>
                   ) : null}
@@ -238,14 +296,16 @@ export function HistoryView({
   );
 
   return (
-    <div className="history-content history-content--wide w-full">
-      <section className="content-card history-card w-full min-w-0 rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
-        <div className="section-heading history-heading">
+    <div className="grid w-full min-w-0 gap-4">
+      <section className={`${cardClass} min-w-0`}>
+        <div className="flex items-center justify-between gap-4 border-b border-[rgb(111_151_201_/_16%)] pb-4 max-[760px]:items-start max-[760px]:flex-col">
           <div>
-            <span className="panel-label">{t('history.label')}</span>
-            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('page.history.title')}</h2>
+            <span className={panelLabelClass}>{t('history.label')}</span>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
+              {t('page.history.title')}
+            </h2>
           </div>
-          <div className="history-filters">
+          <div className="flex flex-wrap justify-end gap-2">
             <label>
               <span className="sr-only">{t('history.resultFilter')}</span>
               <select
@@ -278,7 +338,7 @@ export function HistoryView({
           </div>
         </div>
         {filteredGames.length ? (
-          <div className="history-list">
+          <div className="grid w-full min-w-0">
             {filteredGames.map((historyGame) => {
               const opponent =
                 historyGame.whitePlayer?.id === userId
@@ -289,25 +349,33 @@ export function HistoryView({
                 <button
                   className={
                     selectedGame?.id === historyGame.id
-                        ? 'history-row selected grid cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-app-border px-0 py-3 text-left transition hover:bg-app-muted'
-                        : 'history-row grid cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-app-border px-0 py-3 text-left transition hover:bg-app-muted'
+                      ? 'grid cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-lg border-t border-app-accent bg-[rgb(70_126_190_/_12%)] px-0 py-3 text-left text-app-text transition hover:bg-app-muted max-[760px]:items-stretch'
+                      : 'grid cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-lg border-t border-app-border px-0 py-3 text-left text-app-text transition hover:bg-app-muted max-[760px]:items-stretch'
                   }
                   type="button"
                   key={historyGame.id}
                   onClick={() => onSelect(historyGame)}
                 >
-                  <span className="history-result" data-result={historyGame.result ?? 'unfinished'}>
+                  <span
+                    className="grid size-7 place-items-center rounded-full bg-[#1e3d5e] font-extrabold text-[#bfe2ff]"
+                    data-result={historyGame.result ?? 'unfinished'}
+                  >
                     {historyResultMark(historyGame.result)}
                   </span>
-                  <span className="history-game-main">
+                  <span className="grid min-w-0 gap-1">
                     <strong>{historyGame.code}</strong>
-                    <span className="muted">
+                    <span className={mutedClass}>
                       {historyGame.mode === 'ranked' ? t('mode.ranked') : t('mode.casual')} ·{' '}
                       {t('history.opponent')}: {opponent ?? t('player.open')}
                     </span>
                   </span>
-                  <span className="history-outcome">{outcome}</span>
-                  <time dateTime={historyGame.finishedAt}>
+                  <span className="justify-self-end whitespace-nowrap text-sm font-bold text-app-text-strong">
+                    {outcome}
+                  </span>
+                  <time
+                    className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-app-text-muted"
+                    dateTime={historyGame.finishedAt}
+                  >
                     {formatHistoryDate(historyGame.finishedAt, language)}
                   </time>
                 </button>
@@ -315,8 +383,11 @@ export function HistoryView({
             })}
           </div>
         ) : (
-          <div className="empty-state">
-            <div className="empty-icon" aria-hidden="true">
+          <div className="grid justify-items-center gap-2 p-6 text-center">
+            <div
+              className="grid size-10 place-items-center rounded-xl bg-[#1e3d5e] text-xl text-[#d4a34e]"
+              aria-hidden="true"
+            >
               ◷
             </div>
             <strong>{t('history.empty')}</strong>
@@ -324,7 +395,7 @@ export function HistoryView({
         )}
         {cursor ? (
           <button
-            className="quiet-button history-load-more"
+            className="mt-4 min-h-11 cursor-pointer rounded-xl px-3 py-2 text-app-accent transition hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
             onClick={onLoadMore}
             disabled={loading}
@@ -334,40 +405,45 @@ export function HistoryView({
         ) : null}
       </section>
       {selectedGame ? (
-        <section
-          className="content-card history-detail w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg"
-          aria-label={`${t('history.details')} ${selectedGame.code}`}
-        >
-          <div className="section-heading">
+        <section className={cardClass} aria-label={`${t('history.details')} ${selectedGame.code}`}>
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <span className="panel-label">{t('history.details')}</span>
-              <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{selectedGame.code}</h2>
+              <span className={panelLabelClass}>{t('history.details')}</span>
+              <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
+                {selectedGame.code}
+              </h2>
             </div>
             <a
-              className="secondary-button"
+              className={secondaryButtonClass}
               href={`${API_URL}/games/${encodeURIComponent(selectedGame.code)}/pgn`}
               download={`game-${selectedGame.code}.pgn`}
             >
               {t('history.downloadPgn')}
             </a>
           </div>
-          <div className="history-detail-meta">
+          <div className="my-4 flex justify-between gap-4 text-xs text-app-text-muted">
             <span>{historyOutcome(selectedGame, userId, t)}</span>
             <span>{formatHistoryDate(selectedGame.finishedAt, language)}</span>
           </div>
-          <div className="history-moves" aria-label={t('history.moves')}>
+          <div
+            className="grid max-h-72 gap-2 overflow-auto border-t border-app-border pt-3"
+            aria-label={t('history.moves')}
+          >
             {selectedGame.moves.length ? (
               selectedGame.moves.map((move) => (
-                <div className="history-move" key={move.moveNumber}>
+                <div
+                  className="grid grid-cols-[2rem_4rem_minmax(0,1fr)] items-center gap-2.5 text-sm"
+                  key={move.moveNumber}
+                >
                   <span>{move.moveNumber}.</span>
                   <strong>{move.san}</strong>
-                  <span className="muted">
+                  <span className={mutedClass}>
                     {move.from} → {move.to}
                   </span>
                 </div>
               ))
             ) : (
-              <span className="muted">{t('history.noMoves')}</span>
+              <span className={mutedClass}>{t('history.noMoves')}</span>
             )}
           </div>
         </section>
@@ -393,64 +469,84 @@ export function ProfileView({
   const ratingRange = Math.max(1, highestRating - lowestRating);
 
   return (
-    <div className="profile-content">
+    <div className="grid gap-3">
       <section
-        className="content-card profile-summary-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg"
+        className={cardClass}
         aria-label={t(publicProfile ? 'profile.publicSummary' : 'profile.summary')}
       >
-        <div className="profile-summary-heading">
-          <div className="insight-avatar">{profile.user.username.slice(0, 1).toUpperCase()}</div>
+        <div className="flex items-center gap-3">
+          <div className="grid size-14 place-items-center rounded-full bg-[linear-gradient(145deg,#639bd7,#294a73)] text-xl font-extrabold text-white">
+            {profile.user.username.slice(0, 1).toUpperCase()}
+          </div>
           <div>
-            <span className="panel-label">
+            <span className={panelLabelClass}>
               {t(publicProfile ? 'profile.publicLabel' : 'profile.label')}
             </span>
-            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{profile.user.username}</h2>
-            <span className="muted">
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
+              {profile.user.username}
+            </h2>
+            <span className={mutedClass}>
               {t('profile.memberSince')} {formatHistoryDate(profile.user.createdAt, language)}
             </span>
           </div>
-          <div className="profile-current-rating">
-            <strong>{profile.user.rating}</strong>
-            <span>{t('profile.rating')}</span>
+          <div className="ml-auto text-right">
+            <strong className="block text-2xl text-app-accent">{profile.user.rating}</strong>
+            <span className={mutedClass}>{t('profile.rating')}</span>
           </div>
         </div>
       </section>
 
-      <section className="profile-stat-grid" aria-label={t('profile.statistics')}>
+      <section
+        className="grid grid-cols-3 gap-3 max-sm:grid-cols-1"
+        aria-label={t('profile.statistics')}
+      >
         {[
           ['profile.totalGames', stats.totalGames, 'blue'],
           ['profile.wins', stats.wins, 'green'],
           ['profile.losses', stats.losses, 'red'],
           ['profile.draws', stats.draws, 'gold'],
         ].map(([label, value, color]) => (
-          <div className="metric-card profile-metric flex min-w-0 items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg" key={label as string}>
-            <span className={`metric-icon ${color} grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1e3d5e] text-[#c0e3ff] text-lg`} aria-hidden="true">
+          <div
+            className="flex min-w-0 items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg"
+            key={label as string}
+          >
+            <span
+              className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-lg ${profileMetricClass(color as string)}`}
+              aria-hidden="true"
+            >
               {profileMetricIcon(color as string)}
             </span>
             <div className="grid min-w-0 gap-1">
-              <strong className="block text-lg font-bold text-app-text-strong">{value as number}</strong>
-              <span className="muted">{t(label as Parameters<Translator>[0])}</span>
+              <strong className="block text-lg font-bold text-app-text-strong">
+                {value as number}
+              </strong>
+              <span className={mutedClass}>{t(label as Parameters<Translator>[0])}</span>
             </div>
           </div>
         ))}
       </section>
 
-      <section className="content-card profile-modes-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
-        <div className="section-heading">
+      <section className={cardClass}>
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <span className="panel-label">{t('profile.breakdown')}</span>
-            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('profile.modes')}</h2>
+            <span className={panelLabelClass}>{t('profile.breakdown')}</span>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
+              {t('profile.modes')}
+            </h2>
           </div>
-          <span className="muted">{t('profile.winsLossesDraws')}</span>
+          <span className={mutedClass}>{t('profile.winsLossesDraws')}</span>
         </div>
-        <div className="profile-mode-grid">
+        <div className="grid gap-1">
           {[
             ['mode.ranked', stats.ranked],
             ['mode.casual', stats.casual],
           ].map(([label, breakdown]) => (
-            <div className="profile-mode-row" key={label as string}>
+            <div
+              className="flex justify-between gap-4 border-b border-app-border py-2.5"
+              key={label as string}
+            >
               <strong>{t(label as Parameters<Translator>[0])}</strong>
-              <span className="muted">
+              <span className={mutedClass}>
                 {(breakdown as ProfileBreakdown).totalGames} {t('profile.games')}
               </span>
               <span>{breakdownLabel(breakdown as ProfileBreakdown)}</span>
@@ -459,23 +555,26 @@ export function ProfileView({
         </div>
       </section>
 
-      <section className="content-card profile-rating-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg" aria-label={t('profile.ratingHistory')}>
-        <div className="section-heading">
+      <section className={cardClass} aria-label={t('profile.ratingHistory')}>
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <span className="panel-label">{t('profile.ratingHistory')}</span>
-            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('profile.ratingDevelopment')}</h2>
+            <span className={panelLabelClass}>{t('profile.ratingHistory')}</span>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
+              {t('profile.ratingDevelopment')}
+            </h2>
           </div>
-          <strong className="profile-rating-current">{profile.user.rating}</strong>
+          <strong className="text-2xl text-app-accent">{profile.user.rating}</strong>
         </div>
-        <div className="profile-rating-history">
+        <div className="grid gap-3">
           {stats.ratingHistory.map((snapshot, index) => (
-            <div className="profile-rating-point" key={`${snapshot.at}-${index}`}>
-              <div className="profile-rating-value">
+            <div key={`${snapshot.at}-${index}`}>
+              <div className="flex justify-between gap-4 text-xs">
                 <strong>{snapshot.rating}</strong>
                 <time dateTime={snapshot.at}>{formatHistoryDate(snapshot.at, language)}</time>
               </div>
-              <div className="profile-rating-track">
+              <div className="h-1.5 overflow-hidden rounded-full bg-app-muted">
                 <span
+                  className="block h-full rounded-full bg-[linear-gradient(90deg,#4777ae,#d4a34e)]"
                   style={{
                     width: `${((snapshot.rating - lowestRating) / ratingRange) * 70 + 30}%`,
                   }}
@@ -501,22 +600,29 @@ export function AdminView({
   onRoleChange: (id: string, role: UserRole) => void;
 }>) {
   return (
-    <section className="content-card admin-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
-      <div className="section-heading">
+    <section className={cardClass}>
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <span className="panel-label">{t('admin.label')}</span>
+          <span className={panelLabelClass}>{t('admin.label')}</span>
           <h2>{t('admin.title')}</h2>
         </div>
-        <button className="quiet-button" type="button" onClick={onRefresh}>
+        <button
+          className="cursor-pointer rounded-xl px-3 py-2 text-app-accent transition hover:bg-app-muted"
+          type="button"
+          onClick={onRefresh}
+        >
           ↻ {t('admin.refresh')}
         </button>
       </div>
-      <div className="user-list">
+      <div className="grid gap-2">
         {users.map((adminUser) => (
-          <div className="user-row admin-user-row" key={adminUser.id}>
-            <div>
+          <div
+            className="flex items-center gap-3 rounded-xl border border-[rgb(111_151_201_/_14%)] bg-[rgb(23_35_53_/_54%)] p-3"
+            key={adminUser.id}
+          >
+            <div className="grid min-w-0 flex-1">
               <strong>{adminUser.username}</strong>
-              <span className="muted">
+              <span className={mutedClass}>
                 {adminUser.email ?? t('admin.noEmail')} · {t('admin.rating')} {adminUser.rating}
               </span>
             </div>
@@ -573,26 +679,39 @@ export function FriendsView({
   const requestedUserIds = new Set(friends?.outgoingRequests.map((request) => request.receiver.id));
 
   return (
-    <section className="social-grid social-grid--wide w-full">
-      <div className="content-card friends-list-card w-full min-w-0 rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
-        <div className="section-heading friends-heading">
+    <section className="grid w-full min-w-0 grid-cols-[minmax(0,1.4fr)_minmax(19rem,.8fr)] items-start gap-4 max-[820px]:grid-cols-1">
+      <div className={`${cardClass} grid min-w-0 content-start gap-4`}>
+        <div className="flex items-center justify-between gap-4 border-b border-[rgb(111_151_201_/_16%)] pb-4">
           <div>
-            <span className="panel-label">{t('friends.social')}</span>
-            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('friends.title')}</h2>
+            <span className={panelLabelClass}>{t('friends.social')}</span>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
+              {t('friends.title')}
+            </h2>
           </div>
-          <span className="friends-count">{friends?.friends.length ?? 0}</span>
+          <span className="grid size-8 min-w-8 place-items-center rounded-xl border border-[rgb(112_168_255_/_24%)] bg-[rgb(41_78_120_/_42%)] text-xs font-extrabold tabular-nums text-[#c6e2ff]">
+            {friends?.friends.length ?? 0}
+          </span>
         </div>
-        <section className="friends-section" aria-label={t('friends.title')}>
+        <section className="grid gap-2.5" aria-label={t('friends.title')}>
           {friends?.friends.length ? (
-            <div className="user-list friends-list">
+            <div className="grid gap-2">
               {friends.friends.map((friend) => (
-                <div className="friend-row" key={friend.id}>
-                  <span className="friend-avatar" aria-hidden="true">
+                <div
+                  className="grid min-w-0 grid-cols-[2.35rem_.55rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-[rgb(111_151_201_/_14%)] bg-[rgb(23_35_53_/_54%)] p-2.5 transition hover:-translate-y-px hover:border-[rgb(105_171_235_/_40%)] hover:bg-[rgb(29_47_70_/_72%)] max-[560px]:grid-cols-[2.35rem_.55rem_minmax(0,1fr)]"
+                  key={friend.id}
+                >
+                  <span
+                    className="grid size-9 place-items-center rounded-xl border border-[rgb(142_190_255_/_22%)] bg-[linear-gradient(145deg,#365f8f,#203854)] text-xs font-extrabold text-[#f1f7ff]"
+                    aria-hidden="true"
+                  >
                     {friend.username.slice(0, 1).toUpperCase()}
                   </span>
-                  <span className={friend.online ? 'online-dot' : 'offline-dot'} aria-label={friend.online ? t('header.online') : undefined} />
+                  <span
+                    className={`inline-block size-2 rounded-full ${friend.online ? 'bg-[#68d391]' : 'bg-[#64748b]'}`}
+                    aria-label={friend.online ? t('header.online') : undefined}
+                  />
                   <button
-                    className="link-button friend-profile-link"
+                    className="grid min-w-0 cursor-pointer gap-0.5 border-0 bg-transparent p-0 text-left text-[#e8f2ff] hover:text-[#9fcaff]"
                     type="button"
                     aria-label={friend.username}
                     onClick={() => onViewProfile(friend.id)}
@@ -600,10 +719,10 @@ export function FriendsView({
                     <strong>{friend.username}</strong>
                     <span>{friend.rating}</span>
                   </button>
-                  <div className="friend-actions">
+                  <div className="flex flex-wrap justify-end gap-1.5 max-[560px]:col-span-full max-[560px]:justify-stretch">
                     {canInvite ? (
                       <button
-                        className="tiny-button"
+                        className={tinyButtonClass}
                         type="button"
                         onClick={() => onInvite(friend.username)}
                       >
@@ -612,7 +731,7 @@ export function FriendsView({
                     ) : null}
                     {canInviteSpectator ? (
                       <button
-                        className="tiny-button"
+                        className={tinyButtonClass}
                         type="button"
                         onClick={() => onInviteSpectator(friend.username)}
                       >
@@ -624,32 +743,41 @@ export function FriendsView({
               ))}
             </div>
           ) : (
-            <p className="muted">{t('friends.empty')}</p>
+            <p className={mutedClass}>{t('friends.empty')}</p>
           )}
         </section>
         {friends?.incomingRequests.length ? (
-          <section className="friends-section incoming-requests" aria-label={t('friends.incoming')}>
-            <h3 className="friends-section-title">{t('friends.incoming')}</h3>
-            <div className="user-list">
+          <section
+            className="grid gap-2.5 border-t border-[rgb(111_151_201_/_16%)] pt-4"
+            aria-label={t('friends.incoming')}
+          >
+            <h3 className="m-0 text-sm font-bold text-app-text-strong">{t('friends.incoming')}</h3>
+            <div className="grid gap-2">
               {friends.incomingRequests.map((request) => (
-                <div className="friend-row friend-request-row" key={request.id}>
-                  <span className="friend-avatar" aria-hidden="true">
+                <div
+                  className="grid min-w-0 grid-cols-[2.35rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-[rgb(111_151_201_/_14%)] bg-[rgb(23_35_53_/_54%)] p-2.5 max-[560px]:grid-cols-[2.35rem_minmax(0,1fr)]"
+                  key={request.id}
+                >
+                  <span
+                    className="grid size-9 place-items-center rounded-xl border border-[rgb(142_190_255_/_22%)] bg-[linear-gradient(145deg,#365f8f,#203854)] text-xs font-extrabold text-[#f1f7ff]"
+                    aria-hidden="true"
+                  >
                     {request.sender.username.slice(0, 1).toUpperCase()}
                   </span>
-                  <div className="friend-request-person">
+                  <div className="grid min-w-0 gap-0.5">
                     <strong>{request.sender.username}</strong>
                     <span>{request.sender.rating}</span>
                   </div>
-                  <div className="friend-actions">
+                  <div className="flex flex-wrap justify-end gap-1.5 max-[560px]:col-span-full max-[560px]:justify-stretch">
                     <button
-                      className="tiny-button"
+                      className={tinyButtonClass}
                       type="button"
                       onClick={() => onRespond(request.id, 'accept')}
                     >
                       {t('friends.accept')}
                     </button>
                     <button
-                      className="tiny-button danger"
+                      className={`${tinyButtonClass} border-[rgb(226_118_133_/_48%)] bg-[rgb(89_33_48_/_66%)] text-[#ffd8de] hover:border-[rgb(245_149_163_/_76%)] hover:bg-[rgb(112_38_57_/_82%)]`}
                       type="button"
                       onClick={() => onRespond(request.id, 'reject')}
                     >
@@ -662,74 +790,101 @@ export function FriendsView({
           </section>
         ) : null}
         {friends?.outgoingRequests.length ? (
-          <section className="friends-section outgoing-requests" aria-label={t('friends.outgoing')}>
-            <h3 className="friends-section-title">{t('friends.outgoing')}</h3>
-            <div className="user-list">
+          <section
+            className="grid gap-2.5 border-t border-[rgb(111_151_201_/_16%)] pt-4"
+            aria-label={t('friends.outgoing')}
+          >
+            <h3 className="m-0 text-sm font-bold text-app-text-strong">{t('friends.outgoing')}</h3>
+            <div className="grid gap-2">
               {friends.outgoingRequests.map((request) => (
-                <div className="friend-row friend-request-row" key={request.id}>
-                  <span className="friend-avatar" aria-hidden="true">
+                <div
+                  className="grid min-w-0 grid-cols-[2.35rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-[rgb(111_151_201_/_14%)] bg-[rgb(23_35_53_/_54%)] p-2.5 max-[560px]:grid-cols-[2.35rem_minmax(0,1fr)]"
+                  key={request.id}
+                >
+                  <span
+                    className="grid size-9 place-items-center rounded-xl border border-[rgb(142_190_255_/_22%)] bg-[linear-gradient(145deg,#365f8f,#203854)] text-xs font-extrabold text-[#f1f7ff]"
+                    aria-hidden="true"
+                  >
                     {request.receiver.username.slice(0, 1).toUpperCase()}
                   </span>
-                  <div className="friend-request-person">
+                  <div className="grid min-w-0 gap-0.5">
                     <strong>{request.receiver.username}</strong>
                     <span>{request.receiver.rating}</span>
                   </div>
-                  <span className="friend-request-status">{t('friends.requestSent')}</span>
+                  <span className="justify-self-end whitespace-nowrap rounded-full border border-[rgb(112_168_255_/_26%)] bg-[rgb(45_79_117_/_42%)] px-2 py-1 text-[.67rem] font-bold text-[#b9d8ff]">
+                    {t('friends.requestSent')}
+                  </span>
                 </div>
               ))}
             </div>
           </section>
         ) : null}
       </div>
-      <div className="content-card friends-discovery-card w-full min-w-0 rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
-        <div className="friends-discovery-heading">
-          <span className="panel-label">{t('friends.findPlayers')}</span>
-          <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('friends.searchTitle')}</h2>
+      <div className={`${cardClass} grid min-w-0 content-start gap-4`}>
+        <div>
+          <span className={panelLabelClass}>{t('friends.findPlayers')}</span>
+          <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
+            {t('friends.searchTitle')}
+          </h2>
         </div>
-        <form className="search-row" onSubmit={onSearch}>
+        <form className="flex min-w-0 gap-2 max-[560px]:flex-col" onSubmit={onSearch}>
           <input
             autoComplete="off"
             aria-label={t('friends.searchTitle')}
             name="user-search"
+            className="min-w-0 flex-1 rounded-xl border border-[rgb(111_151_201_/_26%)] bg-[rgb(16_28_44_/_72%)] px-3 py-2.5 text-app-text-strong outline-none placeholder:text-[#7189a5] focus:border-app-accent focus:ring-4 focus:ring-app-accent/15"
             placeholder={t('friends.searchPlaceholder')}
             spellCheck={false}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
           />
-          <button className="secondary-button" type="submit">
+          <button className={`${secondaryButtonClass} max-[560px]:w-full`} type="submit">
             {t('friends.search')}
           </button>
         </form>
-          <div className="user-list">
-            {searchResults.map((result) => {
-              const requestAlreadySent = requestedUserIds.has(result.id);
-              return (
-                <div className="friend-row search-result-row" key={result.id}>
-                  <span className="friend-avatar" aria-hidden="true">
-                    {result.username.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className={result.online ? 'online-dot' : 'offline-dot'} aria-label={result.online ? t('header.online') : undefined} />
-                  <button
-                    className="link-button friend-profile-link"
-                    type="button"
-                    aria-label={result.username}
-                    onClick={() => onViewProfile(result.id)}
-                  >
-                    <strong>{result.username}</strong>
-                    <span>{result.rating}</span>
-                  </button>
-                  <button
-                    className={requestAlreadySent ? 'tiny-button request-sent' : 'tiny-button'}
-                    type="button"
-                    disabled={requestAlreadySent}
-                    onClick={() => onAdd(result.username)}
-                  >
-                    {requestAlreadySent ? t('friends.requestSent') : t('friends.add')}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+        <div className="grid gap-2">
+          {searchResults.map((result) => {
+            const requestAlreadySent = requestedUserIds.has(result.id);
+            return (
+              <div
+                className="grid min-w-0 grid-cols-[2.35rem_.55rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-[rgb(111_151_201_/_14%)] bg-[rgb(23_35_53_/_54%)] p-2.5 max-[560px]:grid-cols-[2.35rem_.55rem_minmax(0,1fr)]"
+                key={result.id}
+              >
+                <span
+                  className="grid size-9 place-items-center rounded-xl border border-[rgb(142_190_255_/_22%)] bg-[linear-gradient(145deg,#365f8f,#203854)] text-xs font-extrabold text-[#f1f7ff]"
+                  aria-hidden="true"
+                >
+                  {result.username.slice(0, 1).toUpperCase()}
+                </span>
+                <span
+                  className={`inline-block size-2 rounded-full ${result.online ? 'bg-[#68d391]' : 'bg-[#64748b]'}`}
+                  aria-label={result.online ? t('header.online') : undefined}
+                />
+                <button
+                  className="grid min-w-0 cursor-pointer gap-0.5 border-0 bg-transparent p-0 text-left text-[#e8f2ff] hover:text-[#9fcaff]"
+                  type="button"
+                  aria-label={result.username}
+                  onClick={() => onViewProfile(result.id)}
+                >
+                  <strong>{result.username}</strong>
+                  <span>{result.rating}</span>
+                </button>
+                <button
+                  className={
+                    requestAlreadySent
+                      ? `${tinyButtonClass} cursor-not-allowed border-[rgb(112_168_255_/_18%)] bg-[rgb(39_61_87_/_62%)] text-[#91a9c2]`
+                      : tinyButtonClass
+                  }
+                  type="button"
+                  disabled={requestAlreadySent}
+                  onClick={() => onAdd(result.username)}
+                >
+                  {requestAlreadySent ? t('friends.requestSent') : t('friends.add')}
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

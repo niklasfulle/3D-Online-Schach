@@ -48,7 +48,7 @@ export function useAppController() {
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [unavailableLobbyCode, setUnavailableLobbyCode] = useState<string | null>(null);
-  const [view, setActiveView] = useState<AppView>(() =>
+  const [view, setView] = useState<AppView>(() =>
     viewFromPath(globalThis.location?.pathname ?? '/'),
   );
   const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
@@ -89,7 +89,7 @@ export function useAppController() {
   const t = createTranslator(language);
 
   function navigateToView(nextView: Exclude<AppView, 'game' | 'public-profile'>) {
-    setActiveView(nextView);
+    setView(nextView);
     const nextPath = pathForView(nextView);
     if (globalThis.location?.pathname !== nextPath) {
       globalThis.history?.pushState({}, '', nextPath);
@@ -97,7 +97,7 @@ export function useAppController() {
   }
 
   function navigateToPublicProfile(id: string) {
-    setActiveView('public-profile');
+    setView('public-profile');
     const nextPath = publicProfilePath(id);
     if (globalThis.location?.pathname !== nextPath) {
       globalThis.history?.pushState({}, '', nextPath);
@@ -174,7 +174,7 @@ export function useAppController() {
 
   useEffect(() => {
     const handlePopState = () => {
-      setActiveView(viewFromPath(globalThis.location?.pathname ?? '/'));
+      setView(viewFromPath(globalThis.location?.pathname ?? '/'));
     };
     globalThis.addEventListener?.('popstate', handlePopState);
     return () => globalThis.removeEventListener?.('popstate', handlePopState);
@@ -215,10 +215,7 @@ export function useAppController() {
     }
     if (view === 'public-profile' && publicProfileId) {
       setPublicProfile(null);
-      void requestApi<UserProfile>(
-        API_URL,
-        `/users/${encodeURIComponent(publicProfileId)}/profile`,
-      )
+      void requestApi<UserProfile>(API_URL, `/users/${encodeURIComponent(publicProfileId)}/profile`)
         .then(setPublicProfile)
         .catch((error_: unknown) =>
           setError(error_ instanceof Error ? error_.message : t('error.profileLoad')),
@@ -269,7 +266,7 @@ export function useAppController() {
     socket.on('game:started', (nextGame: GameSummary) => {
       setSelectedGame(nextGame);
       selectedGameCodeRef.current = nextGame.code;
-      setActiveView('game');
+      setView('game');
       setGamePath(nextGame.code);
       socket.emit('game:sync', { code: nextGame.code });
     });
@@ -368,7 +365,7 @@ export function useAppController() {
     setGameState(nextGame.getState());
     setMoveHistory(sync.moves);
     void refreshChat(sync.game.code).catch(() => undefined);
-    setActiveView('game');
+    setView('game');
     setLinkCopied(false);
     resetSelection();
   }
@@ -401,7 +398,7 @@ export function useAppController() {
     setProfile(null);
     setPublicProfile(null);
     selectedGameCodeRef.current = null;
-    setActiveView('lobby');
+    setView('lobby');
     setChatMessages([]);
     setChatDraft('');
     setLinkCopied(false);
@@ -417,7 +414,7 @@ export function useAppController() {
     setSelectedGame(nextGame);
     selectedGameCodeRef.current = nextGame.code;
     setSpectatorMode(false);
-    setActiveView('game');
+    setView('game');
     setLinkCopied(false);
     setSpectatorLinkCopied(false);
     setGamePath(nextGame.code);
@@ -432,15 +429,26 @@ export function useAppController() {
   }
 
   function returnToLobby() {
-    setActiveView('lobby');
+    const shouldClearGame = spectatorMode || selectedGame?.status === 'finished';
+    setView('lobby');
     setGamePath(null);
+    if (shouldClearGame) {
+      setSelectedGame(null);
+      selectedGameCodeRef.current = null;
+      setChatMessages([]);
+      setChatDraft('');
+      setLinkCopied(false);
+    }
+    setSpectatorMode(false);
+    setSpectatorLinkCopied(false);
+    void refreshLobby().catch(() => undefined);
   }
 
   function handleUnavailableLobby(code: string) {
     setSelectedGame(null);
     selectedGameCodeRef.current = null;
     setSpectatorMode(false);
-    setActiveView('lobby');
+    setView('lobby');
     setChatMessages([]);
     setChatDraft('');
     setUnavailableLobbyCode(code);
@@ -544,6 +552,7 @@ export function useAppController() {
         { method: 'POST' },
       );
       setSelectedGame(response.game);
+      setLobbyGames((games) => games.filter((game) => game.code !== response.game.code));
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : t('error.resign'));
     }

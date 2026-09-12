@@ -37,7 +37,7 @@ export function App() {
   if (loading) {
     return (
       <main
-        className="grid min-h-dvh place-items-center bg-app-page p-6 text-app-text max-sm:p-4"
+        className="grid min-h-dvh grid-rows-[1fr_auto] place-items-center bg-app-page text-app-text"
         data-theme={theme}
       >
         <div className="text-center text-app-text-muted">{t('guest.connectionHint')} …</div>
@@ -50,22 +50,17 @@ export function App() {
     const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
     return (
       <main
-        className="app-shell game-mode guest-spectator-shell grid min-h-dvh bg-app-page text-app-text"
+        className="grid min-h-dvh grid-rows-[1fr_auto] bg-[var(--app-bg)] text-app-text"
         data-theme={theme}
       >
-        <div className="dashboard-shell grid w-full min-w-0">
-          <section className="dashboard-main min-w-0 px-[clamp(1rem,3vw,2rem)] py-6">
-            <div className="page-heading flex items-start justify-between gap-4">
-              <div>
-                <span className="eyebrow">{t('guest.eyebrow')}</span>
-                <h1 className="text-[clamp(2rem,5vw,4rem)] leading-none tracking-[-0.04em] text-app-text-strong">
-                  {t('page.game.title')}
-                </h1>
-                <p className="mt-3 text-app-text-muted">{t('guest.description')}</p>
-              </div>
-            </div>
+        <div className="grid min-h-0 w-full min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[rgb(12_18_29_/_88%)] backdrop-blur-3xl">
+          <section className="w-full min-w-0 px-[clamp(1rem,3vw,2rem)] py-6">
             {error ? (
-              <div className="error-banner" role="alert" aria-live="polite">
+              <div
+                className="flex w-full items-start justify-between gap-4 rounded-xl border border-[#8e4654] bg-[#3d202b] px-4 py-3 text-sm leading-6 text-[#ffdce3]"
+                role="alert"
+                aria-live="polite"
+              >
                 <span>
                   <strong>{t('guest.connectionHint')}</strong>
                   {error}
