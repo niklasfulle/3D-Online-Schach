@@ -27,8 +27,8 @@ export interface GameViewProps {
   legalTargets: Square[];
   moveHistory: MoveRecord[];
   turnLabel: string;
-  gameStatus: string;
   onBackToLobby: () => void;
+  onDeleteGame: () => void;
   handleSelectSquare: (square: Square) => void;
   onCopyLink: () => void;
   linkCopied: boolean;
@@ -75,8 +75,8 @@ export function GameView({
   legalTargets,
   moveHistory,
   turnLabel,
-  gameStatus,
   onBackToLobby,
+  onDeleteGame,
   handleSelectSquare,
   onCopyLink,
   linkCopied,
@@ -92,6 +92,19 @@ export function GameView({
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const previousMessageCountRef = useRef<number | null>(null);
   const [showNewMessages, setShowNewMessages] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
+  const [isCompactGameLayout, setIsCompactGameLayout] = useState(false);
+  const [confirmationAction, setConfirmationAction] = useState<'delete' | 'resign' | null>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia?.('(max-width: 1360px)');
+    if (!mediaQuery) return;
+
+    const updateLayout = () => setIsCompactGameLayout(mediaQuery.matches);
+    updateLayout();
+    mediaQuery.addEventListener('change', updateLayout);
+    return () => mediaQuery.removeEventListener('change', updateLayout);
+  }, []);
 
   useEffect(() => {
     const element = chatMessagesRef.current;
@@ -118,9 +131,9 @@ export function GameView({
   }
 
   return (
-    <section className="game-view">
-      <div className="game-toolbar">
-        <div className="game-toolbar-title">
+    <section className="game-view grid gap-4">
+      <div className="game-toolbar flex items-center justify-between gap-4 max-xl:flex-wrap">
+        <div className="game-toolbar-title flex items-center gap-3">
           <button
             className="back-button"
             aria-label={t('game.backToLobby')}
@@ -136,28 +149,79 @@ export function GameView({
             <h2>{selectedGame.code}</h2>
           </div>
         </div>
-        <div className="game-toolbar-meta">
+        <div className="game-toolbar-meta flex flex-wrap items-center justify-end gap-2">
           <span className="game-status-pill">
             <span className="live-dot" /> {gameStatusText(selectedGame.status, spectatorMode, t)}
           </span>
-          <span className="game-code-label">{gameStatus}</span>
           {!spectatorMode && (
-            <button className="secondary-button" type="button" onClick={onCopyLink}>
-              {linkCopied ? t('game.linkCopied') : t('game.copyLink')}
+            <button
+              className="game-toolbar-icon-button"
+              type="button"
+              aria-label={linkCopied ? t('game.linkCopied') : t('game.copyLink')}
+              title={linkCopied ? t('game.linkCopied') : t('game.copyLink')}
+              data-copied={linkCopied}
+              onClick={onCopyLink}
+            >
+              {linkCopied ? (
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m5 12 4.25 4.25L19 6.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M10 13.5a4.5 4.5 0 0 0 6.36.14l2-2a4.5 4.5 0 0 0-6.36-6.36L10.85 6.43" strokeLinecap="round" />
+                  <path d="M14 10.5a4.5 4.5 0 0 0-6.36-.14l-2 2A4.5 4.5 0 0 0 12 18.72l1.15-1.15" strokeLinecap="round" />
+                </svg>
+              )}
             </button>
           )}
-          <button className="secondary-button" type="button" onClick={onCopySpectatorLink}>
-            {spectatorLinkCopied ? t('game.spectatorLinkCopied') : t('game.copySpectatorLink')}
+          <button
+            className="game-toolbar-icon-button"
+            type="button"
+            aria-label={spectatorLinkCopied ? t('game.spectatorLinkCopied') : t('game.copySpectatorLink')}
+            title={spectatorLinkCopied ? t('game.spectatorLinkCopied') : t('game.copySpectatorLink')}
+            data-copied={spectatorLinkCopied}
+            onClick={onCopySpectatorLink}
+          >
+            {spectatorLinkCopied ? (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m5 12 4.25 4.25L19 6.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" strokeLinejoin="round" />
+                <circle cx="12" cy="12" r="2.5" />
+              </svg>
+            )}
           </button>
-          {!spectatorMode && selectedGame.status === 'active' ? (
-            <button className="tiny-button danger" type="button" onClick={onResign}>
-              {t('game.resign')}
+          {!isCompactGameLayout ? (
+            <button
+              className="chat-toolbar-toggle"
+              type="button"
+              aria-label={chatOpen ? t('chat.close') : t('chat.open')}
+              aria-expanded={chatOpen}
+              aria-controls="game-chat"
+              title={chatOpen ? t('chat.close') : t('chat.open')}
+              onClick={() => setChatOpen((open) => !open)}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M20 11.5a7.5 7.5 0 0 1-7.75 7.5 8.7 8.7 0 0 1-3.14-.59L4 20l1.52-4.07A7.21 7.21 0 0 1 4.5 12 7.5 7.5 0 0 1 12.25 4.5 7.5 7.5 0 0 1 20 11.5Z" />
+                <path d="M8.5 11.5h.01M12.25 11.5h.01M16 11.5h.01" strokeLinecap="round" strokeWidth="2.6" />
+              </svg>
             </button>
           ) : null}
         </div>
       </div>
-      <div className="game-layout">
-        <div className="scene-card" aria-label={t('game.board')}>
+      <div
+        className={
+          chatOpen && !isCompactGameLayout
+            ? 'game-layout chat-open grid min-w-0 gap-4'
+            : 'game-layout chat-collapsed grid min-w-0 gap-4'
+        }
+      >
+        <div
+          className="scene-card relative min-w-0 overflow-hidden"
+          aria-label={t('game.board')}
+        >
           <div className="player-strip">
             <div
               className={gameState.activeColor === 'white' ? 'player-card active' : 'player-card'}
@@ -187,7 +251,8 @@ export function GameView({
           </div>
           <div className="board-canvas">
             <Canvas
-              camera={{ position: [0, 9.6, 11.8], fov: 46 }}
+              className="h-full w-full"
+              camera={{ position: [0, 9.6, 11.8], fov: 32 }}
               onContextMenu={(event) => event.preventDefault()}
               shadows
             >
@@ -210,7 +275,10 @@ export function GameView({
             </span>
           </div>
         </div>
-        <aside className="game-panel" aria-label={t('game.info')}>
+        <aside
+          className="game-panel grid content-start gap-4 p-4"
+          aria-label={t('game.info')}
+        >
           <div className="game-panel-header">
             <div>
               <span className="panel-label">{t('game.overview')}</span>
@@ -232,40 +300,135 @@ export function GameView({
               </strong>
             </div>
           </div>
+          <div className="panel-actions">
+            <button className="quiet-button panel-back-button" type="button" onClick={onBackToLobby}>
+              ← {t('game.backToLobby')}
+            </button>
+            {!spectatorMode && selectedGame.status === 'active' ? (
+              <div className="resign-action">
+                <button
+                  className="danger-button game-resign-button"
+                  type="button"
+                  aria-expanded={confirmationAction === 'resign'}
+                  aria-controls="resign-confirmation"
+                  onClick={() => setConfirmationAction((action) => (action === 'resign' ? null : 'resign'))}
+                >
+                  {t('game.resign')}
+                </button>
+                {confirmationAction === 'resign' ? (
+                  <div
+                    id="resign-confirmation"
+                    className="resign-popover"
+                    role="dialog"
+                    aria-label={t('game.resignConfirmTitle')}
+                  >
+                    <strong>{t('game.resignConfirmTitle')}</strong>
+                    <p>{t('game.resignConfirmMessage')}</p>
+                    <div className="resign-popover-actions">
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => setConfirmationAction(null)}
+                      >
+                        {t('game.resignCancel')}
+                      </button>
+                      <button
+                        className="danger-button"
+                        type="button"
+                        onClick={() => {
+                          setConfirmationAction(null);
+                          onResign();
+                        }}
+                      >
+                        {t('game.resignConfirm')}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {!spectatorMode && selectedGame.status === 'waiting' ? (
+              <div className="resign-action">
+                <button
+                  className="danger-button game-resign-button"
+                  type="button"
+                  aria-expanded={confirmationAction === 'delete'}
+                  aria-controls="delete-confirmation"
+                  onClick={() => setConfirmationAction((action) => (action === 'delete' ? null : 'delete'))}
+                >
+                  {t('game.delete')}
+                </button>
+                {confirmationAction === 'delete' ? (
+                  <div
+                    id="delete-confirmation"
+                    className="resign-popover"
+                    role="dialog"
+                    aria-label={t('game.deleteConfirmTitle')}
+                  >
+                    <strong>{t('game.deleteConfirmTitle')}</strong>
+                    <p>{t('game.deleteConfirmMessage')}</p>
+                    <div className="resign-popover-actions">
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => setConfirmationAction(null)}
+                      >
+                        {t('game.deleteCancel')}
+                      </button>
+                      <button
+                        className="danger-button"
+                        type="button"
+                        onClick={() => {
+                          setConfirmationAction(null);
+                          onDeleteGame();
+                        }}
+                      >
+                        {t('game.deleteConfirm')}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           <div className="panel-section move-history">
             <div className="moves-heading">
               <span className="panel-label">{t('game.moveHistory')}</span>
               <span className="muted">{t('game.san')}</span>
             </div>
-            {moveHistory.length === 0 ? (
-              <div className="moves-empty">
-                <span className="empty-icon" aria-hidden="true">
-                  ♟
-                </span>
-                <span>{t('game.noMoves')}</span>
-                <small>{t('game.startsWhenReady')}</small>
-              </div>
-            ) : (
-              moveHistory.map((move, index) => (
-                <div className="move-row" key={`${move.san}-${index}`}>
-                  <span>
-                    {Math.floor(index / 2) + 1}
-                    {index % 2 === 0 ? '.' : '…'}
+            <div className="move-list">
+              {moveHistory.length === 0 ? (
+                <div className="moves-empty">
+                  <span className="empty-icon" aria-hidden="true">
+                    ♟
                   </span>
-                  <strong>{move.san}</strong>
+                  <span>{t('game.noMoves')}</span>
+                  <small>{t('game.startsWhenReady')}</small>
                 </div>
-              ))
-            )}
+              ) : (
+                moveHistory.map((move, index) => (
+                  <div className="move-row" key={`${move.san}-${index}`}>
+                    <span>
+                      {Math.floor(index / 2) + 1}
+                      {index % 2 === 0 ? '.' : '…'}
+                    </span>
+                    <strong>{move.san}</strong>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
           <div className="fen-box">
             <span className="panel-label">{t('game.fen')}</span>
             <code>{gameState.fen}</code>
           </div>
-          <button className="quiet-button panel-back-button" type="button" onClick={onBackToLobby}>
-            ← {t('game.backToLobby')}
-          </button>
         </aside>
-        <aside className="chat-column" aria-label={t('chat.title')}>
+        {chatOpen && !isCompactGameLayout ? (
+        <aside
+          id="game-chat"
+          className="chat-column grid h-full self-stretch grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-4"
+          aria-label={t('chat.title')}
+        >
           <div className="chat-column-header">
             <div>
               <span className="panel-label">{t('chat.title')}</span>
@@ -321,7 +484,9 @@ export function GameView({
                 onSendChat();
               }}
             >
-              <label htmlFor="chat-message">{t('chat.messageLabel')}</label>
+              <label className="sr-only" htmlFor="chat-message">
+                {t('chat.messageLabel')}
+              </label>
               <div className="chat-input-row">
                 <input
                   id="chat-message"
@@ -330,13 +495,23 @@ export function GameView({
                   onChange={(event) => onChatDraftChange(event.target.value)}
                   placeholder={t('chat.placeholder')}
                 />
-                <button className="tiny-button" type="submit">
-                  {t('chat.send')}
+                <button
+                  className="chat-send-button"
+                  type="submit"
+                  aria-label={t('chat.send')}
+                  disabled={!chatDraft.trim()}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m5 12 14-7-4.5 14-3.2-5.1L5 12Z" strokeLinejoin="round" />
+                    <path d="m11.3 13.9 3.3-3.1" strokeLinecap="round" />
+                  </svg>
+                  <span>{t('chat.send')}</span>
                 </button>
               </div>
             </form>
           )}
         </aside>
+        ) : null}
       </div>
     </section>
   );

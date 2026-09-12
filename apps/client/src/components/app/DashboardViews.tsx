@@ -24,6 +24,7 @@ import {
 } from '../../app/utils';
 
 function historyResultMark(result: HistoryGame['result']): string {
+  if (!result) return '—';
   if (result === 'draw') return '½';
   return result === 'white' ? '1' : '0';
 }
@@ -62,63 +63,77 @@ export function LobbyView({
   }, []);
 
   return (
-    <div className="lobby-content">
-      <section className="welcome-card">
+    <div className="lobby-content lobby-content--wide grid w-full gap-4">
+      <section className="welcome-card relative flex min-h-[180px] items-center justify-between gap-6 overflow-hidden rounded-2xl border border-app-border bg-[radial-gradient(circle_at_84%_50%,rgb(105_171_235_/_18%),transparent_30%),linear-gradient(130deg,#172b45,#101c2c_65%,#14253b)] p-6 shadow-lg max-sm:flex-col max-sm:items-start">
         <div>
           <span className="panel-label">{t('lobby.nextMove')}</span>
-          <h2>{t('lobby.findGame')}</h2>
-          <p>{t('lobby.description')}</p>
-          <div className="action-row">
-            <button className="primary-button" type="button" onClick={() => onCreate('casual')}>
+          <h2 className="mb-2 text-2xl font-semibold text-app-text-strong">
+            {t('lobby.findGame')}
+          </h2>
+          <p className="mb-4 max-w-prose text-app-text-muted">{t('lobby.description')}</p>
+          <div className="action-row flex flex-wrap items-center gap-2">
+            <button
+              className="primary-button min-h-11 cursor-pointer rounded-xl bg-[#4777ae] px-4 py-3 font-semibold text-white transition hover:bg-[#568ac7]"
+              type="button"
+              onClick={() => onCreate('casual')}
+            >
               {t('lobby.createCasual')} <span aria-hidden="true">→</span>
             </button>
-            <button className="ghost-button" type="button" onClick={() => onCreate('ranked')}>
+            <button
+              className="ghost-button min-h-11 cursor-pointer rounded-xl border border-app-border-strong bg-transparent px-4 py-3 text-app-accent transition hover:bg-app-muted"
+              type="button"
+              onClick={() => onCreate('ranked')}
+            >
               {t('lobby.playRanked')}
             </button>
           </div>
         </div>
-        <div className="welcome-piece" aria-hidden="true">
+        <div className="welcome-piece absolute right-[6%] top-1/2 -translate-y-1/2 text-[8rem] leading-none text-app-accent opacity-10 max-sm:bottom-[-1.5rem] max-sm:right-[4%] max-sm:top-auto max-sm:translate-y-0 max-sm:text-[6rem]" aria-hidden="true">
           ♞
         </div>
       </section>
-      <div className="dashboard-stats">
-        <div className="metric-card">
-          <span className="metric-icon blue" aria-hidden="true">
+      <div className="dashboard-stats grid grid-cols-3 gap-3 max-sm:grid-cols-1">
+        <div className="metric-card flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
+          <span className="metric-icon blue grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1e3d5e] text-lg text-[#c0e3ff]" aria-hidden="true">
             ◈
           </span>
-          <div>
+          <div className="grid min-w-0 gap-1">
             <span className="muted">{t('lobby.openGames')}</span>
-            <strong>{games.length}</strong>
+            <strong className="block text-lg font-bold text-app-text-strong">{games.length}</strong>
           </div>
         </div>
-        <div className="metric-card">
-          <span className="metric-icon gold" aria-hidden="true">
+        <div className="metric-card flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
+          <span className="metric-icon gold grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#4d3b20] text-lg text-[#f1cc79]" aria-hidden="true">
             ✦
           </span>
-          <div>
+          <div className="grid min-w-0 gap-1">
             <span className="muted">{t('lobby.gameModes')}</span>
-            <strong>
+            <strong className="block text-lg font-bold text-app-text-strong">
               {t('mode.casual')} &amp; {t('mode.ranked')}
             </strong>
           </div>
         </div>
-        <div className="metric-card">
-          <span className="metric-icon green" aria-hidden="true">
+        <div className="metric-card flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
+          <span className="metric-icon green grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1e4938] text-lg text-[#9de4b8]" aria-hidden="true">
             ◉
           </span>
-          <div>
+          <div className="grid min-w-0 gap-1">
             <span className="muted">{t('lobby.serverStatus')}</span>
-            <strong>{t('header.online')}</strong>
+            <strong className="block text-lg font-bold text-app-text-strong">{t('header.online')}</strong>
           </div>
         </div>
       </div>
-      <section className="content-card lobby-card">
-        <div className="section-heading">
+      <section className="content-card lobby-card lobby-overview-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
+        <div className="section-heading lobby-card-heading flex items-center justify-between gap-4">
           <div>
             <span className="panel-label">{t('lobby.liveGames')}</span>
-            <h2>{t('lobby.title')}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('lobby.title')}</h2>
           </div>
-          <button className="quiet-button" type="button" onClick={onRefresh}>
+          <button
+            className="quiet-button min-h-11 cursor-pointer rounded-xl px-3 py-2 text-app-accent transition hover:bg-app-muted"
+            type="button"
+            onClick={onRefresh}
+          >
             <span aria-hidden="true">↻</span> {t('lobby.refresh')}
           </button>
         </div>
@@ -131,43 +146,53 @@ export function LobbyView({
             <span className="muted">{t('lobby.emptyDescription')}</span>
           </div>
         ) : (
-          <div className="lobby-list">
+          <div className="lobby-list mt-5 grid gap-2">
             {games.map((game) => (
-              <div className="lobby-row" key={game.code}>
-                <div className="game-mode-icon" aria-hidden="true">
-                  {game.mode === 'ranked' ? '♛' : '♙'}
+              <div
+                className="lobby-row lobby-game-row"
+                key={game.code}
+              >
+                <div className="lobby-game-leading">
+                  <div className="game-mode-icon" aria-hidden="true">
+                    {game.mode === 'ranked' ? '♛' : '♙'}
+                  </div>
+                  <div className="lobby-game-meta">
+                    <strong>{gameLabel(game, t)}</strong>
+                    <span>
+                      5 {t('game.minutes')} · {t('lobby.openGameDescription')}
+                      {game.expiresAt
+                        ? ` · verfällt in ${formatClock(Math.max(0, game.expiresAt - now))}`
+                        : ''}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <strong>{gameLabel(game, t)}</strong>
-                  <span className="muted">
-                    5 {t('game.minutes')} · {t('lobby.openGameDescription')}
-                    {game.expiresAt
-                      ? ` · verfällt in ${formatClock(Math.max(0, game.expiresAt - now))}`
-                      : ''}
-                  </span>
-                </div>
-                <span className="waiting-label">
+                <span className="waiting-label lobby-game-status">
                   <span className="live-dot" />
                   {game.isOwner ? t('lobby.yourGame') : t('lobby.waiting')}
                 </span>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => onJoin(game.code)}
-                >
-                  {game.isOwner ? t('lobby.open') : t('lobby.join')}{' '}
-                  <span aria-hidden="true">→</span>
-                </button>
-                {game.isOwner ? (
+                <div className="lobby-game-actions">
                   <button
-                    className="quiet-button"
+                    className="secondary-button lobby-open-button"
                     type="button"
-                    aria-label={`${t('lobby.deleteGame')} ${game.code} ${t('lobby.deleteSuffix')}`}
-                    onClick={() => onDelete(game.code)}
+                    onClick={() => onJoin(game.code)}
                   >
-                    {t('lobby.delete')}
+                    {game.isOwner ? t('lobby.open') : t('lobby.join')}{' '}
+                    <span aria-hidden="true">→</span>
                   </button>
-                ) : null}
+                  {game.isOwner ? (
+                    <button
+                      className="quiet-button lobby-delete-button"
+                      type="button"
+                      aria-label={`${t('lobby.deleteGame')} ${game.code} ${t('lobby.deleteSuffix')}`}
+                      title={t('lobby.delete')}
+                      onClick={() => onDelete(game.code)}
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M4.5 7.5h15M9 7.5V5.8c0-.72.58-1.3 1.3-1.3h3.4c.72 0 1.3.58 1.3 1.3v1.7M7.25 7.5l.7 11.2c.05.82.73 1.45 1.55 1.45h5c.82 0 1.5-.63 1.55-1.45l.7-11.2M10 11v5.2M14 11v5.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
@@ -213,17 +238,18 @@ export function HistoryView({
   );
 
   return (
-    <div className="history-content">
-      <section className="content-card history-card">
+    <div className="history-content history-content--wide w-full">
+      <section className="content-card history-card w-full min-w-0 rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
         <div className="section-heading history-heading">
           <div>
             <span className="panel-label">{t('history.label')}</span>
-            <h2>{t('page.history.title')}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('page.history.title')}</h2>
           </div>
           <div className="history-filters">
             <label>
               <span className="sr-only">{t('history.resultFilter')}</span>
               <select
+                className="rounded-xl border border-app-border-strong bg-app-muted px-3 py-2 text-sm text-app-text outline-none focus:border-app-accent"
                 aria-label={t('history.resultFilter')}
                 value={resultFilter}
                 onChange={(event) =>
@@ -239,6 +265,7 @@ export function HistoryView({
             <label>
               <span className="sr-only">{t('history.modeFilter')}</span>
               <select
+                className="rounded-xl border border-app-border-strong bg-app-muted px-3 py-2 text-sm text-app-text outline-none focus:border-app-accent"
                 aria-label={t('history.modeFilter')}
                 value={modeFilter}
                 onChange={(event) => onModeFilterChange(event.target.value as HistoryModeFilter)}
@@ -261,13 +288,15 @@ export function HistoryView({
               return (
                 <button
                   className={
-                    selectedGame?.id === historyGame.id ? 'history-row selected' : 'history-row'
+                    selectedGame?.id === historyGame.id
+                        ? 'history-row selected grid cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-app-border px-0 py-3 text-left transition hover:bg-app-muted'
+                        : 'history-row grid cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-app-border px-0 py-3 text-left transition hover:bg-app-muted'
                   }
                   type="button"
                   key={historyGame.id}
                   onClick={() => onSelect(historyGame)}
                 >
-                  <span className="history-result" data-result={outcome}>
+                  <span className="history-result" data-result={historyGame.result ?? 'unfinished'}>
                     {historyResultMark(historyGame.result)}
                   </span>
                   <span className="history-game-main">
@@ -306,13 +335,13 @@ export function HistoryView({
       </section>
       {selectedGame ? (
         <section
-          className="content-card history-detail"
+          className="content-card history-detail w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg"
           aria-label={`${t('history.details')} ${selectedGame.code}`}
         >
           <div className="section-heading">
             <div>
               <span className="panel-label">{t('history.details')}</span>
-              <h2>{selectedGame.code}</h2>
+              <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{selectedGame.code}</h2>
             </div>
             <a
               className="secondary-button"
@@ -366,7 +395,7 @@ export function ProfileView({
   return (
     <div className="profile-content">
       <section
-        className="content-card profile-summary-card"
+        className="content-card profile-summary-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg"
         aria-label={t(publicProfile ? 'profile.publicSummary' : 'profile.summary')}
       >
         <div className="profile-summary-heading">
@@ -375,7 +404,7 @@ export function ProfileView({
             <span className="panel-label">
               {t(publicProfile ? 'profile.publicLabel' : 'profile.label')}
             </span>
-            <h2>{profile.user.username}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{profile.user.username}</h2>
             <span className="muted">
               {t('profile.memberSince')} {formatHistoryDate(profile.user.createdAt, language)}
             </span>
@@ -394,23 +423,23 @@ export function ProfileView({
           ['profile.losses', stats.losses, 'red'],
           ['profile.draws', stats.draws, 'gold'],
         ].map(([label, value, color]) => (
-          <div className="metric-card profile-metric" key={label as string}>
-            <span className={`metric-icon ${color}`} aria-hidden="true">
+          <div className="metric-card profile-metric flex min-w-0 items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg" key={label as string}>
+            <span className={`metric-icon ${color} grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1e3d5e] text-[#c0e3ff] text-lg`} aria-hidden="true">
               {profileMetricIcon(color as string)}
             </span>
-            <div>
-              <strong>{value as number}</strong>
+            <div className="grid min-w-0 gap-1">
+              <strong className="block text-lg font-bold text-app-text-strong">{value as number}</strong>
               <span className="muted">{t(label as Parameters<Translator>[0])}</span>
             </div>
           </div>
         ))}
       </section>
 
-      <section className="content-card profile-modes-card">
+      <section className="content-card profile-modes-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
         <div className="section-heading">
           <div>
             <span className="panel-label">{t('profile.breakdown')}</span>
-            <h2>{t('profile.modes')}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('profile.modes')}</h2>
           </div>
           <span className="muted">{t('profile.winsLossesDraws')}</span>
         </div>
@@ -430,11 +459,11 @@ export function ProfileView({
         </div>
       </section>
 
-      <section className="content-card profile-rating-card" aria-label={t('profile.ratingHistory')}>
+      <section className="content-card profile-rating-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg" aria-label={t('profile.ratingHistory')}>
         <div className="section-heading">
           <div>
             <span className="panel-label">{t('profile.ratingHistory')}</span>
-            <h2>{t('profile.ratingDevelopment')}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('profile.ratingDevelopment')}</h2>
           </div>
           <strong className="profile-rating-current">{profile.user.rating}</strong>
         </div>
@@ -472,7 +501,7 @@ export function AdminView({
   onRoleChange: (id: string, role: UserRole) => void;
 }>) {
   return (
-    <section className="content-card admin-card">
+    <section className="content-card admin-card w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
       <div className="section-heading">
         <div>
           <span className="panel-label">{t('admin.label')}</span>
@@ -541,79 +570,126 @@ export function FriendsView({
   onInviteSpectator: (username: string) => void;
   onViewProfile: (id: string) => void;
 }>) {
+  const requestedUserIds = new Set(friends?.outgoingRequests.map((request) => request.receiver.id));
+
   return (
-    <section className="social-grid">
-      <div className="content-card">
-        <div className="section-heading">
+    <section className="social-grid social-grid--wide w-full">
+      <div className="content-card friends-list-card w-full min-w-0 rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
+        <div className="section-heading friends-heading">
           <div>
             <span className="panel-label">{t('friends.social')}</span>
-            <h2>{t('friends.title')}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('friends.title')}</h2>
           </div>
+          <span className="friends-count">{friends?.friends.length ?? 0}</span>
         </div>
-        {friends?.friends.length ? (
-          <div className="user-list">
-            {friends.friends.map((friend) => (
-              <div className="user-row" key={friend.id}>
-                <span className={friend.online ? 'online-dot' : 'offline-dot'} />
-                <button
-                  className="link-button friend-profile-link"
-                  type="button"
-                  onClick={() => onViewProfile(friend.id)}
-                >
-                  {friend.username}
-                </button>
-                <span className="muted">{friend.rating}</span>
-                {canInvite ? (
+        <section className="friends-section" aria-label={t('friends.title')}>
+          {friends?.friends.length ? (
+            <div className="user-list friends-list">
+              {friends.friends.map((friend) => (
+                <div className="friend-row" key={friend.id}>
+                  <span className="friend-avatar" aria-hidden="true">
+                    {friend.username.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className={friend.online ? 'online-dot' : 'offline-dot'} aria-label={friend.online ? t('header.online') : undefined} />
                   <button
-                    className="tiny-button"
+                    className="link-button friend-profile-link"
                     type="button"
-                    onClick={() => onInvite(friend.username)}
+                    aria-label={friend.username}
+                    onClick={() => onViewProfile(friend.id)}
                   >
-                    {t('friends.invite')}
+                    <strong>{friend.username}</strong>
+                    <span>{friend.rating}</span>
                   </button>
-                ) : null}
-                {canInviteSpectator ? (
-                  <button
-                    className="tiny-button"
-                    type="button"
-                    onClick={() => onInviteSpectator(friend.username)}
-                  >
-                    {t('friends.inviteSpectator')}
-                  </button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="muted">{t('friends.empty')}</p>
-        )}
-        <h3>{t('friends.incoming')}</h3>
-        {friends?.incomingRequests.map((request) => (
-          <div className="user-row" key={request.id}>
-            <strong>{request.sender.username}</strong>
-            <button
-              className="tiny-button"
-              type="button"
-              onClick={() => onRespond(request.id, 'accept')}
-            >
-              {t('friends.accept')}
-            </button>
-            <button
-              className="tiny-button danger"
-              type="button"
-              onClick={() => onRespond(request.id, 'reject')}
-            >
-              {t('friends.reject')}
-            </button>
-          </div>
-        ))}
+                  <div className="friend-actions">
+                    {canInvite ? (
+                      <button
+                        className="tiny-button"
+                        type="button"
+                        onClick={() => onInvite(friend.username)}
+                      >
+                        {t('friends.invite')}
+                      </button>
+                    ) : null}
+                    {canInviteSpectator ? (
+                      <button
+                        className="tiny-button"
+                        type="button"
+                        onClick={() => onInviteSpectator(friend.username)}
+                      >
+                        {t('friends.inviteSpectator')}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">{t('friends.empty')}</p>
+          )}
+        </section>
+        {friends?.incomingRequests.length ? (
+          <section className="friends-section incoming-requests" aria-label={t('friends.incoming')}>
+            <h3 className="friends-section-title">{t('friends.incoming')}</h3>
+            <div className="user-list">
+              {friends.incomingRequests.map((request) => (
+                <div className="friend-row friend-request-row" key={request.id}>
+                  <span className="friend-avatar" aria-hidden="true">
+                    {request.sender.username.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="friend-request-person">
+                    <strong>{request.sender.username}</strong>
+                    <span>{request.sender.rating}</span>
+                  </div>
+                  <div className="friend-actions">
+                    <button
+                      className="tiny-button"
+                      type="button"
+                      onClick={() => onRespond(request.id, 'accept')}
+                    >
+                      {t('friends.accept')}
+                    </button>
+                    <button
+                      className="tiny-button danger"
+                      type="button"
+                      onClick={() => onRespond(request.id, 'reject')}
+                    >
+                      {t('friends.reject')}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {friends?.outgoingRequests.length ? (
+          <section className="friends-section outgoing-requests" aria-label={t('friends.outgoing')}>
+            <h3 className="friends-section-title">{t('friends.outgoing')}</h3>
+            <div className="user-list">
+              {friends.outgoingRequests.map((request) => (
+                <div className="friend-row friend-request-row" key={request.id}>
+                  <span className="friend-avatar" aria-hidden="true">
+                    {request.receiver.username.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="friend-request-person">
+                    <strong>{request.receiver.username}</strong>
+                    <span>{request.receiver.rating}</span>
+                  </div>
+                  <span className="friend-request-status">{t('friends.requestSent')}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
-      <div className="content-card">
-        <span className="panel-label">{t('friends.findPlayers')}</span>
-        <h2>{t('friends.searchTitle')}</h2>
+      <div className="content-card friends-discovery-card w-full min-w-0 rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg">
+        <div className="friends-discovery-heading">
+          <span className="panel-label">{t('friends.findPlayers')}</span>
+          <h2 className="mt-1 text-xl font-semibold text-app-text-strong">{t('friends.searchTitle')}</h2>
+        </div>
         <form className="search-row" onSubmit={onSearch}>
           <input
             autoComplete="off"
+            aria-label={t('friends.searchTitle')}
             name="user-search"
             placeholder={t('friends.searchPlaceholder')}
             spellCheck={false}
@@ -624,24 +700,36 @@ export function FriendsView({
             {t('friends.search')}
           </button>
         </form>
-        <div className="user-list">
-          {searchResults.map((result) => (
-            <div className="user-row" key={result.id}>
-              <span className={result.online ? 'online-dot' : 'offline-dot'} />
-              <button
-                className="link-button friend-profile-link"
-                type="button"
-                onClick={() => onViewProfile(result.id)}
-              >
-                {result.username}
-              </button>
-              <span className="muted">{result.rating}</span>
-              <button className="tiny-button" type="button" onClick={() => onAdd(result.username)}>
-                {t('friends.add')}
-              </button>
-            </div>
-          ))}
-        </div>
+          <div className="user-list">
+            {searchResults.map((result) => {
+              const requestAlreadySent = requestedUserIds.has(result.id);
+              return (
+                <div className="friend-row search-result-row" key={result.id}>
+                  <span className="friend-avatar" aria-hidden="true">
+                    {result.username.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className={result.online ? 'online-dot' : 'offline-dot'} aria-label={result.online ? t('header.online') : undefined} />
+                  <button
+                    className="link-button friend-profile-link"
+                    type="button"
+                    aria-label={result.username}
+                    onClick={() => onViewProfile(result.id)}
+                  >
+                    <strong>{result.username}</strong>
+                    <span>{result.rating}</span>
+                  </button>
+                  <button
+                    className={requestAlreadySent ? 'tiny-button request-sent' : 'tiny-button'}
+                    type="button"
+                    disabled={requestAlreadySent}
+                    onClick={() => onAdd(result.username)}
+                  >
+                    {requestAlreadySent ? t('friends.requestSent') : t('friends.add')}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
       </div>
     </section>
   );

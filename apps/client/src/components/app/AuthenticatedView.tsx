@@ -3,14 +3,11 @@ import type { ReactNode } from 'react';
 import type { AppController } from '../../app/useAppController';
 import { PROMOTION_OPTIONS } from '../../app/config';
 import {
-  gameLabel,
-  gameStatusLabel,
   gamePath,
   notificationMessage,
   notificationTitle,
   pageHeadingFor,
   spectatorPath,
-  statusLabel,
 } from '../../app/utils';
 import { AppFooter } from './AppFooter';
 import { AdminView, FriendsView, HistoryView, LobbyView, ProfileView } from './DashboardViews';
@@ -49,23 +46,28 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
     setTheme,
     setLanguage,
     user,
+    openProfile,
     logout,
     t,
   } = controller;
   const unreadCount = notifications.filter((item) => !item.read).length;
-
   return (
-    <header className="topbar">
-      <div className="brand-lockup">
-        <div className="brand-mark" aria-hidden="true">
+    <header className="topbar flex items-center justify-between gap-4 border-b border-app-border px-[clamp(1rem,3vw,2rem)] py-4 max-lg:flex-wrap">
+      <div className="brand-lockup flex items-center gap-3">
+        <div
+          className="brand-mark grid h-11 w-11 place-items-center rounded-2xl border border-app-border-strong bg-app-muted text-xl text-app-accent shadow-lg"
+          aria-hidden="true"
+        >
           ♞
         </div>
         <div>
-          <p className="eyebrow">3D ONLINE-SCHACH</p>
-          <strong className="brand-title">Chessboard</strong>
+          <p className="eyebrow mb-1 text-xs font-bold tracking-[0.14em] text-app-accent">
+            3D ONLINE-SCHACH
+          </p>
+          <strong className="brand-title text-lg text-app-text-strong">Chessboard</strong>
         </div>
       </div>
-      <div className="header-actions">
+      <div className="header-actions flex items-center gap-2 max-md:flex-wrap">
         <ThemeMenu theme={theme} onChange={setTheme} t={t} />
         <LanguageMenu language={language} onChange={setLanguage} t={t} />
         <span className="live-chip">
@@ -76,9 +78,13 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
             className="notification-button"
             type="button"
             aria-label={`${t('notifications.label')} (${unreadCount})`}
+            title={t('notifications.label')}
             onClick={() => setNotificationsOpen((open) => !open)}
           >
-            ♢{unreadCount ? <span className="notification-count">{unreadCount}</span> : null}
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM9.75 21h4.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {unreadCount ? <span className="notification-count">{unreadCount}</span> : null}
           </button>
           {notificationsOpen ? (
             <section className="notification-panel" aria-label={t('notifications.label')}>
@@ -139,13 +145,28 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
             </section>
           ) : null}
         </div>
-        <div className="profile-chip">
-          <span className="avatar">{user?.username.slice(0, 1).toUpperCase()}</span>
-          <span>{user?.username}</span>
-          <span className="profile-rating">{user?.rating}</span>
-        </div>
-        <button className="quiet-button" type="button" onClick={() => void logout()}>
-          {t('auth.logout')}
+          <button
+            className="profile-chip profile-trigger"
+            type="button"
+            aria-label={`${user?.username} · ${user?.rating}`}
+            title={t('sidebar.profile')}
+            onClick={() => void openProfile()}
+          >
+            <span className="avatar">{user?.username.slice(0, 1).toUpperCase()}</span>
+            <span>{user?.username}</span>
+            <span className="profile-rating">{user?.rating}</span>
+          </button>
+        <button
+          className="header-icon-button logout-button"
+          type="button"
+          aria-label={t('auth.logout')}
+          title={t('auth.logout')}
+          onClick={() => void logout()}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M10 5H5.5A1.5 1.5 0 0 0 4 6.5v11A1.5 1.5 0 0 0 5.5 19H10" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="m14 8 4 4-4 4M18 12H9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
     </header>
@@ -159,7 +180,7 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
     lobbyGames,
     historyGames,
     openHistory,
-    openProfile,
+    openSelectedGame,
     user,
     adminUsers,
     refreshAdminUsers,
@@ -170,17 +191,20 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
   } = controller;
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar flex min-h-0 flex-col justify-between max-lg:border-r-0 max-lg:border-b">
       <div>
         <span className="sidebar-label">{t('sidebar.workspace')}</span>
-        <nav className="sidebar-nav" aria-label={t('sidebar.navigation')}>
+        <nav className="sidebar-nav grid gap-1" aria-label={t('sidebar.navigation')}>
           <button
             className={view === 'lobby' ? 'nav-button active' : 'nav-button'}
             type="button"
             onClick={() => setView('lobby')}
           >
             <span className="nav-icon" aria-hidden="true">
-              ⌂
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="m4 10 8-6 8 6v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z" strokeLinejoin="round" />
+                <path d="M9.5 20v-5h5v5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </span>
             <span>{t('sidebar.lobby')}</span>
             <span className="nav-count">{lobbyGames.length}</span>
@@ -191,20 +215,13 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
             onClick={() => void openHistory()}
           >
             <span className="nav-icon" aria-hidden="true">
-              ◷
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="12" r="8" />
+                <path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </span>
             <span>{t('sidebar.history')}</span>
             <span className="nav-count">{historyGames.length}</span>
-          </button>
-          <button
-            className={view === 'profile' ? 'nav-button active' : 'nav-button'}
-            type="button"
-            onClick={() => void openProfile()}
-          >
-            <span className="nav-icon" aria-hidden="true">
-              ◉
-            </span>
-            <span>{t('sidebar.profile')}</span>
           </button>
           {user?.role === 'admin' ? (
             <button
@@ -216,7 +233,10 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
               }}
             >
               <span className="nav-icon" aria-hidden="true">
-                ⚙
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="m12 3 7 3.5v4.75c0 4.4-3.02 7.34-7 9.75-3.98-2.41-7-5.35-7-9.75V6.5L12 3Z" strokeLinejoin="round" />
+                  <path d="M9.5 12.1 11 13.6l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </span>
               <span>{t('sidebar.administration')}</span>
               <span className="nav-count">{adminUsers.length}</span>
@@ -231,7 +251,11 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
             }}
           >
             <span className="nav-icon" aria-hidden="true">
-              ♙
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="9" cy="9" r="3" />
+                <path d="M3.8 20c.55-3.15 2.25-5 5.2-5s4.65 1.85 5.2 5" strokeLinecap="round" />
+                <path d="M15.5 7.1a2.5 2.5 0 0 1 0 4.8M16.2 15.3c2.1.42 3.38 1.94 3.9 4.7" strokeLinecap="round" />
+              </svg>
             </span>
             <span>{t('sidebar.friends')}</span>
             <span className="nav-count">{friends?.friends.length ?? 0}</span>
@@ -240,28 +264,18 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
             <button
               className={view === 'game' ? 'nav-button active' : 'nav-button'}
               type="button"
-              onClick={() => setView('game')}
+              onClick={openSelectedGame}
             >
               <span className="nav-icon" aria-hidden="true">
-                ♜
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M7 5h10l-1 4-2-1-2 1-2-1-2 1-1-4ZM8.5 10h7l.8 6H7.7l.8-6ZM6 20h12M8 16h8v4H8z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </span>
               <span>{t('sidebar.activeGame')}</span>
               <span className="nav-live-dot" />
             </button>
           ) : null}
         </nav>
-      </div>
-      <div className="sidebar-note">
-        <span className="sidebar-label">{t('sidebar.profile')}</span>
-        <strong>{user?.username}</strong>
-        <span className="muted">
-          {t('sidebar.rating')} {user?.rating}
-        </span>
-        <div className="rating-bar">
-          <span
-            style={{ width: `${Math.min(100, Math.max(8, ((user?.rating ?? 800) - 800) / 8))}%` }}
-          />
-        </div>
       </div>
     </aside>
   );
@@ -272,12 +286,10 @@ function DashboardContent({
   pageHeading,
   profileContent,
   turnLabel,
-  gameStatus,
 }: AuthenticatedComponentProps & {
   pageHeading: ReturnType<typeof pageHeadingFor>;
   profileContent: ReactNode;
   turnLabel: string;
-  gameStatus: string;
 }) {
   const {
     view,
@@ -341,7 +353,7 @@ function DashboardContent({
   }
 
   return (
-    <section className="dashboard-main">
+    <section className="dashboard-main min-w-0 px-[clamp(1rem,3vw,2rem)] py-6">
       {unavailableLobbyCode ? (
         <LobbyUnavailablePopover
           code={unavailableLobbyCode}
@@ -360,13 +372,15 @@ function DashboardContent({
           </button>
         </div>
       ) : null}
-      <div className="page-heading">
+      <div className="page-heading mb-7 flex items-start justify-between gap-4 max-sm:mb-5">
         <div>
           <span className="eyebrow">{pageHeading.eyebrow}</span>
-          <h1>{pageHeading.title}</h1>
-          <p>{pageHeading.description}</p>
+          <h1 className="mt-1 mb-2 text-[clamp(2rem,4vw,3.2rem)] leading-none tracking-[-0.04em] text-app-text-strong">
+            {pageHeading.title}
+          </h1>
+          <p className="text-app-text-muted">{pageHeading.description}</p>
         </div>
-        <div className="heading-accent" aria-hidden="true">
+        <div className="heading-accent pt-2 text-2xl text-app-accent opacity-80" aria-hidden="true">
           ✦
         </div>
       </div>
@@ -442,8 +456,13 @@ function DashboardContent({
           legalTargets={legalTargets}
           moveHistory={moveHistory}
           turnLabel={turnLabel}
-          gameStatus={gameStatus}
           onBackToLobby={returnToLobby}
+          onDeleteGame={() => {
+            if (!selectedGame) return;
+            void deleteGame(selectedGame.code).then((deleted) => {
+              if (deleted) returnToLobby();
+            });
+          }}
           handleSelectSquare={handleSelectSquare}
           onCopyLink={() => void copyGameLink()}
           linkCopied={linkCopied}
@@ -462,10 +481,10 @@ function DashboardContent({
 }
 
 function InsightsPanel({ controller }: AuthenticatedComponentProps) {
-  const { user, friends, createGame, t } = controller;
+  const { user, friends, openProfile, t } = controller;
   return (
-    <aside className="insights-panel">
-      <div className="insight-card profile-insight">
+    <aside className="insights-panel grid content-start gap-4">
+      <div className="insight-card profile-insight rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
         <div className="insight-heading">
           <span>{t('insight.status')}</span>
           <span className="live-chip small">
@@ -485,13 +504,13 @@ function InsightsPanel({ controller }: AuthenticatedComponentProps) {
             <span>{t('insight.friends')}</span>
           </div>
         </div>
-      </div>
-      <div className="insight-card quick-match">
-        <span className="panel-label">{t('insight.quickStart')}</span>
-        <h3>{t('insight.directGame')}</h3>
-        <p className="muted">{t('insight.quickStartDescription')}</p>
-        <button className="primary-button" type="button" onClick={() => void createGame('casual')}>
-          {t('insight.createGame')} <span aria-hidden="true">→</span>
+        <button
+          className="quiet-button profile-insight-action flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-app-border px-3 py-2 text-sm font-semibold transition hover:border-app-accent hover:bg-app-muted"
+          type="button"
+          onClick={() => void openProfile()}
+        >
+          {t('sidebar.profile')}
+          <span aria-hidden="true">→</span>
         </button>
       </div>
     </aside>
@@ -502,9 +521,13 @@ function PromotionDialog({ controller }: AuthenticatedComponentProps) {
   const { promotionMove, commitMove, t } = controller;
   if (!promotionMove) return null;
   return (
-    <dialog open className="promotion-dialog" aria-label={t('promotion.label')}>
+    <dialog
+      open
+      className="promotion-dialog fixed left-1/2 top-1/2 z-20 grid min-w-72 -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-app-border-strong bg-app-surface p-4 text-app-text shadow-2xl"
+      aria-label={t('promotion.label')}
+    >
       <strong>{t('promotion.label')}</strong>
-      <div className="promotion-actions">
+      <div className="promotion-actions grid grid-cols-2 gap-2">
         {PROMOTION_OPTIONS.map((promotion) => (
           <button
             key={promotion}
@@ -527,10 +550,8 @@ export function AuthenticatedView(controller: Readonly<AppController>) {
   }
 
   const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
-  const gameStatus = selectedGame
-    ? `${gameLabel(selectedGame, t)} · ${gameStatusLabel(selectedGame.status, t)}`
-    : statusLabel(gameState.status, t);
   const pageHeading = pageHeadingFor(view, t);
+  const isGameView = view === 'game';
   let profileContent = null;
   if (profileLoading) {
     profileContent = <div className="centered-message">{t('profile.loading')}</div>;
@@ -539,19 +560,31 @@ export function AuthenticatedView(controller: Readonly<AppController>) {
   }
 
   return (
-    <main className={view === 'game' ? 'app-shell game-mode' : 'app-shell'} data-theme={theme}>
-      <div className="dashboard-shell">
+    <main
+      className={
+        view === 'game'
+          ? 'app-shell game-mode grid min-h-dvh bg-app-page text-app-text'
+          : 'app-shell grid min-h-dvh bg-app-page text-app-text'
+      }
+      data-theme={theme}
+    >
+      <div className="dashboard-shell grid w-full min-w-0">
         <AuthenticatedHeader controller={controller} />
-        <div className="dashboard-grid">
-          <DashboardSidebar controller={controller} />
+        <div
+          className={
+            isGameView
+              ? 'dashboard-grid grid min-w-0 grid-cols-[minmax(0,1fr)]'
+              : 'dashboard-grid grid min-w-0 grid-cols-[minmax(14rem,16rem)_minmax(0,1fr)_minmax(14rem,18rem)] max-xl:grid-cols-[minmax(13rem,15rem)_minmax(0,1fr)] max-xl:[&>.insights-panel]:hidden max-lg:grid-cols-1'
+          }
+        >
+          {!isGameView ? <DashboardSidebar controller={controller} /> : null}
           <DashboardContent
             controller={controller}
             pageHeading={pageHeading}
             profileContent={profileContent}
             turnLabel={turnLabel}
-            gameStatus={gameStatus}
           />
-          <InsightsPanel controller={controller} />
+          {!isGameView ? <InsightsPanel controller={controller} /> : null}
         </div>
       </div>
       <PromotionDialog controller={controller} />

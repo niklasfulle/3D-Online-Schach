@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode } from 'react';
 
@@ -60,6 +60,7 @@ afterEach(() => {
   window.history.replaceState({}, '', '/');
   localStorage.clear();
   delete document.documentElement.dataset.theme;
+  vi.useRealTimers();
   vi.clearAllMocks();
   mocks.listeners.clear();
 });
@@ -87,8 +88,7 @@ describe('App', () => {
     );
     expect(screen.getByRole('link', { name: 'Impressum' }).getAttribute('href')).toBe('/impressum');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sprache' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Englisch' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sprache: Deutsch' }));
 
     expect(screen.getByRole('contentinfo', { name: 'Footer' })).toBeTruthy();
     expect(screen.getByText('Version 0.1.0')).toBeTruthy();
@@ -108,18 +108,15 @@ describe('App', () => {
     render(<App />);
     await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Darstellung' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Hell' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Darstellung: Dunkel' }));
     expect(localStorage.getItem('chess3d.theme')).toBe('light');
     expect(document.documentElement.dataset.theme).toBe('light');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sprache' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Englisch' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sprache: Deutsch' }));
 
     expect(localStorage.getItem('chess3d.language')).toBe('en');
-    expect(screen.getByRole('button', { name: 'Language' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Language' }));
-    expect(screen.getByRole('menuitem', { name: 'English' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Language: English' })).toBeTruthy();
+    expect(screen.queryByRole('menu')).toBeNull();
     expect(await screen.findByRole('heading', { name: 'Ready for your next move?' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Public lobby' })).toBeTruthy();
     expect(screen.getByText('Find your next game.')).toBeTruthy();
@@ -179,6 +176,10 @@ describe('App', () => {
     expect(mocks.requestJson).toHaveBeenCalledWith(expect.any(String), '/games/history?limit=20');
     expect(screen.getByRole('button', { name: /ABC123/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /XYZ789/ })).toBeTruthy();
+    expect(document.querySelector('.history-content')?.className).toContain('history-content--wide');
+    expect(screen.getByRole('button', { name: /ABC123/ }).className).toContain(
+      'grid-cols-[2.1rem_minmax(0,1fr)_auto_auto]',
+    );
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Ergebnis' }), {
       target: { value: 'wins' },
@@ -229,7 +230,13 @@ describe('App', () => {
 
     render(<App />);
     await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
-    fireEvent.click(screen.getByRole('button', { name: /Profil/ }));
+    const profileButton = screen.getByRole('button', { name: 'Dein Profil' });
+    expect(
+      within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).queryByRole('button', {
+        name: 'Dein Profil',
+      }),
+    ).toBeNull();
+    fireEvent.click(profileButton);
 
     expect(await screen.findByRole('heading', { name: 'Mein Profil' })).toBeTruthy();
     expect(screen.getByText('4')).toBeTruthy();
@@ -237,6 +244,36 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Deine Entwicklung' })).toBeTruthy();
     expect(screen.getByText('1240')).toBeTruthy();
     expect(mocks.requestJson).toHaveBeenCalledWith(expect.any(String), '/profile');
+    expect(window.location.pathname).toBe('/profile');
+  });
+
+  it('restores the profile view from its direct URL', async () => {
+    window.history.replaceState({}, '', '/profile');
+    const profile = {
+      user: { ...user, createdAt: '2026-01-01T00:00:00.000Z' },
+      stats: {
+        totalGames: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        ranked: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
+        casual: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
+        ratingHistory: [{ at: '2026-01-01T00:00:00.000Z', rating: 1200 }],
+      },
+    };
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      if (path === '/profile') return profile;
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Mein Profil' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/profile');
   });
 
   it('opens a public profile from the friends list without showing private contact data', async () => {
@@ -331,6 +368,8 @@ describe('App', () => {
 
     expect(await screen.findByText('Casual · ABC123')).toBeTruthy();
     expect(screen.getByText(/verfällt in/)).toBeTruthy();
+    expect(document.querySelector('.lobby-overview-card')).toBeTruthy();
+    expect(document.querySelector('.lobby-row')?.className).toContain('lobby-game-row');
     fireEvent.click(screen.getByRole('button', { name: 'Abmelden' }));
 
     expect(await screen.findByRole('heading', { name: 'Willkommen zurück' })).toBeTruthy();
@@ -339,6 +378,72 @@ describe('App', () => {
       '/auth/logout',
       expect.objectContaining({ method: 'POST' }),
     );
+  });
+
+  it('uses icon controls and opens the profile directly from the header', async () => {
+    const profile = {
+      user: { ...user, createdAt: '2026-01-01T00:00:00.000Z' },
+      stats: {
+        totalGames: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        ranked: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
+        casual: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
+        ratingHistory: [{ at: '2026-01-01T00:00:00.000Z', rating: 1200 }],
+      },
+    };
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      if (path === '/profile') return profile;
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+
+    const notificationButton = screen.getByRole('button', { name: 'Benachrichtigungen (0)' });
+    const logoutButton = screen.getByRole('button', { name: 'Abmelden' });
+    expect(notificationButton.textContent).toBe('');
+    expect(logoutButton.textContent).toBe('');
+    expect(notificationButton.querySelector('svg')).not.toBeNull();
+    expect(logoutButton.querySelector('svg')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Niklas · 1200' }));
+    expect(await screen.findByRole('heading', { name: 'Mein Profil' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Dein Profil' })).toBeNull();
+  });
+
+  it('refreshes the public lobby games every five seconds', async () => {
+    vi.useFakeTimers();
+    const newlyListedGame = { ...waitingGame, code: 'NEW456', isOwner: false };
+    let lobbyRequestCount = 0;
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') {
+        lobbyRequestCount += 1;
+        return { games: lobbyRequestCount === 1 ? [] : [newlyListedGame] };
+      }
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('heading', { name: 'Bereit für den nächsten Zug?' })).toBeTruthy();
+    expect(screen.queryByText('Casual · NEW456')).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(screen.getByText('Casual · NEW456')).toBeTruthy();
   });
 
   it('shows the admin area only for admins and updates a user role', async () => {
@@ -426,7 +531,7 @@ describe('App', () => {
       expect(mocks.requestJson).toHaveBeenCalledWith(
         expect.any(String),
         '/lobby/games/ABC123',
-        expect.objectContaining({ method: 'DELETE', body: '{}' }),
+        expect.objectContaining({ method: 'DELETE' }),
       ),
     );
     expect(screen.queryByText('Casual · ABC123')).toBeNull();
@@ -440,18 +545,27 @@ describe('App', () => {
       sender: { id: 'sender-1', username: 'Lena', rating: 1100, online: true },
       receiver: user,
     };
+    const outgoingRequest = {
+      id: 'request-2',
+      status: 'pending' as const,
+      createdAt: '2026-09-11T00:00:00.000Z',
+      sender: user,
+      receiver: { id: 'receiver-1', username: 'Jonas', rating: 1180, online: false },
+    };
     const friend = { id: 'friend-1', username: 'Max', rating: 1250, online: false };
     const overview = {
       friends: [friend],
       incomingRequests: [incomingRequest],
-      outgoingRequests: [],
+      outgoingRequests: [outgoingRequest],
     };
 
     mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
       if (path === '/auth/me') return { user };
       if (path === '/lobby') return { games: [] };
       if (path === '/friends') return overview;
-      if (path.startsWith('/users/search')) return { users: [{ ...friend, username: 'Mara' }] };
+      if (path.startsWith('/users/search')) {
+        return { users: [{ ...friend, username: 'Mara' }, outgoingRequest.receiver] };
+      }
       if (path === '/friends/requests') return { ok: true };
       if (path === '/friends/requests/request-1/accept') return { ok: true };
       throw new Error(`Unexpected request: ${path}`);
@@ -463,12 +577,27 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Deine Freunde' })).toBeTruthy();
     expect(screen.getByText('Max')).toBeTruthy();
+    expect(document.querySelector('.social-grid')?.className).toContain('social-grid--wide');
+    expect(document.querySelector('.friends-list-card')).toBeTruthy();
+    expect(document.querySelector('.friends-discovery-card')).toBeTruthy();
+    expect(document.querySelector('.outgoing-requests')).toBeTruthy();
+    expect(screen.getByText('Anfrage gesendet')).toBeTruthy();
+    expect(screen.getByText('Jonas')).toBeTruthy();
 
     fireEvent.change(screen.getByPlaceholderText('z. B. niklas…'), {
       target: { value: 'Mara' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Suchen' }));
     expect(await screen.findByText('Mara')).toBeTruthy();
+    const sentRequestSearchRow = Array.from(document.querySelectorAll('.search-result-row')).find(
+      (row) => row.textContent?.includes('Jonas'),
+    );
+    expect(sentRequestSearchRow).toBeTruthy();
+    expect(
+      within(sentRequestSearchRow as HTMLElement).getByRole('button', {
+        name: 'Anfrage gesendet',
+      }).getAttribute('disabled'),
+    ).not.toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '+ Freund' }));
     await waitFor(() =>
@@ -517,7 +646,8 @@ describe('App', () => {
       ([event]) => event === 'game:updated',
     )?.[1] as ((game: typeof activeGame) => void) | undefined;
     gameUpdatedHandler?.({ ...activeGame, status: 'finished' });
-    expect(await screen.findByText('Casual · ABC123 · Beendet')).toBeTruthy();
+    expect((await screen.findAllByText('Beendet')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Casual · ABC123 · Beendet')).toBeNull();
     expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
   });
 
@@ -541,12 +671,94 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
     await screen.findByRole('heading', { name: 'Am Brett' });
 
+    const gameFacts = document.querySelector('.game-facts');
+    const panelActions = document.querySelector('.panel-actions');
+    const moveHistory = document.querySelector('.move-history');
+    expect(gameFacts).not.toBeNull();
+    expect(panelActions).not.toBeNull();
+    expect(moveHistory).not.toBeNull();
+    expect(gameFacts?.compareDocumentPosition(panelActions ?? document.body)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(panelActions?.compareDocumentPosition(moveHistory ?? document.body)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
     fireEvent.click(screen.getAllByRole('button', { name: 'Zurück zur Lobby' })[0]);
 
     expect(window.location.pathname).toBe('/');
     expect(
       await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' }),
     ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aktive Partie' }));
+    await screen.findByRole('heading', { name: 'Am Brett' });
+    expect(window.location.pathname).toBe('/game/ABC123');
+  });
+
+  it('lets the owner delete a waiting game from the game view', async () => {
+    mocks.requestJson.mockImplementation(
+      async (_baseUrl: string, path: string, options?: RequestInit) => {
+        if (path === '/auth/me') return { user };
+        if (path === '/lobby') return { games: [] };
+        if (path === '/friends') return emptyFriends;
+        if (path === '/notifications') return { notifications: [] };
+        if (path === '/lobby/games' && options?.method === 'POST') return waitingGame;
+        if (path === `/lobby/games/${waitingGame.code}` && options?.method === 'DELETE') {
+          return { ok: true };
+        }
+        throw new Error(`Unexpected request: ${path}`);
+      },
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
+    await screen.findByRole('heading', { name: 'Am Brett' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partie löschen' }));
+    expect(screen.getByRole('dialog', { name: 'Partie löschen' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Aufgeben' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Löschung bestätigen' }));
+
+    await waitFor(() =>
+      expect(mocks.requestJson).toHaveBeenCalledWith(
+        expect.any(String),
+        `/lobby/games/${waitingGame.code}`,
+        expect.objectContaining({ method: 'DELETE' }),
+      ),
+    );
+    expect(window.location.pathname).toBe('/');
+    expect(await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' })).toBeTruthy();
+  });
+
+  it('shows a helpful translated message when deleting a game loses the network', async () => {
+    mocks.requestJson.mockImplementation(
+      async (_baseUrl: string, path: string, options?: RequestInit) => {
+        if (path === '/auth/me') return { user };
+        if (path === '/lobby') return { games: [] };
+        if (path === '/friends') return emptyFriends;
+        if (path === '/lobby/games' && options?.method === 'POST') return waitingGame;
+        if (path === `/lobby/games/${waitingGame.code}` && options?.method === 'DELETE') {
+          throw new TypeError('Failed to fetch');
+        }
+        throw new Error(`Unexpected request: ${path}`);
+      },
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
+    await screen.findByRole('heading', { name: 'Am Brett' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partie löschen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Löschung bestätigen' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Partie konnte nicht gelöscht werden');
+    expect(alert.textContent).not.toContain('Failed to fetch');
+    expect(window.location.pathname).toBe(`/game/${waitingGame.code}`);
   });
 
   it('lets an active player resign', async () => {
@@ -575,6 +787,19 @@ describe('App', () => {
     await screen.findByRole('heading', { name: 'Am Brett' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Aufgeben' }));
+    expect(screen.queryByRole('dialog', { name: 'Partie aufgeben' })).toBeTruthy();
+    expect(mocks.requestJson).not.toHaveBeenCalledWith(
+      expect.any(String),
+      `/games/${activeGame.code}/resign`,
+      expect.anything(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+    expect(screen.queryByRole('dialog', { name: 'Partie aufgeben' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Aufgeben' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aufgeben' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aufgabe bestätigen' }));
 
     await waitFor(() =>
       expect(mocks.requestJson).toHaveBeenCalledWith(
@@ -583,7 +808,8 @@ describe('App', () => {
         expect.objectContaining({ method: 'POST' }),
       ),
     );
-    expect(await screen.findByText('Casual · ABC123 · Beendet')).toBeTruthy();
+    expect((await screen.findAllByText('Beendet')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Casual · ABC123 · Beendet')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Aufgeben' })).toBeNull();
   });
 
@@ -612,7 +838,14 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
     await screen.findByRole('heading', { name: 'Am Brett' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Link kopieren' }));
+    const invitationLinkButton = screen.getByRole('button', { name: 'Link kopieren' });
+    const spectatorLinkButton = screen.getByRole('button', { name: 'Zuschauerlink kopieren' });
+    expect(invitationLinkButton.textContent).toBe('');
+    expect(spectatorLinkButton.textContent).toBe('');
+    expect(invitationLinkButton.querySelector('svg')).not.toBeNull();
+    expect(spectatorLinkButton.querySelector('svg')).not.toBeNull();
+
+    fireEvent.click(invitationLinkButton);
 
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/game/ABC123')),
@@ -620,7 +853,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Link kopiert' })).toBeTruthy();
     expect(window.location.pathname).toBe('/game/ABC123');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Zuschauerlink kopieren' }));
+    fireEvent.click(spectatorLinkButton);
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/watch/ABC123')),
     );
@@ -742,7 +975,7 @@ describe('App', () => {
     expect(invitationLink.getAttribute('href')).toBe('/watch/ABC123');
   });
 
-  it('invites a friend from an own waiting game', async () => {
+  it('keeps side menus out of the game and invites a friend from the lobby', async () => {
     const friend = { id: 'friend-1', username: 'Mara', rating: 1250, online: true };
     const ownWaitingGame = { ...waitingGame, whitePlayerId: user.id };
 
@@ -760,6 +993,9 @@ describe('App', () => {
     await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
     fireEvent.click(screen.getByRole('button', { name: /Casual-Spiel erstellen/ }));
     await screen.findByRole('heading', { name: 'Am Brett' });
+    expect(screen.queryByRole('button', { name: /Freunde/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Zurück zur Lobby' }));
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
     fireEvent.click(screen.getByRole('button', { name: /Freunde/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Einladen' }));
 
@@ -807,12 +1043,27 @@ describe('App', () => {
     expect(await screen.findByText('Viel Erfolg!')).toBeTruthy();
     const chatColumn = screen.getByRole('complementary', { name: 'Partiechat' });
     expect(chatColumn.className).toContain('chat-column');
+    expect(chatColumn.className).toContain('h-full');
+    expect(chatColumn.className).toContain('self-stretch');
+    const chatToggle = screen.getByRole('button', { name: 'Chat schließen' });
+    expect(chatToggle.textContent).toBe('');
+    expect(chatToggle.querySelector('svg')).toBeTruthy();
+    expect(chatToggle.getAttribute('aria-expanded')).toBe('true');
+    const sendButton = within(chatColumn).getByRole('button', { name: 'Senden' });
+    expect(sendButton.className).toContain('chat-send-button');
+    expect(sendButton.querySelector('svg')).toBeTruthy();
+    expect(sendButton.getAttribute('aria-label')).toBe('Senden');
+    fireEvent.click(chatToggle);
+    expect(screen.queryByRole('complementary', { name: 'Partiechat' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Chat öffnen' }));
+    expect(await screen.findByRole('complementary', { name: 'Partiechat' })).toBeTruthy();
+    const reopenedChatColumn = screen.getByRole('complementary', { name: 'Partiechat' });
     expect(
-      within(chatColumn).getByText('Viel Erfolg!').closest('.chat-message')?.className,
+      within(reopenedChatColumn).getByText('Viel Erfolg!').closest('.chat-message')?.className,
     ).toContain('incoming');
-    expect(within(chatColumn).getByText('12:00')).toBeTruthy();
+    expect(within(reopenedChatColumn).getByText('12:00')).toBeTruthy();
 
-    const chatLog = within(chatColumn).getByRole('log');
+    const chatLog = within(reopenedChatColumn).getByRole('log');
     Object.defineProperties(chatLog, {
       clientHeight: { configurable: true, value: 100 },
       scrollHeight: { configurable: true, value: 1000 },

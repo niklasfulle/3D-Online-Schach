@@ -30,9 +30,13 @@ import {
   canSelectSquare,
   gamePath,
   invitationCodeFromPath,
+  pathForView,
+  publicProfileIdFromPath,
+  publicProfilePath,
   spectatorCodeFromPath,
   spectatorPath,
   setGamePath,
+  viewFromPath,
 } from './utils';
 
 export function useAppController() {
@@ -44,7 +48,9 @@ export function useAppController() {
   const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [unavailableLobbyCode, setUnavailableLobbyCode] = useState<string | null>(null);
-  const [view, setView] = useState<AppView>('lobby');
+  const [view, setActiveView] = useState<AppView>(() =>
+    viewFromPath(globalThis.location?.pathname ?? '/'),
+  );
   const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
   const [historyGames, setHistoryGames] = useState<HistoryGame[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | undefined>();
@@ -76,9 +82,27 @@ export function useAppController() {
   const socketRef = useRef<Socket | null>(null);
   const selectedGameCodeRef = useRef<string | null>(null);
   const invitationAttemptRef = useRef<string | null>(null);
-  const inviteCode = invitationCodeFromPath(globalThis.location?.pathname ?? '');
-  const spectatorCode = spectatorCodeFromPath(globalThis.location?.pathname ?? '');
+  const pathname = globalThis.location?.pathname ?? '/';
+  const inviteCode = invitationCodeFromPath(pathname);
+  const spectatorCode = spectatorCodeFromPath(pathname);
+  const publicProfileId = publicProfileIdFromPath(pathname);
   const t = createTranslator(language);
+
+  function navigateToView(nextView: Exclude<AppView, 'game' | 'public-profile'>) {
+    setActiveView(nextView);
+    const nextPath = pathForView(nextView);
+    if (globalThis.location?.pathname !== nextPath) {
+      globalThis.history?.pushState({}, '', nextPath);
+    }
+  }
+
+  function navigateToPublicProfile(id: string) {
+    setActiveView('public-profile');
+    const nextPath = publicProfilePath(id);
+    if (globalThis.location?.pathname !== nextPath) {
+      globalThis.history?.pushState({}, '', nextPath);
+    }
+  }
 
   useEffect(() => {
     saveLanguage(language);
@@ -149,6 +173,14 @@ export function useAppController() {
   }, []);
 
   useEffect(() => {
+    const handlePopState = () => {
+      setActiveView(viewFromPath(globalThis.location?.pathname ?? '/'));
+    };
+    globalThis.addEventListener?.('popstate', handlePopState);
+    return () => globalThis.removeEventListener?.('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     void refreshLobby().catch((error_: unknown) =>
       setError(error_ instanceof Error ? error_.message : t('error.lobbyLoad')),
@@ -158,6 +190,58 @@ export function useAppController() {
     );
     void refreshNotifications().catch(() => undefined);
   }, [refreshFriends, refreshLobby, refreshNotifications, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (view === 'history') {
+      void refreshHistory().catch((error_: unknown) =>
+        setError(error_ instanceof Error ? error_.message : t('error.historyLoad')),
+      );
+    }
+    if (view === 'profile') {
+      void refreshProfile().catch((error_: unknown) =>
+        setError(error_ instanceof Error ? error_.message : t('error.profileLoad')),
+      );
+    }
+    if (view === 'friends') {
+      void refreshFriends().catch((error_: unknown) =>
+        setError(error_ instanceof Error ? error_.message : t('error.friendsLoad')),
+      );
+    }
+    if (view === 'admin' && user.role === 'admin') {
+      void refreshAdminUsers().catch((error_: unknown) =>
+        setError(error_ instanceof Error ? error_.message : t('error.lobbyLoad')),
+      );
+    }
+    if (view === 'public-profile' && publicProfileId) {
+      setPublicProfile(null);
+      void requestApi<UserProfile>(
+        API_URL,
+        `/users/${encodeURIComponent(publicProfileId)}/profile`,
+      )
+        .then(setPublicProfile)
+        .catch((error_: unknown) =>
+          setError(error_ instanceof Error ? error_.message : t('error.profileLoad')),
+        );
+    }
+  }, [
+    publicProfileId,
+    refreshAdminUsers,
+    refreshFriends,
+    refreshHistory,
+    refreshProfile,
+    user,
+    view,
+  ]);
+
+  useEffect(() => {
+    if (!user || view !== 'lobby') return;
+
+    const timer = globalThis.setInterval(() => {
+      void refreshLobby().catch(() => undefined);
+    }, 5_000);
+    return () => globalThis.clearInterval(timer);
+  }, [refreshLobby, user, view]);
 
   useEffect(() => {
     selectedGameCodeRef.current = selectedGame?.code ?? null;
@@ -185,7 +269,7 @@ export function useAppController() {
     socket.on('game:started', (nextGame: GameSummary) => {
       setSelectedGame(nextGame);
       selectedGameCodeRef.current = nextGame.code;
-      setView('game');
+      setActiveView('game');
       setGamePath(nextGame.code);
       socket.emit('game:sync', { code: nextGame.code });
     });
@@ -284,7 +368,7 @@ export function useAppController() {
     setGameState(nextGame.getState());
     setMoveHistory(sync.moves);
     void refreshChat(sync.game.code).catch(() => undefined);
-    setView('game');
+    setActiveView('game');
     setLinkCopied(false);
     resetSelection();
   }
@@ -317,7 +401,7 @@ export function useAppController() {
     setProfile(null);
     setPublicProfile(null);
     selectedGameCodeRef.current = null;
-    setView('lobby');
+    setActiveView('lobby');
     setChatMessages([]);
     setChatDraft('');
     setLinkCopied(false);
@@ -333,7 +417,7 @@ export function useAppController() {
     setSelectedGame(nextGame);
     selectedGameCodeRef.current = nextGame.code;
     setSpectatorMode(false);
-    setView('game');
+    setActiveView('game');
     setLinkCopied(false);
     setSpectatorLinkCopied(false);
     setGamePath(nextGame.code);
@@ -342,8 +426,13 @@ export function useAppController() {
     socketRef.current?.emit('game:sync', { code: nextGame.code });
   }
 
+  function openSelectedGame() {
+    if (!selectedGame) return;
+    openGame(selectedGame);
+  }
+
   function returnToLobby() {
-    setView('lobby');
+    setActiveView('lobby');
     setGamePath(null);
   }
 
@@ -351,7 +440,7 @@ export function useAppController() {
     setSelectedGame(null);
     selectedGameCodeRef.current = null;
     setSpectatorMode(false);
-    setView('lobby');
+    setActiveView('lobby');
     setChatMessages([]);
     setChatDraft('');
     setUnavailableLobbyCode(code);
@@ -429,15 +518,20 @@ export function useAppController() {
     }
   }
 
-  async function deleteGame(code: string) {
+  async function deleteGame(code: string): Promise<boolean> {
     try {
       await requestApi(API_URL, `/lobby/games/${encodeURIComponent(code)}`, {
         method: 'DELETE',
-        body: '{}',
       });
       setLobbyGames((games) => games.filter((game) => game.code !== code));
+      return true;
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : t('error.gameDelete'));
+      setError(
+        error_ instanceof Error && error_.message !== 'Failed to fetch'
+          ? error_.message
+          : t('error.gameDelete'),
+      );
+      return false;
     }
   }
 
@@ -455,35 +549,18 @@ export function useAppController() {
     }
   }
 
-  async function openHistory() {
-    setView('history');
+  function openHistory() {
+    navigateToView('history');
     setSelectedHistoryGame(null);
-    try {
-      await refreshHistory();
-    } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : t('error.historyLoad'));
-    }
   }
 
-  async function openProfile() {
-    setView('profile');
-    try {
-      await refreshProfile();
-    } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : t('error.profileLoad'));
-    }
+  function openProfile() {
+    navigateToView('profile');
   }
 
-  async function openPublicProfile(id: string) {
-    setView('public-profile');
+  function openPublicProfile(id: string) {
+    navigateToPublicProfile(id);
     setPublicProfile(null);
-    try {
-      setPublicProfile(
-        await requestApi<UserProfile>(API_URL, `/users/${encodeURIComponent(id)}/profile`),
-      );
-    } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : t('error.profileLoad'));
-    }
   }
 
   async function updateAdminRole(id: string, role: UserRole) {
@@ -660,7 +737,7 @@ export function useAppController() {
     setAuthForm,
     setError,
     setUnavailableLobbyCode,
-    setView,
+    setView: navigateToView,
     setHistoryResultFilter,
     setHistoryModeFilter,
     setSelectedHistoryGame,
@@ -678,6 +755,7 @@ export function useAppController() {
     openHistory,
     openProfile,
     openPublicProfile,
+    openSelectedGame,
     createGame,
     joinGame,
     deleteGame,

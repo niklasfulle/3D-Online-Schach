@@ -8,6 +8,8 @@ Tailwind CSS v4 wird über das offizielle Vite-Plugin eingebunden. Die Design-To
 
 Die React-Oberfläche ist nach fachlichen Modulen aufgeteilt. `apps/client/src/App.tsx` übernimmt nur noch Routing und Zustandsübergänge zwischen Lade-, Auth-, Zuschauer- und eingeloggter Ansicht. Der Hook `apps/client/src/app/useAppController.ts` kapselt API-, Socket-, Lobby-, Chat- und Spielzustand; die Darstellungs-Module liegen unter `apps/client/src/components/app/`. Gemeinsame Typen und reine Hilfsfunktionen befinden sich unter `apps/client/src/app/`.
 
+Die Hauptansichten besitzen eigene, direkt aufrufbare URLs. Browser-Zurück/Vorwärts bleibt mit der aktiven Ansicht synchron.
+
 ## Aktueller Stand
 
 Der Multiplayer-MVP ist umgesetzt:
@@ -18,7 +20,7 @@ Der Multiplayer-MVP ist umgesetzt:
 - private Online-Spielräume über Game-Codes
 - lokale Konten mit Session-Cookies, Login und Registrierung
 - öffentliche Lobby mit Casual-/Ranked-Spielen
-- Benutzersuche, Online-Präsenz und Freundschaftsanfragen
+- Benutzersuche, Online-Präsenz sowie eingehende und ausgehende Freundschaftsanfragen
 - Benachrichtigungen für Freundschafts- und Spieleinladungen
 - teilbare Partienlinks über `/game/:code` und lesende Zuschauerlinks über `/watch/:code`
 - Partiechat für Teilnehmer mit historischer Speicherung und Live-Broadcast
@@ -29,12 +31,14 @@ Der Multiplayer-MVP ist umgesetzt:
 - versionierte PostgreSQL-Migrationen für Games, Sessions und soziale Beziehungen
 - responsiver Footer mit Version, Repository-, Datenschutz- und Impressum-Links auf Deutsch und Englisch
 - zentrale Anwendungsversion für Client-Footer und Server-Health-Endpunkt
+- umschaltbare deutsche/englische Oberfläche sowie Dark- und Light-Mode
+- persönliche Spielhistorie mit Filtern, Partiedetails und PGN-Download
 
 PGN-Export und ladbare Spielhistorie sind bereits über die Server-API verfügbar.
 
 ## Produktansichten
 
-Die wichtigsten Oberflächen im aktuellen Stand:
+Die wichtigsten Oberflächen im aktuellen Stand: Anmeldung, Dashboard-Lobby, Freundesbereich und Partieansicht.
 
 <p>
   <img src="docs/images/auth-login.png" alt="Anmeldemaske" width="49%">
@@ -50,6 +54,19 @@ Die Screenshots können mit laufendem Client, Server und PostgreSQL neu erzeugt 
 ```bash
 pnpm docs:screenshots
 ```
+
+## Navigation
+
+| Ansicht | Pfad |
+| --- | --- |
+| Lobby | `/` |
+| Spielhistorie | `/history` |
+| Freunde | `/friends` |
+| Eigenes Profil | `/profile` |
+| Öffentliches Profil | `/users/:id` |
+| Administration | `/admin` |
+| Partie | `/game/:code` |
+| Zuschaueransicht | `/watch/:code` |
 
 ## Voraussetzungen
 

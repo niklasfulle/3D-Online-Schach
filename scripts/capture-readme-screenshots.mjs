@@ -35,7 +35,7 @@ try {
 
   await page.getByRole('button', { name: /Lobby/ }).click();
   await page
-    .getByRole('button', { name: /Partie erstellen/ })
+    .getByRole('button', { name: /Casual-Spiel erstellen/ })
     .first()
     .click();
   await page.getByRole('heading', { name: 'Am Brett' }).waitFor();

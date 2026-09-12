@@ -60,6 +60,15 @@ export type TranslationKey =
   | 'game.copySpectatorLink'
   | 'game.spectatorLinkCopied'
   | 'game.resign'
+  | 'game.resignConfirmTitle'
+  | 'game.resignConfirmMessage'
+  | 'game.resignCancel'
+  | 'game.resignConfirm'
+  | 'game.delete'
+  | 'game.deleteConfirmTitle'
+  | 'game.deleteConfirmMessage'
+  | 'game.deleteCancel'
+  | 'game.deleteConfirm'
   | 'game.board'
   | 'game.white'
   | 'game.black'
@@ -89,6 +98,8 @@ export type TranslationKey =
   | 'chat.placeholder'
   | 'chat.send'
   | 'chat.newMessages'
+  | 'chat.open'
+  | 'chat.close'
   | 'guest.eyebrow'
   | 'guest.description'
   | 'guest.connectionHint'
@@ -205,6 +216,8 @@ export type TranslationKey =
   | 'friends.inviteSpectator'
   | 'friends.empty'
   | 'friends.incoming'
+  | 'friends.outgoing'
+  | 'friends.requestSent'
   | 'friends.accept'
   | 'friends.reject'
   | 'friends.findPlayers'
@@ -309,6 +322,15 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'game.copySpectatorLink': 'Zuschauerlink kopieren',
     'game.spectatorLinkCopied': 'Zuschauerlink kopiert',
     'game.resign': 'Aufgeben',
+    'game.resignConfirmTitle': 'Partie aufgeben',
+    'game.resignConfirmMessage': 'Möchtest du die Partie wirklich aufgeben?',
+    'game.resignCancel': 'Abbrechen',
+    'game.resignConfirm': 'Aufgabe bestätigen',
+    'game.delete': 'Partie löschen',
+    'game.deleteConfirmTitle': 'Partie löschen',
+    'game.deleteConfirmMessage': 'Möchtest du diese wartende Partie wirklich löschen?',
+    'game.deleteCancel': 'Abbrechen',
+    'game.deleteConfirm': 'Löschung bestätigen',
     'game.board': '3D-Schachbrett',
     'game.white': 'Weiß',
     'game.black': 'Schwarz',
@@ -338,6 +360,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'chat.placeholder': 'Nachricht schreiben …',
     'chat.send': 'Senden',
     'chat.newMessages': 'Neue Nachrichten',
+    'chat.open': 'Chat öffnen',
+    'chat.close': 'Chat schließen',
     'guest.eyebrow': 'ZUSCHAUEN',
     'guest.description': 'Du siehst diese Partie als Gast im schreibgeschützten Modus.',
     'guest.connectionHint': 'Verbindungshinweis',
@@ -454,6 +478,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'friends.inviteSpectator': 'Zuschauer einladen',
     'friends.empty': 'Noch keine Freunde.',
     'friends.incoming': 'Eingehend',
+    'friends.outgoing': 'Ausstehend',
+    'friends.requestSent': 'Anfrage gesendet',
     'friends.accept': 'Annehmen',
     'friends.reject': 'Ablehnen',
     'friends.findPlayers': 'Spieler finden',
@@ -554,6 +580,15 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'game.copySpectatorLink': 'Copy spectator link',
     'game.spectatorLinkCopied': 'Spectator link copied',
     'game.resign': 'Resign',
+    'game.resignConfirmTitle': 'Resign game',
+    'game.resignConfirmMessage': 'Are you sure you want to resign this game?',
+    'game.resignCancel': 'Cancel',
+    'game.resignConfirm': 'Confirm resignation',
+    'game.delete': 'Delete game',
+    'game.deleteConfirmTitle': 'Delete game',
+    'game.deleteConfirmMessage': 'Are you sure you want to delete this waiting game?',
+    'game.deleteCancel': 'Cancel',
+    'game.deleteConfirm': 'Confirm deletion',
     'game.board': '3D chess board',
     'game.white': 'White',
     'game.black': 'Black',
@@ -583,6 +618,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'chat.placeholder': 'Write a message …',
     'chat.send': 'Send',
     'chat.newMessages': 'New messages',
+    'chat.open': 'Open chat',
+    'chat.close': 'Close chat',
     'guest.eyebrow': 'SPECTATING',
     'guest.description': 'You are watching this game as a guest in read-only mode.',
     'guest.connectionHint': 'Connection notice',
@@ -699,6 +736,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'friends.inviteSpectator': 'Invite spectator',
     'friends.empty': 'No friends yet.',
     'friends.incoming': 'Incoming',
+    'friends.outgoing': 'Pending',
+    'friends.requestSent': 'Request sent',
     'friends.accept': 'Accept',
     'friends.reject': 'Decline',
     'friends.findPlayers': 'Find players',

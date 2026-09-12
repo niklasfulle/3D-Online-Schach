@@ -4,7 +4,6 @@ import { AuthenticatedView } from './components/app/AuthenticatedView';
 import { GameView } from './components/app/GameView';
 import { useAppController } from './app/useAppController';
 import { GUEST_SPECTATOR } from './app/types';
-import { gameLabel, gameStatusLabel, statusLabel } from './app/utils';
 
 export function App() {
   const controller = useAppController();
@@ -37,8 +36,11 @@ export function App() {
 
   if (loading) {
     return (
-      <main className="centered-message" data-theme={theme}>
-        <div>{t('guest.connectionHint')} …</div>
+      <main
+        className="grid min-h-dvh place-items-center bg-app-page p-6 text-app-text max-sm:p-4"
+        data-theme={theme}
+      >
+        <div className="text-center text-app-text-muted">{t('guest.connectionHint')} …</div>
         <AppFooter t={t} />
       </main>
     );
@@ -46,19 +48,20 @@ export function App() {
 
   if (!user && spectatorCode) {
     const turnLabel = gameState.activeColor === 'white' ? 'Weiß' : 'Schwarz';
-    const gameStatus = selectedGame
-      ? `${gameLabel(selectedGame, t)} · ${gameStatusLabel(selectedGame.status, t)}`
-      : statusLabel(gameState.status, t);
-
     return (
-      <main className="app-shell game-mode guest-spectator-shell" data-theme={theme}>
-        <div className="dashboard-shell">
-          <section className="dashboard-main">
-            <div className="page-heading">
+      <main
+        className="app-shell game-mode guest-spectator-shell grid min-h-dvh bg-app-page text-app-text"
+        data-theme={theme}
+      >
+        <div className="dashboard-shell grid w-full min-w-0">
+          <section className="dashboard-main min-w-0 px-[clamp(1rem,3vw,2rem)] py-6">
+            <div className="page-heading flex items-start justify-between gap-4">
               <div>
                 <span className="eyebrow">{t('guest.eyebrow')}</span>
-                <h1>{t('page.game.title')}</h1>
-                <p>{t('guest.description')}</p>
+                <h1 className="text-[clamp(2rem,5vw,4rem)] leading-none tracking-[-0.04em] text-app-text-strong">
+                  {t('page.game.title')}
+                </h1>
+                <p className="mt-3 text-app-text-muted">{t('guest.description')}</p>
               </div>
             </div>
             {error ? (
@@ -87,8 +90,8 @@ export function App() {
                 legalTargets={legalTargets}
                 moveHistory={moveHistory}
                 turnLabel={turnLabel}
-                gameStatus={gameStatus}
                 onBackToLobby={() => globalThis.location.assign('/')}
+                onDeleteGame={() => undefined}
                 handleSelectSquare={handleSelectSquare}
                 onCopyLink={() => undefined}
                 linkCopied={false}
@@ -102,7 +105,9 @@ export function App() {
                 onResign={() => undefined}
               />
             ) : (
-              <div className="centered-message">{t('guest.loadingGame')}</div>
+              <div className="grid min-h-64 place-items-center rounded-2xl border border-app-border bg-app-surface p-6 text-app-text-muted">
+                {t('guest.loadingGame')}
+              </div>
             )}
           </section>
         </div>

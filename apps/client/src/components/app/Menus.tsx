@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 import type { Language, Translator } from '../../i18n';
 import type { Theme } from '../../theme';
 
@@ -12,47 +10,34 @@ export function LanguageMenu({
   onChange: (language: Language) => void;
   t: Translator;
 }>) {
-  const [open, setOpen] = useState(false);
-
-  function selectLanguage(nextLanguage: Language) {
-    onChange(nextLanguage);
-    setOpen(false);
-  }
+  const languageName = language === 'de' ? t('language.de') : t('language.en');
 
   return (
-    <div className="icon-menu">
-      <button
-        className="icon-menu-trigger"
-        type="button"
-        aria-label={t('language.label')}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        title={t('language.label')}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span aria-hidden="true">🌐</span>
-      </button>
-      {open ? (
-        <div className="icon-menu-panel" role="menu" aria-label={t('language.label')}>
-          <button
-            className={language === 'de' ? 'icon-menu-option active' : 'icon-menu-option'}
-            type="button"
-            role="menuitem"
-            onClick={() => selectLanguage('de')}
-          >
-            {t('language.de')}
-          </button>
-          <button
-            className={language === 'en' ? 'icon-menu-option active' : 'icon-menu-option'}
-            type="button"
-            role="menuitem"
-            onClick={() => selectLanguage('en')}
-          >
-            {t('language.en')}
-          </button>
-        </div>
-      ) : null}
-    </div>
+    <button
+      className="header-icon-button"
+      type="button"
+      aria-label={`${t('language.label')}: ${languageName}`}
+      title={`${t('language.label')}: ${languageName}`}
+      onClick={() => onChange(language === 'de' ? 'en' : 'de')}
+    >
+        {language === 'de' ? (
+          <svg className="language-flag" aria-hidden="true" viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="14" rx="2" fill="#1a2431" />
+            <path d="M3 9.67h18v4.66H3z" fill="#d14a57" />
+            <path d="M3 14.33h18V19H3z" fill="#e8bc50" />
+            <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" strokeOpacity="0.38" strokeWidth="1.2" />
+          </svg>
+        ) : (
+          <svg className="language-flag" aria-hidden="true" viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="14" rx="2" fill="#2d5598" />
+            <path d="M3 6.2 20.9 17.8M20.9 6.2 3 17.8" fill="none" stroke="#f6f8fc" strokeWidth="3" />
+            <path d="M3 6.2 20.9 17.8M20.9 6.2 3 17.8" fill="none" stroke="#d14a57" strokeWidth="1.25" />
+            <path d="M12 5v14M3 12h18" fill="none" stroke="#f6f8fc" strokeWidth="4.2" />
+            <path d="M12 5v14M3 12h18" fill="none" stroke="#d14a57" strokeWidth="2" />
+            <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" strokeOpacity="0.38" strokeWidth="1.2" />
+          </svg>
+        )}
+    </button>
   );
 }
 
@@ -65,46 +50,26 @@ export function ThemeMenu({
   onChange: (theme: Theme) => void;
   t: Translator;
 }>) {
-  const [open, setOpen] = useState(false);
-
-  function selectTheme(nextTheme: Theme) {
-    onChange(nextTheme);
-    setOpen(false);
-  }
+  const themeName = theme === 'dark' ? t('theme.dark') : t('theme.light');
 
   return (
-    <div className="icon-menu">
-      <button
-        className="icon-menu-trigger"
-        type="button"
-        aria-label={t('theme.label')}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        title={t('theme.label')}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
-      </button>
-      {open ? (
-        <div className="icon-menu-panel" role="menu" aria-label={t('theme.label')}>
-          <button
-            className={theme === 'dark' ? 'icon-menu-option active' : 'icon-menu-option'}
-            type="button"
-            role="menuitem"
-            onClick={() => selectTheme('dark')}
-          >
-            {t('theme.dark')}
-          </button>
-          <button
-            className={theme === 'light' ? 'icon-menu-option active' : 'icon-menu-option'}
-            type="button"
-            role="menuitem"
-            onClick={() => selectTheme('light')}
-          >
-            {t('theme.light')}
-          </button>
-        </div>
-      ) : null}
-    </div>
+    <button
+      className="header-icon-button"
+      type="button"
+      aria-label={`${t('theme.label')}: ${themeName}`}
+      title={`${t('theme.label')}: ${themeName}`}
+      onClick={() => onChange(theme === 'dark' ? 'light' : 'dark')}
+    >
+      {theme === 'dark' ? (
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M20 14.2A7.75 7.75 0 0 1 9.8 4 7.75 7.75 0 1 0 20 14.2Z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <circle cx="12" cy="12" r="3.5" />
+          <path d="M12 2.5v2M12 19.5v2M21.5 12h-2M4.5 12h-2M18.72 5.28l-1.42 1.42M6.7 17.3l-1.42 1.42M18.72 18.72l-1.42-1.42M6.7 6.7 5.28 5.28" strokeLinecap="round" />
+        </svg>
+      )}
+    </button>
   );
 }

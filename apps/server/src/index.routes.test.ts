@@ -97,6 +97,29 @@ describe('server HTTP routes', () => {
     expect(authProvider.logout).toHaveBeenCalledWith(undefined);
   });
 
+  it('allows browsers to preflight DELETE requests for lobby games', async () => {
+    app = buildApp(
+      new GameManager(),
+      createAuthProvider(user),
+      createSocialProvider(),
+      createNotificationProvider(),
+    );
+
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/lobby/games/ABC123',
+      headers: {
+        origin: 'http://localhost:5173',
+        'access-control-request-method': 'DELETE',
+        'access-control-request-headers': 'content-type',
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    expect(response.headers['access-control-allow-methods']).toContain('DELETE');
+  });
+
   it('protects and paginates the personal game history route', async () => {
     const historyPage: HistoryPage = {
       games: [

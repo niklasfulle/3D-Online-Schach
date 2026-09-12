@@ -166,6 +166,33 @@ export function spectatorCodeFromPath(pathname: string): string | null {
   return match?.[1]?.toUpperCase() ?? null;
 }
 
+export function publicProfileIdFromPath(pathname: string): string | null {
+  const match = /^\/users\/([^/]+)\/?$/i.exec(pathname);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+export function viewFromPath(pathname: string): AppView {
+  if (invitationCodeFromPath(pathname) || spectatorCodeFromPath(pathname)) return 'game';
+  if (publicProfileIdFromPath(pathname)) return 'public-profile';
+  if (pathname === '/history' || pathname === '/history/') return 'history';
+  if (pathname === '/friends' || pathname === '/friends/') return 'friends';
+  if (pathname === '/profile' || pathname === '/profile/') return 'profile';
+  if (pathname === '/admin' || pathname === '/admin/') return 'admin';
+  return 'lobby';
+}
+
+export function pathForView(view: Exclude<AppView, 'game' | 'public-profile'>): string {
+  if (view === 'history') return '/history';
+  if (view === 'friends') return '/friends';
+  if (view === 'profile') return '/profile';
+  if (view === 'admin') return '/admin';
+  return '/';
+}
+
+export function publicProfilePath(id: string): string {
+  return `/users/${encodeURIComponent(id)}`;
+}
+
 export function gamePath(code: string): string {
   return `/game/${encodeURIComponent(code)}`;
 }

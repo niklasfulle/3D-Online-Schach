@@ -75,11 +75,7 @@ const SquareTile = memo(function SquareTile({
   }
 
   return (
-    <mesh
-      position={[x, 0.08, z]}
-      onClick={interactive ? handleClick : undefined}
-      receiveShadow
-    >
+    <mesh position={[x, 0.08, z]} onClick={interactive ? handleClick : undefined} receiveShadow>
       <boxGeometry args={[0.98, 0.16, 0.98]} />
       <meshStandardMaterial color={tileColor(selected, highlighted, isLight)} />
     </mesh>

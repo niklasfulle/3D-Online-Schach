@@ -96,7 +96,11 @@ export function buildApp(
   const profileProvider = options.profileProvider ?? new PrismaProfileProvider(prisma);
   const app = Fastify({ logger: true });
 
-  app.register(cors, { origin: true, credentials: true });
+  app.register(cors, {
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
 
   app.post<{ Body: RegisterInput }>('/auth/register', async (request, reply) => {
     try {
