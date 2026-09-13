@@ -66,9 +66,11 @@ async function seedDemoReplay(): Promise<void> {
   console.info(`Passwort für beide Konten: ${demoPassword}`);
 }
 
-seedDemoReplay()
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => prisma.$disconnect());
+try {
+  await seedDemoReplay();
+} catch (error: unknown) {
+  console.error(error);
+  process.exitCode = 1;
+} finally {
+  await prisma.$disconnect();
+}

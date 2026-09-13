@@ -1,7 +1,7 @@
 let moveSound: HTMLAudioElement | undefined;
 
 function getMoveSound(): HTMLAudioElement | undefined {
-  if (typeof globalThis.Audio === 'undefined') return undefined;
+  if (globalThis.Audio === undefined) return undefined;
   if (!moveSound) {
     moveSound = new Audio('/sounds/chess-move.wav');
     moveSound.preload = 'auto';
