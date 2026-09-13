@@ -318,7 +318,7 @@ export function buildApp(
       const game = gameManager.createGame(
         user.id,
         {
-          initialMs: request.body?.initialMs ?? 5 * 60 * 1000,
+          initialMs: request.body?.initialMs ?? 15 * 60 * 1000,
           incrementMs: request.body?.incrementMs ?? 0,
         },
         mode,
@@ -465,7 +465,7 @@ export function buildApp(
 
     try {
       const game = gameManager.createGame(playerId, {
-        initialMs: request.body.initialMs ?? 5 * 60 * 1000,
+        initialMs: request.body.initialMs ?? 15 * 60 * 1000,
         incrementMs: request.body.incrementMs ?? 0,
       });
       await gameManager.flushPersistence();

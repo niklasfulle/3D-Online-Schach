@@ -7,23 +7,24 @@ import {
   type MoveRecord,
   type PgnHeaders,
 } from '@chess3d/chess-core';
-import type { GameMode, GameSummary, TimeControl } from '@chess3d/shared';
+import type { GameMode, GameSummary, TimeControl, TimedMove } from '@chess3d/shared';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
-const DEFAULT_TIME_CONTROL: TimeControl = { initialMs: 5 * 60 * 1000, incrementMs: 0 };
+const DEFAULT_TIME_CONTROL: TimeControl = { initialMs: 15 * 60 * 1000, incrementMs: 0 };
 export const WAITING_GAME_TTL_MS = 30 * 60 * 1000;
 
 interface ManagedGame {
   chess: ChessGame;
   summary: GameSummary;
+  moves: TimedMove[];
 }
 
 export interface GamePersistence {
   saveGame(summary: GameSummary, fen: string): Promise<void>;
   saveMove(
     summary: GameSummary,
-    move: MoveRecord,
+    move: MoveRecord & { elapsedMs?: number },
     fenAfterMove: string,
     moveNumber: number,
   ): Promise<void>;
@@ -39,14 +40,14 @@ const NOOP_PERSISTENCE: GamePersistence = {
 export interface AcceptedMove {
   fen: string;
   game: GameSummary;
-  move: MoveRecord;
+  move: TimedMove;
   result?: 'white' | 'black' | 'draw';
 }
 
 export interface GameSync {
   fen: string;
   game: GameSummary;
-  moves: MoveRecord[];
+  moves: TimedMove[];
 }
 
 export type GameUpdateListener = (game: GameSummary) => void;
@@ -57,7 +58,7 @@ export interface GameHistory {
   game: GameSummary;
   initialFen: string;
   currentFen: string;
-  moves: MoveRecord[];
+  moves: TimedMove[];
   pgn: string;
 }
 
@@ -91,9 +92,11 @@ export class GameManager {
   private readonly games = new Map<string, ManagedGame>();
   private readonly moveQueues = new Map<string, Promise<void>>();
   private readonly pendingPersistence = new Set<Promise<void>>();
+  private readonly persistenceQueues = new Map<string, Promise<void>>();
   private readonly gameUpdateListeners = new Set<GameUpdateListener>();
   private readonly gameRemovalListeners = new Set<GameRemovalListener>();
   private readonly gameEndListeners = new Set<GameEndListener>();
+  private readonly clockTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private persistenceError: unknown;
 
   constructor(
@@ -115,6 +118,7 @@ export class GameManager {
 
     const game: ManagedGame = {
       chess: new ChessGame(),
+      moves: [],
       summary: {
         id: randomUUID(),
         code,
@@ -128,7 +132,7 @@ export class GameManager {
       },
     };
     this.games.set(code, game);
-    this.enqueuePersistence(() => this.persistence.saveGame(game.summary, STARTING_FEN));
+    this.enqueuePersistence(game.summary.id, () => this.persistence.saveGame(game.summary, STARTING_FEN));
     return this.snapshot(game);
   }
 
@@ -140,14 +144,17 @@ export class GameManager {
     if (game.summary.whitePlayerId === blackPlayerId)
       throw new Error('Player is already in this game');
 
+    const startedAt = this.now();
     game.summary = {
       ...game.summary,
       blackPlayerId,
       status: 'active',
       expiresAt: undefined,
-      turnStartedAt: this.now(),
+      startedAt,
+      turnStartedAt: startedAt,
     };
-    this.enqueuePersistence(() =>
+    this.scheduleClockTimeout(game);
+    this.enqueuePersistence(game.summary.id, () =>
       this.persistence.saveGame(game.summary, game.chess.getState().fen),
     );
     const snapshot = this.snapshot(game);
@@ -185,8 +192,9 @@ export class GameManager {
       result,
       turnStartedAt: undefined,
     };
+    this.scheduleClockTimeout(game);
     const snapshot = this.snapshot(game);
-    this.enqueuePersistence(() => this.persistence.saveGame(snapshot, game.chess.getState().fen));
+    this.enqueuePersistence(snapshot.id, () => this.persistence.saveGame(snapshot, game.chess.getState().fen));
     this.publishGameUpdate(snapshot);
     this.publishGameEnd(snapshot, result);
     return snapshot;
@@ -217,6 +225,12 @@ export class GameManager {
     }
 
     const playedMove = game.chess.move(move);
+    const moveNumber = game.chess.history().length;
+    const timedMove: TimedMove = {
+      ...playedMove,
+      elapsedMs: this.elapsedSinceGameStart(game),
+    };
+    game.moves.push(timedMove);
     const nextState = game.chess.getState();
     const result = moveResult(game.chess.isGameOver(), nextState.status, nextState.activeColor);
     const movedRemainingMs = remainingMs + game.summary.timeControl.incrementMs;
@@ -231,18 +245,19 @@ export class GameManager {
       turnStartedAt: nextTurnStartedAt,
       result: result ?? game.summary.result,
     };
+    this.scheduleClockTimeout(game);
 
     const summary = this.snapshot(game);
-    this.enqueuePersistence(() => this.persistence.saveGame(summary, nextState.fen));
-    this.enqueuePersistence(() =>
-      this.persistence.saveMove(summary, playedMove, nextState.fen, game.chess.history().length),
+    this.enqueuePersistence(summary.id, () => this.persistence.saveGame(summary, nextState.fen));
+    this.enqueuePersistence(summary.id, () =>
+      this.persistence.saveMove(summary, timedMove, nextState.fen, moveNumber),
     );
     if (result) this.publishGameEnd(summary, result);
 
     return {
       fen: nextState.fen,
       game: summary,
-      move: playedMove,
+      move: timedMove,
       result,
     };
   }
@@ -317,7 +332,7 @@ export class GameManager {
     return {
       fen: game.chess.getState().fen,
       game: this.snapshot(game),
-      moves: game.chess.history(),
+      moves: [...game.moves],
     };
   }
 
@@ -345,22 +360,32 @@ export class GameManager {
     if (remainingMs > 0) return undefined;
 
     game.summary = { ...game.summary, ...clock, status: 'finished', turnStartedAt: undefined };
+    this.scheduleClockTimeout(game);
     const snapshot = this.snapshot(game);
     const result = activeColor === 'white' ? 'black' : 'white';
-    this.enqueuePersistence(() => this.persistence.saveGame(snapshot, game.chess.getState().fen));
+    this.enqueuePersistence(snapshot.id, () => this.persistence.saveGame(snapshot, game.chess.getState().fen));
     this.publishGameUpdate(snapshot);
     this.publishGameEnd(snapshot, result);
     return new GameTimeoutError(snapshot, result);
   }
 
-  private enqueuePersistence(operation: () => Promise<void>): void {
-    const pending = Promise.resolve()
+  private enqueuePersistence(gameId: string, operation: () => Promise<void>): void {
+    const previous = this.persistenceQueues.get(gameId) ?? Promise.resolve();
+    const pending = previous
       .then(operation)
       .catch((error: unknown) => {
         this.persistenceError ??= error;
       });
+    this.persistenceQueues.set(gameId, pending);
     this.pendingPersistence.add(pending);
-    void pending.finally(() => this.pendingPersistence.delete(pending)).catch(() => undefined);
+    void pending
+      .finally(() => {
+        this.pendingPersistence.delete(pending);
+        if (this.persistenceQueues.get(gameId) === pending) {
+          this.persistenceQueues.delete(gameId);
+        }
+      })
+      .catch(() => undefined);
   }
 
   private publishGameUpdate(game: GameSummary): void {
@@ -380,7 +405,7 @@ export class GameManager {
     this.games.delete(summary.code);
     this.moveQueues.delete(summary.code);
     if (this.persistence.deleteGame) {
-      this.enqueuePersistence(() => this.persistence.deleteGame!(summary));
+      this.enqueuePersistence(summary.id, () => this.persistence.deleteGame!(summary));
     }
     this.publishGameRemoval(summary);
   }
@@ -396,7 +421,7 @@ export class GameManager {
   private createHistory(game: ManagedGame): GameHistory {
     const summary = this.snapshot(game);
     const currentFen = game.chess.getState().fen;
-    const moves = game.chess.history();
+    const moves = [...game.moves];
     return {
       game: summary,
       initialFen: STARTING_FEN,
@@ -429,8 +454,31 @@ export class GameManager {
     };
   }
 
+  private scheduleClockTimeout(game: ManagedGame): void {
+    const previous = this.clockTimers.get(game.summary.code);
+    if (previous) clearTimeout(previous);
+    this.clockTimers.delete(game.summary.code);
+    if (game.summary.status !== 'active' || game.summary.turnStartedAt === undefined) return;
+
+    const clock = this.clockSnapshot(game);
+    const remainingMs = game.chess.getState().activeColor === 'white'
+      ? clock.whiteRemainingMs
+      : clock.blackRemainingMs;
+    const timer = setTimeout(() => {
+      this.clockTimers.delete(game.summary.code);
+      this.expireIfNeeded(game);
+    }, Math.max(1, Math.ceil(remainingMs)));
+    timer.unref?.();
+    this.clockTimers.set(game.summary.code, timer);
+  }
+
   private getManagedGame(code: string): ManagedGame | undefined {
     return this.games.get(code.toUpperCase());
+  }
+
+  private elapsedSinceGameStart(game: ManagedGame): number {
+    if (game.summary.startedAt === undefined) return 0;
+    return Math.max(0, this.now() - game.summary.startedAt);
   }
 
   private createCode(): string {

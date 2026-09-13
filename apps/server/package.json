@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
+    "db:seed-replay": "node --env-file=../../.env --import=tsx/esm src/scripts/seedDemoReplay.ts",
     "db:validate": "prisma validate --schema prisma/schema.prisma",
     "dev": "node --env-file=../../.env --import=tsx/esm --watch src/index.ts",
     "test": "vitest run --passWithNoTests",

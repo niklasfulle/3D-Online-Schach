@@ -21,6 +21,7 @@ export interface HistoryMove {
   promotion: string | null;
   san: string;
   fenAfterMove: string;
+  elapsedMs: number;
 }
 
 export interface HistoryGame {
@@ -99,6 +100,7 @@ export class PrismaHistoryProvider implements HistoryProvider {
             promotion: true,
             san: true,
             fenAfterMove: true,
+            elapsedMs: true,
           },
         },
       },
@@ -172,7 +174,7 @@ function toHistoryGame(record: {
     finishedAt: record.finishedAt!.toISOString(),
     whitePlayer: record.whitePlayer,
     blackPlayer: record.blackPlayer,
-    moves: record.moves,
+    moves: record.moves.map((move) => ({ ...move, elapsedMs: move.elapsedMs ?? 0 })),
   };
 }
 

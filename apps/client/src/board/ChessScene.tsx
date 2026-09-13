@@ -7,7 +7,16 @@ import type { Move } from '@chess3d/chess-core';
 import type { Square } from '@chess3d/shared';
 
 import { squareToWorld } from './coordinates';
-import { pieceRotationY, piecesFromFen, type PieceDefinition, type PieceType } from './pieces';
+import { KnightSculpt } from './KnightSculpt';
+import {
+  pieceFinishForNode,
+  pieceRotationY,
+  piecesFromFen,
+  type PieceColor,
+  type PieceDefinition,
+  type PieceFinish,
+  type PieceType,
+} from './pieces';
 
 const LIGHT_TILE = '#d8c7a4';
 const DARK_TILE = '#6b4f3a';
@@ -26,9 +35,17 @@ const MODEL_URLS: Record<PieceType, string> = {
   rook: '/models/chess/rook.glb',
 };
 
-const PIECE_MATERIALS = {
-  white: new MeshStandardMaterial({ color: '#f2e6cf', metalness: 0.08, roughness: 0.3 }),
-  black: new MeshStandardMaterial({ color: '#2d3a4d', metalness: 0.16, roughness: 0.24 }),
+const PIECE_MATERIALS: Record<PieceColor, Record<PieceFinish, MeshStandardMaterial>> = {
+  white: {
+    body: new MeshStandardMaterial({ color: '#eee3cd', metalness: 0.06, roughness: 0.4 }),
+    base: new MeshStandardMaterial({ color: '#c9b99e', metalness: 0.09, roughness: 0.46 }),
+    trim: new MeshStandardMaterial({ color: '#c59a57', metalness: 0.72, roughness: 0.28 }),
+  },
+  black: {
+    body: new MeshStandardMaterial({ color: '#111318', metalness: 0.16, roughness: 0.42 }),
+    base: new MeshStandardMaterial({ color: '#07090d', metalness: 0.18, roughness: 0.48 }),
+    trim: new MeshStandardMaterial({ color: '#bd9252', metalness: 0.7, roughness: 0.3 }),
+  },
 };
 
 Object.values(MODEL_URLS).forEach((url) => useGLTF.preload(url));
@@ -88,15 +105,23 @@ const PieceModel = memo(function PieceModel({ color, type }: PieceModelProps) {
     const clone = scene.clone(true);
     clone.traverse((child) => {
       if (child instanceof Mesh) {
+        if (type === 'knight' && !['base', 'base_ring', 'base_shoulder'].includes(child.name)) {
+          child.visible = false;
+        }
         child.castShadow = true;
         child.receiveShadow = true;
-        child.material = PIECE_MATERIALS[color];
+        child.material = PIECE_MATERIALS[color][pieceFinishForNode(child.name)];
       }
     });
     return clone;
-  }, [color, scene]);
+  }, [color, scene, type]);
 
-  return <primitive object={model} />;
+  return (
+    <group>
+      <primitive object={model} />
+      {type === 'knight' ? <KnightSculpt color={color} materials={PIECE_MATERIALS[color]} /> : null}
+    </group>
+  );
 });
 
 const Piece = memo(function Piece({ animationFrom, interactive, piece, onSelect }: PieceProps) {
@@ -206,14 +231,15 @@ export function ChessScene({
 
   return (
     <>
-      <ambientLight intensity={1.4} />
+      <ambientLight intensity={0.65} />
+      <hemisphereLight args={['#e5efff', '#7b6146', 0.8]} />
       <directionalLight
         castShadow
-        intensity={2}
+        intensity={2.15}
         position={[4, 8, 4]}
         shadow-mapSize={[2048, 2048]}
       />
-      <directionalLight color="#8fb7ff" intensity={0.8} position={[-4, 5, -4]} />
+      <directionalLight color="#b4ccf3" intensity={0.45} position={[-4, 5, -4]} />
       <OrbitControls
         ref={controlsRef}
         enabled={interactive}

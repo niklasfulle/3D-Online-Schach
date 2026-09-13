@@ -4,6 +4,7 @@ const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 
 export type PieceType = 'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn';
 export type PieceColor = 'white' | 'black';
+export type PieceFinish = 'body' | 'base' | 'trim';
 
 export interface PieceDefinition {
   color: PieceColor;
@@ -20,9 +21,23 @@ const PIECE_TYPES: Record<string, PieceType> = {
   r: 'rook',
 };
 
-export function pieceRotationY(type: PieceType, color: PieceColor): number {
+export function pieceFinishForNode(name: string): PieceFinish {
+  if (name === 'base') return 'base';
+  if (
+    name === 'base_ring' ||
+    name.endsWith('_collar') ||
+    name === 'rook_neck' ||
+    name === 'bishop_tip' ||
+    name === 'queen_finial' ||
+    name.startsWith('queen_point_') ||
+    name.startsWith('king_cross_')
+  ) return 'trim';
+  return 'body';
+}
+
+export function pieceRotationY(_type: PieceType, color: PieceColor): number {
   const colorRotation = color === 'black' ? Math.PI : 0;
-  return type === 'knight' ? (colorRotation + Math.PI) % (Math.PI * 2) : colorRotation;
+  return _type === 'knight' ? Math.PI - colorRotation : colorRotation;
 }
 
 export function piecesFromFen(fen: string): PieceDefinition[] {

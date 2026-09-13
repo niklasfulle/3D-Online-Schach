@@ -29,8 +29,20 @@ export interface GameSummary {
   whiteRemainingMs: number;
   blackRemainingMs: number;
   expiresAt?: number;
+  startedAt?: number;
   turnStartedAt?: number;
   result?: 'white' | 'black' | 'draw';
+}
+
+export interface TimedMove {
+  from: Square;
+  to: Square;
+  promotion?: 'q' | 'r' | 'b' | 'n';
+  san: string;
+  color: Color;
+  piece: 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
+  captured?: 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
+  elapsedMs: number;
 }
 
 export interface WebSocketEventMap {
@@ -38,7 +50,7 @@ export interface WebSocketEventMap {
   'game:join': { code: string };
   'game:start': GameSummary;
   'move:request': MoveRequest;
-  'move:accepted': MoveRequest & { fen: string };
+  'move:accepted': MoveRequest & { fen: string; elapsedMs: number };
   'move:rejected': { reason: string };
   'game:state': GameSummary & { fen: string };
   'game:ended': { gameId: string; result: 'white' | 'black' | 'draw' };

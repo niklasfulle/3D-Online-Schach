@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   GameManager,
@@ -11,7 +11,47 @@ describe('GameManager', () => {
   let manager: GameManager;
 
   afterEach(() => {
+    vi.useRealTimers();
     manager = new GameManager();
+  });
+
+  it('starts new games with fifteen minutes and ends an idle turn on time', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    manager = new GameManager();
+    const onGameEnd = vi.fn();
+    manager.onGameEnded(onGameEnd);
+    const created = manager.createGame('player-a');
+
+    expect(created.timeControl.initialMs).toBe(15 * 60_000);
+    manager.joinGame(created.code, 'player-b');
+    vi.advanceTimersByTime(15 * 60_000);
+
+    expect(onGameEnd).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ status: 'finished', whiteRemainingMs: 0 }),
+      'black',
+    );
+  });
+
+  it('moves the timeout to the next player after a move', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    manager = new GameManager();
+    const onGameEnd = vi.fn();
+    manager.onGameEnded(onGameEnd);
+    const created = manager.createGame('player-a', { initialMs: 3_000, incrementMs: 0 });
+    manager.joinGame(created.code, 'player-b');
+
+    vi.advanceTimersByTime(1_000);
+    manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' });
+    vi.advanceTimersByTime(2_000);
+    expect(onGameEnd).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1_000);
+
+    expect(onGameEnd).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ status: 'finished', blackRemainingMs: 0 }),
+      'white',
+    );
   });
 
   it('creates a waiting game with a readable code', () => {
@@ -159,7 +199,9 @@ describe('GameManager', () => {
 
     expect(accepted.game.whiteRemainingMs).toBe(4_800);
     expect(accepted.game.blackRemainingMs).toBe(5_000);
+    expect(accepted.game.startedAt).toBe(1_000);
     expect(accepted.game.turnStartedAt).toBe(2_200);
+    expect(accepted.move.elapsedMs).toBe(1_200);
   });
 
   it('finishes a game when the active clock reaches zero', () => {
@@ -235,5 +277,48 @@ describe('GameManager', () => {
     expect(savedMoves).toEqual([
       expect.objectContaining({ moveNumber: 1, san: 'e4', fen: expect.stringContaining(' b ') }),
     ]);
+  });
+
+  it('keeps the finished status when older game saves finish late', async () => {
+    let persistedGame: { status: string; result?: string } | undefined;
+    const persistence: GamePersistence = {
+      saveGame: async (game) => {
+        if (game.status === 'active') await new Promise((resolve) => setTimeout(resolve, 0));
+        persistedGame = { status: game.status, result: game.result };
+      },
+      saveMove: async () => undefined,
+    };
+    manager = new GameManager(undefined, persistence);
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+
+    manager.requestMove(created.code, 'player-a', { from: 'f2', to: 'f3' });
+    manager.requestMove(created.code, 'player-b', { from: 'e7', to: 'e5' });
+    manager.requestMove(created.code, 'player-a', { from: 'g2', to: 'g4' });
+    manager.requestMove(created.code, 'player-b', { from: 'd8', to: 'h4' });
+    await manager.flushPersistence();
+
+    expect(persistedGame).toEqual({ status: 'finished', result: 'black' });
+  });
+
+  it('persists the move number from the time each move was made', async () => {
+    const persistedMoveNumbers: number[] = [];
+    const persistence: GamePersistence = {
+      saveGame: async () => undefined,
+      saveMove: async (_game, _move, _fen, moveNumber) => {
+        persistedMoveNumbers.push(moveNumber);
+      },
+    };
+    manager = new GameManager(undefined, persistence);
+    const created = manager.createGame('player-a');
+    manager.joinGame(created.code, 'player-b');
+
+    manager.requestMove(created.code, 'player-a', { from: 'f2', to: 'f3' });
+    manager.requestMove(created.code, 'player-b', { from: 'e7', to: 'e5' });
+    manager.requestMove(created.code, 'player-a', { from: 'g2', to: 'g4' });
+    manager.requestMove(created.code, 'player-b', { from: 'd8', to: 'h4' });
+    await manager.flushPersistence();
+
+    expect(persistedMoveNumbers).toEqual([1, 2, 3, 4]);
   });
 });

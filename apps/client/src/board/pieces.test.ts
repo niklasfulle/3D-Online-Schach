@@ -2,7 +2,19 @@ import { describe, expect, it } from 'vitest';
 
 import { STARTING_FEN } from '@chess3d/chess-core';
 
-import { pieceRotationY, piecesFromFen } from './pieces';
+import { pieceFinishForNode, pieceRotationY, piecesFromFen } from './pieces';
+
+describe('pieceFinishForNode', () => {
+  it('gives sculpted bodies, plinths, and ornamental details distinct finishes', () => {
+    expect(pieceFinishForNode('pawn_body')).toBe('body');
+    expect(pieceFinishForNode('knight_head')).toBe('body');
+    expect(pieceFinishForNode('base')).toBe('base');
+    expect(pieceFinishForNode('base_ring')).toBe('trim');
+    expect(pieceFinishForNode('bishop_collar')).toBe('trim');
+    expect(pieceFinishForNode('king_cross_vertical')).toBe('trim');
+    expect(pieceFinishForNode('queen_point_0')).toBe('trim');
+  });
+});
 
 describe('piecesFromFen', () => {
   it('creates all 32 pieces with six distinct piece types', () => {
@@ -23,7 +35,7 @@ describe('piecesFromFen', () => {
 });
 
 describe('pieceRotationY', () => {
-  it('turns both knights toward the opposing side of the board', () => {
+  it('shows the horse-head profile from each player side', () => {
     expect(pieceRotationY('knight', 'white')).toBe(Math.PI);
     expect(pieceRotationY('knight', 'black')).toBe(0);
   });

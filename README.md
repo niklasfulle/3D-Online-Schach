@@ -75,7 +75,31 @@ pnpm docs:screenshots
 - Docker Desktop für PostgreSQL
 - Blender 5.1 oder neuer, nur zum Neuerzeugen der mitgelieferten 3D-Modelle
 
-## Entwicklung starten
+## Entwicklung mit Docker Compose starten
+
+Der vollständige lokale Stack (PostgreSQL, Server und Client) startet mit einem Befehl:
+
+```bash
+docker compose up --build
+```
+
+Danach ist die Anwendung unter http://localhost:5173 verfügbar; die Server-API läuft auf http://localhost:3001. Abhängigkeiten werden im Container installiert, Prisma-Migrationen vor dem Serverstart angewendet und Änderungen im Workspace werden automatisch übernommen.
+
+Für den Hintergrundbetrieb:
+
+```bash
+docker compose up --build -d
+```
+
+Beenden:
+
+```bash
+docker compose down
+```
+
+`docker compose down -v` entfernt zusätzlich die lokale Entwicklungsdatenbank.
+
+## Entwicklung ohne Docker für Client und Server
 
 Abhängigkeiten installieren:
 

@@ -66,6 +66,7 @@ export interface NotificationItem {
 
 export interface MoveRecord extends Move {
   san: string;
+  elapsedMs?: number;
 }
 
 export interface AcceptedMove {
@@ -104,6 +105,7 @@ export interface HistoryMove {
   promotion: string | null;
   san: string;
   fenAfterMove: string;
+  elapsedMs: number;
 }
 
 export interface HistoryGame {

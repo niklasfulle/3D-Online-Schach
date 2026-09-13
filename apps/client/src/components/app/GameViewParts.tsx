@@ -1,4 +1,4 @@
-import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { Canvas } from '@react-three/fiber';
 
 import type { ChessGame } from '@chess3d/chess-core';
@@ -337,6 +337,8 @@ export function GameBoardPanel({
           userId={user.id}
           spectatorMode={spectatorMode}
           remainingMs={selectedGame.whiteRemainingMs}
+          running={selectedGame.status === 'active' && selectedGame.turnStartedAt !== undefined}
+          turnStartedAt={selectedGame.turnStartedAt}
           t={t}
         />
         <span className="text-[.62rem] font-extrabold tracking-[.1em] text-[#637b97]">VS</span>
@@ -347,6 +349,8 @@ export function GameBoardPanel({
           userId={user.id}
           spectatorMode={spectatorMode}
           remainingMs={selectedGame.blackRemainingMs}
+          running={selectedGame.status === 'active' && selectedGame.turnStartedAt !== undefined}
+          turnStartedAt={selectedGame.turnStartedAt}
           t={t}
         />
       </div>
@@ -387,6 +391,8 @@ function PlayerCard({
   userId,
   spectatorMode,
   remainingMs,
+  running,
+  turnStartedAt,
   t,
 }: Readonly<{
   color: 'black' | 'white';
@@ -395,9 +401,27 @@ function PlayerCard({
   userId: string;
   spectatorMode: boolean;
   remainingMs: number;
+  running: boolean;
+  turnStartedAt?: number;
   t: Translator;
 }>) {
   const isWhite = color === 'white';
+  const ticking = running && active;
+  const snapshot = useMemo(
+    () => ({ remainingMs, receivedAt: Date.now() }),
+    [remainingMs, turnStartedAt, ticking],
+  );
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!ticking) return;
+    const timer = globalThis.setInterval(() => setNow(Date.now()), 250);
+    return () => globalThis.clearInterval(timer);
+  }, [ticking]);
+
+  const displayedMs = ticking
+    ? Math.max(0, snapshot.remainingMs - Math.max(0, now - snapshot.receivedAt))
+    : remainingMs;
   return (
     <div
       className={`${isWhite ? '' : 'flex-row-reverse text-right'} flex min-w-0 items-center gap-2 rounded-lg border p-2 text-[var(--game-text)] max-[760px]:gap-1 max-[760px]:p-1 ${active ? 'border-[var(--game-border-strong)] bg-[rgb(69_127_185_/_18%)]' : 'border-transparent'}`}
@@ -415,7 +439,7 @@ function PlayerCard({
           {isWhite ? t('game.white') : t('game.black')}
         </span>
       </div>
-      <strong className="tabular-nums">{formatClock(remainingMs)}</strong>
+      <strong className="tabular-nums">{formatClock(displayedMs)}</strong>
     </div>
   );
 }

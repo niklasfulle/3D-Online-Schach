@@ -22,6 +22,7 @@ import {
   historyOutcome,
   matchesHistoryFilter,
 } from '../../app/utils';
+import { ReplayPanel } from './ReplayPanel';
 
 function historyResultMark(result: HistoryGame['result']): string {
   if (!result) return '—';
@@ -298,14 +299,14 @@ export function HistoryView({
   return (
     <div className="grid w-full min-w-0 gap-4">
       <section className={`${cardClass} min-w-0`}>
-        <div className="flex items-center justify-between gap-4 border-b border-[rgb(111_151_201_/_16%)] pb-4 max-[760px]:items-start max-[760px]:flex-col">
+        <div className="flex items-center justify-between gap-5 border-b border-[rgb(111_151_201_/_16%)] pb-5 max-[760px]:items-start max-[760px]:flex-col">
           <div>
             <span className={panelLabelClass}>{t('history.label')}</span>
             <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
               {t('page.history.title')}
             </h2>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2.5 max-[760px]:w-full max-[760px]:justify-start">
             <label>
               <span className="sr-only">{t('history.resultFilter')}</span>
               <select
@@ -338,7 +339,7 @@ export function HistoryView({
           </div>
         </div>
         {filteredGames.length ? (
-          <div className="grid w-full min-w-0">
+          <div className="mt-4 grid w-full min-w-0 gap-2">
             {filteredGames.map((historyGame) => {
               const opponent =
                 historyGame.whitePlayer?.id === userId
@@ -349,8 +350,8 @@ export function HistoryView({
                 <button
                   className={
                     selectedGame?.id === historyGame.id
-                      ? 'grid cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-lg border-t border-app-accent bg-[rgb(70_126_190_/_12%)] px-0 py-3 text-left text-app-text transition hover:bg-app-muted max-[760px]:items-stretch'
-                      : 'grid cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-lg border-t border-app-border px-0 py-3 text-left text-app-text transition hover:bg-app-muted max-[760px]:items-stretch'
+                      ? 'grid min-h-[4.75rem] cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border border-app-accent bg-[rgb(70_126_190_/_12%)] px-3.5 py-3 text-left text-app-text shadow-[inset_0_1px_0_rgb(255_255_255_/_4%)] transition hover:border-app-accent hover:bg-[rgb(70_126_190_/_18%)] max-[760px]:items-stretch'
+                      : 'grid min-h-[4.75rem] cursor-pointer grid-cols-[2.1rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border border-app-border bg-app-muted px-3.5 py-3 text-left text-app-text transition hover:border-app-border-strong hover:bg-app-surface max-[760px]:items-stretch'
                   }
                   type="button"
                   key={historyGame.id}
@@ -406,45 +407,73 @@ export function HistoryView({
       </section>
       {selectedGame ? (
         <section className={cardClass} aria-label={`${t('history.details')} ${selectedGame.code}`}>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 max-[620px]:flex-col">
             <div>
               <span className={panelLabelClass}>{t('history.details')}</span>
               <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
                 {selectedGame.code}
               </h2>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-app-text-muted">
+                <span className="rounded-full border border-app-border bg-app-muted px-2.5 py-1 font-semibold text-app-text-strong">
+                  {historyOutcome(selectedGame, userId, t)}
+                </span>
+                <time dateTime={selectedGame.finishedAt}>
+                  {formatHistoryDate(selectedGame.finishedAt, language)}
+                </time>
+              </div>
             </div>
             <a
-              className={secondaryButtonClass}
+              className={`${secondaryButtonClass} shrink-0 max-[620px]:w-full`}
               href={`${API_URL}/games/${encodeURIComponent(selectedGame.code)}/pgn`}
               download={`game-${selectedGame.code}.pgn`}
             >
               {t('history.downloadPgn')}
             </a>
           </div>
-          <div className="my-4 flex justify-between gap-4 text-xs text-app-text-muted">
-            <span>{historyOutcome(selectedGame, userId, t)}</span>
-            <span>{formatHistoryDate(selectedGame.finishedAt, language)}</span>
-          </div>
-          <div
-            className="grid max-h-72 gap-2 overflow-auto border-t border-app-border pt-3"
-            aria-label={t('history.moves')}
-          >
+          <div className="mt-5 grid min-w-0 gap-5 border-t border-app-border pt-5 min-[1100px]:grid-cols-[minmax(0,1.45fr)_minmax(19rem,.55fr)]">
             {selectedGame.moves.length ? (
-              selectedGame.moves.map((move) => (
-                <div
-                  className="grid grid-cols-[2rem_4rem_minmax(0,1fr)] items-center gap-2.5 text-sm"
-                  key={move.moveNumber}
-                >
-                  <span>{move.moveNumber}.</span>
-                  <strong>{move.san}</strong>
-                  <span className={mutedClass}>
-                    {move.from} → {move.to}
-                  </span>
-                </div>
-              ))
+              <ReplayPanel game={selectedGame} userId={userId} t={t} />
             ) : (
-              <span className={mutedClass}>{t('history.noMoves')}</span>
+              <div className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-app-border bg-app-muted p-6 text-center">
+                <span className={mutedClass}>{t('history.noMoves')}</span>
+              </div>
             )}
+            <section
+              className="grid min-h-0 content-start gap-3 rounded-2xl border border-app-border bg-app-muted p-3.5"
+              aria-label={t('history.moves')}
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-app-border pb-3">
+                <span className={panelLabelClass}>{t('history.moves')}</span>
+                <span className={mutedClass}>
+                  {selectedGame.moves.length} {t('replay.moves')}
+                </span>
+              </div>
+              <div className="grid max-h-[32rem] content-start gap-2 overflow-y-auto pr-1">
+                {selectedGame.moves.length ? (
+                  selectedGame.moves.map((move) => (
+                    <div
+                      className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-app-border bg-app-surface px-2.5 py-2 text-sm shadow-[inset_0_1px_0_rgb(255_255_255_/_3%)]"
+                      key={move.moveNumber}
+                    >
+                      <span className="grid size-7 place-items-center rounded-lg bg-[var(--game-control-hover)] text-xs font-bold text-app-accent">
+                        {move.moveNumber}
+                      </span>
+                      <span className="grid min-w-0 gap-0.5">
+                        <strong className="text-app-text-strong">{move.san}</strong>
+                        <span className={mutedClass}>
+                          {move.from} → {move.to}
+                        </span>
+                      </span>
+                      <time className="text-[.68rem] tabular-nums text-app-text-muted">
+                        {formatClock(move.elapsedMs)}
+                      </time>
+                    </div>
+                  ))
+                ) : (
+                  <span className={mutedClass}>{t('history.noMoves')}</span>
+                )}
+              </div>
+            </section>
           </div>
         </section>
       ) : null}

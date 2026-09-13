@@ -142,6 +142,20 @@ export type TranslationKey =
   | 'history.win'
   | 'history.loss'
   | 'history.draw'
+  | 'replay.label'
+  | 'replay.title'
+  | 'replay.play'
+  | 'replay.pause'
+  | 'replay.restart'
+  | 'replay.previous'
+  | 'replay.next'
+  | 'replay.speed'
+  | 'replay.realtime'
+  | 'replay.position'
+  | 'replay.moves'
+  | 'replay.start'
+  | 'replay.ready'
+  | 'replay.noMoves'
   | 'profile.label'
   | 'profile.publicLabel'
   | 'profile.summary'
@@ -404,6 +418,20 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.win': 'Sieg',
     'history.loss': 'Niederlage',
     'history.draw': 'Remis',
+    'replay.label': 'WIEDERGABE',
+    'replay.title': 'Partie abspielen',
+    'replay.play': 'Abspielen',
+    'replay.pause': 'Pause',
+    'replay.restart': 'Von vorne',
+    'replay.previous': 'Vorheriger Zug',
+    'replay.next': 'Nächster Zug',
+    'replay.speed': 'Geschwindigkeit',
+    'replay.realtime': 'Echtzeit',
+    'replay.position': 'Replay-Position',
+    'replay.moves': 'Züge',
+    'replay.start': 'Partiestart',
+    'replay.ready': 'Bereit',
+    'replay.noMoves': 'Keine Züge vorhanden',
     'profile.label': 'PROFIL',
     'profile.publicLabel': 'ÖFFENTLICHES PROFIL',
     'profile.summary': 'Profilübersicht',
@@ -662,6 +690,20 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.win': 'Win',
     'history.loss': 'Loss',
     'history.draw': 'Draw',
+    'replay.label': 'REPLAY',
+    'replay.title': 'Replay game',
+    'replay.play': 'Play',
+    'replay.pause': 'Pause',
+    'replay.restart': 'Restart',
+    'replay.previous': 'Previous move',
+    'replay.next': 'Next move',
+    'replay.speed': 'Speed',
+    'replay.realtime': 'Real time',
+    'replay.position': 'Replay position',
+    'replay.moves': 'moves',
+    'replay.start': 'Game start',
+    'replay.ready': 'Ready',
+    'replay.noMoves': 'No moves available',
     'profile.label': 'PROFILE',
     'profile.publicLabel': 'PUBLIC PROFILE',
     'profile.summary': 'Profile overview',

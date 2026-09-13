@@ -28,6 +28,7 @@ vi.mock('@react-three/fiber', () => ({
 vi.mock('./board/ChessScene', () => ({ ChessScene: () => null }));
 
 import { App } from './App';
+import { formatChatTime } from './app/utils';
 
 const user = {
   id: 'user-1',
@@ -1035,7 +1036,7 @@ describe('App', () => {
     expect(
       within(reopenedChatColumn).getByText('Viel Erfolg!').closest('[aria-label]'),
     ).toBeTruthy();
-    expect(within(reopenedChatColumn).getByText('12:00')).toBeTruthy();
+    expect(within(reopenedChatColumn).getByText(formatChatTime(chatMessage.createdAt, 'de'))).toBeTruthy();
 
     const chatLog = within(reopenedChatColumn).getByRole('log');
     Object.defineProperties(chatLog, {

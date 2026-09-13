@@ -7,6 +7,7 @@ import type { GameMode, GameSummary, Square, UserRole } from '@chess3d/shared';
 import { createTranslator, readLanguage, saveLanguage, type Language } from '../i18n';
 import { requestJson as requestApi } from '../request';
 import { readTheme, saveTheme, type Theme } from '../theme';
+import { playMoveSound, primeMoveSound } from '../audio/moveSound';
 import { API_URL } from './config';
 import type {
   AcceptedMove,
@@ -290,6 +291,7 @@ export function useAppController() {
       setGame(nextGame);
       setGameState(nextGame.getState());
       setMoveHistory((history) => [...history, accepted.move]);
+      playMoveSound();
       resetSelection();
     });
     socket.on('chat:message', handleChatMessage);
@@ -675,12 +677,14 @@ export function useAppController() {
       setGame(nextGame);
       setGameState(nextGame.getState());
       setMoveHistory((history) => [...history, record]);
+      playMoveSound();
     }
     setPromotionMove(null);
     resetSelection();
   }
 
   function handleSelectSquare(square: Square) {
+    primeMoveSound();
     if (!canSelectSquare(promotionMove, selectedGame, user, gameState.activeColor)) return;
 
     if (selectedSquare && legalTargets.includes(square)) {

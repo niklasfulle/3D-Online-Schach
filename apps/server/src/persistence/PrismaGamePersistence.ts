@@ -1,5 +1,5 @@
 import { ChessGame, STARTING_FEN, type MoveRecord } from '@chess3d/chess-core';
-import type { GameMode, GameStatus, GameSummary } from '@chess3d/shared';
+import type { GameMode, GameStatus, GameSummary, TimedMove } from '@chess3d/shared';
 import type { PrismaClient } from '@prisma/client';
 
 import { pgnHeaders, type GameHistory, type GamePersistence } from '../game/GameManager.js';
@@ -29,7 +29,7 @@ export class PrismaGamePersistence implements GamePersistence {
         whitePlayerId,
         blackPlayerId,
         winnerId,
-        startedAt: summary.turnStartedAt ? new Date(summary.turnStartedAt) : undefined,
+        startedAt: summary.startedAt === undefined ? undefined : new Date(summary.startedAt),
         finishedAt: summary.status === 'finished' ? new Date() : undefined,
       },
       update: {
@@ -45,7 +45,7 @@ export class PrismaGamePersistence implements GamePersistence {
         whitePlayerId,
         blackPlayerId,
         winnerId,
-        startedAt: summary.turnStartedAt ? new Date(summary.turnStartedAt) : undefined,
+        startedAt: summary.startedAt === undefined ? undefined : new Date(summary.startedAt),
         finishedAt: summary.status === 'finished' ? new Date() : undefined,
       },
     });
@@ -53,7 +53,7 @@ export class PrismaGamePersistence implements GamePersistence {
 
   async saveMove(
     summary: GameSummary,
-    move: MoveRecord,
+    move: MoveRecord & { elapsedMs?: number },
     fenAfterMove: string,
     moveNumber: number,
   ): Promise<void> {
@@ -74,6 +74,7 @@ export class PrismaGamePersistence implements GamePersistence {
         promotion: move.promotion,
         san: move.san,
         fenAfterMove,
+        elapsedMs: move.elapsedMs ?? 0,
         playerId,
       },
       update: {
@@ -84,6 +85,7 @@ export class PrismaGamePersistence implements GamePersistence {
         promotion: move.promotion,
         san: move.san,
         fenAfterMove,
+        elapsedMs: move.elapsedMs ?? 0,
         playerId,
       },
     });
@@ -117,23 +119,26 @@ export class PrismaGamePersistence implements GamePersistence {
       },
       whiteRemainingMs: record.whiteTimeMs,
       blackRemainingMs: record.blackTimeMs,
+      startedAt: record.startedAt?.getTime(),
       turnStartedAt: record.startedAt?.getTime(),
       result: toResult(record.result),
     };
     const chess = new ChessGame(record.initialFen);
+    const moves: TimedMove[] = [];
     for (const move of record.moves) {
-      chess.move({
+      const playedMove = chess.move({
         from: move.from as MoveRecord['from'],
         to: move.to as MoveRecord['to'],
         promotion: move.promotion as MoveRecord['promotion'],
       });
+      moves.push({ ...playedMove, elapsedMs: move.elapsedMs ?? 0 });
     }
 
     return {
       game,
       initialFen: record.initialFen,
       currentFen: record.currentFen,
-      moves: chess.history(),
+      moves,
       pgn: chess.toPgn(pgnHeaders(game)),
     };
   }
