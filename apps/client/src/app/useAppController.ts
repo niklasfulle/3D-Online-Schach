@@ -15,17 +15,20 @@ import type {
   AppView,
   AuthUser,
   ChatMessage,
+  CorrespondenceGame,
   FriendsOverview,
   GameSync,
   HistoryGame,
   HistoryModeFilter,
   HistoryPage,
   HistoryResultFilter,
+  LeaderboardData,
   LobbyGame,
   MoveRecord,
   NotificationItem,
   ReplayGame,
   SocialUser,
+  SeasonSummary,
   UserProfile,
 } from './types';
 import {
@@ -37,6 +40,8 @@ import {
   publicProfilePath,
   replayCodeFromPath,
   replayPath,
+  seasonLeaderboardIdFromPath,
+  seasonLeaderboardPath,
   spectatorCodeFromPath,
   spectatorPath,
   setGamePath,
@@ -57,6 +62,13 @@ export function useAppController() {
   );
   const [lobbyGames, setLobbyGames] = useState<LobbyGame[]>([]);
   const [historyGames, setHistoryGames] = useState<HistoryGame[]>([]);
+  const [correspondenceGames, setCorrespondenceGames] = useState<CorrespondenceGame[]>([]);
+  const [correspondenceInviteOpen, setCorrespondenceInviteOpen] = useState(false);
+  const [correspondenceInviteLoading, setCorrespondenceInviteLoading] = useState(false);
+  const [correspondenceInviteSending, setCorrespondenceInviteSending] = useState(false);
+  const [correspondenceInviteGame, setCorrespondenceInviteGame] = useState<GameSummary | null>(
+    null,
+  );
   const [historyCursor, setHistoryCursor] = useState<string | undefined>();
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyResultFilter, setHistoryResultFilter] = useState<HistoryResultFilter>('all');
@@ -69,6 +81,13 @@ export function useAppController() {
   const [publicProfile, setPublicProfile] = useState<UserProfile | null>(null);
   const [friends, setFriends] = useState<FriendsOverview | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null);
+  const [seasonArchive, setSeasonArchive] = useState<SeasonSummary[]>([]);
+  const [selectedSeasonLeaderboard, setSelectedSeasonLeaderboard] =
+    useState<LeaderboardData | null>(null);
+  const [profileSeasonId, setProfileSeasonId] = useState<string | null>(() =>
+    new URLSearchParams(globalThis.location?.search ?? '').get('seasonId'),
+  );
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,6 +112,7 @@ export function useAppController() {
   const spectatorCode = spectatorCodeFromPath(pathname);
   const replayCode = replayCodeFromPath(pathname);
   const publicProfileId = publicProfileIdFromPath(pathname);
+  const seasonLeaderboardId = seasonLeaderboardIdFromPath(pathname);
   const t = createTranslator(language);
 
   function navigateToView(nextView: Exclude<AppView, 'game' | 'public-profile' | 'replay'>) {
@@ -147,6 +167,14 @@ export function useAppController() {
     }
   }, []);
 
+  const refreshCorrespondence = useCallback(async () => {
+    const response = await requestApi<{ games: CorrespondenceGame[] }>(
+      API_URL,
+      '/games/correspondence',
+    );
+    setCorrespondenceGames(response.games);
+  }, []);
+
   const refreshFriends = useCallback(async () => {
     setFriends(await requestApi<FriendsOverview>(API_URL, '/friends'));
   }, []);
@@ -154,16 +182,79 @@ export function useAppController() {
   const refreshProfile = useCallback(async () => {
     setProfileLoading(true);
     try {
-      setProfile(await requestApi<UserProfile>(API_URL, '/profile'));
+      const query = profileSeasonId ? `?seasonId=${encodeURIComponent(profileSeasonId)}` : '';
+      setProfile(await requestApi<UserProfile>(API_URL, `/profile${query}`));
     } finally {
       setProfileLoading(false);
     }
+  }, [profileSeasonId]);
+
+  const openProfileSeason = useCallback((seasonId: string) => {
+    setProfileSeasonId(seasonId || null);
+    const nextPath = seasonId ? `/profile?seasonId=${encodeURIComponent(seasonId)}` : '/profile';
+    globalThis.history?.pushState({}, '', nextPath);
   }, []);
 
   const refreshAdminUsers = useCallback(async () => {
     const response = await requestApi<{ users: AdminUser[] }>(API_URL, '/admin/users');
     setAdminUsers(response.users);
   }, []);
+
+  const refreshLeaderboard = useCallback(async (page = 1) => {
+    const [current, archive] = await Promise.all([
+      requestApi<LeaderboardData>(API_URL, `/leaderboard?page=${page}&pageSize=20`),
+      requestApi<{ seasons: SeasonSummary[] }>(API_URL, '/leaderboard/seasons'),
+    ]);
+    setLeaderboard(current);
+    setSeasonArchive(archive.seasons);
+  }, []);
+
+  const openSeasonLeaderboard = useCallback(
+    async (seasonId: string) => {
+      if (!seasonId) {
+        setSelectedSeasonLeaderboard(null);
+        if (globalThis.location?.pathname !== '/leaderboard') {
+          globalThis.history?.pushState({}, '', '/leaderboard');
+        }
+        return;
+      }
+      try {
+        const nextPath = seasonLeaderboardPath(seasonId);
+        if (globalThis.location?.pathname !== nextPath) {
+          globalThis.history?.pushState({}, '', nextPath);
+        }
+        setSelectedSeasonLeaderboard(
+          await requestApi<LeaderboardData>(
+            API_URL,
+            `/leaderboard/seasons/${encodeURIComponent(seasonId)}`,
+          ),
+        );
+      } catch (error_: unknown) {
+        setError(error_ instanceof Error ? error_.message : t('error.leaderboardLoad'));
+      }
+    },
+    [t],
+  );
+
+  const loadLeaderboardPage = useCallback(
+    async (page: number) => {
+      try {
+        const seasonId = selectedSeasonLeaderboard?.season.id;
+        const path = seasonId
+          ? `/leaderboard/seasons/${encodeURIComponent(seasonId)}`
+          : '/leaderboard';
+        const result = await requestApi<LeaderboardData>(
+          API_URL,
+          `${path}?page=${page}&pageSize=20`,
+        );
+        if (seasonId) setSelectedSeasonLeaderboard(result);
+        else setLeaderboard(result);
+      } catch (error_: unknown) {
+        setError(error_ instanceof Error ? error_.message : t('error.leaderboardLoad'));
+      }
+    },
+    [selectedSeasonLeaderboard, t],
+  );
 
   const refreshNotifications = useCallback(async () => {
     const response = await requestApi<{ notifications: NotificationItem[] }>(
@@ -209,9 +300,22 @@ export function useAppController() {
 
   useEffect(() => {
     if (!user) return;
+    const timer = globalThis.setInterval(() => {
+      void refreshNotifications().catch(() => undefined);
+    }, 30_000);
+    return () => globalThis.clearInterval(timer);
+  }, [refreshNotifications, user]);
+
+  useEffect(() => {
+    if (!user) return;
     if (view === 'history') {
       void refreshHistory().catch((error_: unknown) =>
         setError(error_ instanceof Error ? error_.message : t('error.historyLoad')),
+      );
+    }
+    if (view === 'correspondence') {
+      void refreshCorrespondence().catch((error_: unknown) =>
+        setError(error_ instanceof Error ? error_.message : t('error.correspondenceLoad')),
       );
     }
     if (view === 'replay' && replayCode) {
@@ -228,6 +332,9 @@ export function useAppController() {
       void refreshProfile().catch((error_: unknown) =>
         setError(error_ instanceof Error ? error_.message : t('error.profileLoad')),
       );
+      void requestApi<{ seasons: SeasonSummary[] }>(API_URL, '/leaderboard/seasons')
+        .then(({ seasons }) => setSeasonArchive(seasons))
+        .catch(() => undefined);
     }
     if (view === 'friends') {
       void refreshFriends().catch((error_: unknown) =>
@@ -238,6 +345,13 @@ export function useAppController() {
       void refreshAdminUsers().catch((error_: unknown) =>
         setError(error_ instanceof Error ? error_.message : t('error.lobbyLoad')),
       );
+    }
+    if (view === 'leaderboard') {
+      void refreshLeaderboard()
+        .then(() => (seasonLeaderboardId ? openSeasonLeaderboard(seasonLeaderboardId) : undefined))
+        .catch((error_: unknown) =>
+          setError(error_ instanceof Error ? error_.message : t('error.leaderboardLoad')),
+        );
     }
     if (view === 'public-profile' && publicProfileId) {
       setPublicProfile(null);
@@ -253,7 +367,10 @@ export function useAppController() {
     refreshAdminUsers,
     refreshFriends,
     refreshHistory,
+    refreshCorrespondence,
     refreshProfile,
+    refreshLeaderboard,
+    seasonLeaderboardId,
     user,
     view,
   ]);
@@ -336,6 +453,11 @@ export function useAppController() {
       socketRef.current = null;
     };
   }, [spectatorCode, user]);
+
+  useEffect(() => {
+    if (!user || spectatorMode || view !== 'game' || !selectedGame) return;
+    socketRef.current?.emit('game:sync', { code: selectedGame.code });
+  }, [selectedGame?.code, spectatorMode, user, view]);
 
   useEffect(() => {
     if (!user || !inviteCode) return;
@@ -456,6 +578,10 @@ export function useAppController() {
     openGame(selectedGame);
   }
 
+  function openCorrespondenceGame(nextGame: GameSummary) {
+    openGame(nextGame);
+  }
+
   function returnToLobby() {
     const shouldClearGame = spectatorMode || selectedGame?.status === 'finished';
     setView('lobby');
@@ -524,6 +650,26 @@ export function useAppController() {
   }
 
   async function createGame(mode: GameMode) {
+    if (mode === 'correspondence') {
+      setError('');
+      setCorrespondenceInviteOpen(true);
+      setCorrespondenceInviteLoading(true);
+      setCorrespondenceInviteGame(null);
+      try {
+        const created = await requestApi<GameSummary>(API_URL, '/lobby/games', {
+          method: 'POST',
+          body: JSON.stringify({ mode }),
+        });
+        setCorrespondenceInviteGame(created);
+        await refreshCorrespondence();
+      } catch (error_) {
+        setCorrespondenceInviteOpen(false);
+        setError(error_ instanceof Error ? error_.message : t('error.gameCreate'));
+      } finally {
+        setCorrespondenceInviteLoading(false);
+      }
+      return;
+    }
     try {
       const created = await requestApi<GameSummary>(API_URL, '/lobby/games', {
         method: 'POST',
@@ -533,6 +679,35 @@ export function useAppController() {
       await refreshLobby();
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : t('error.gameCreate'));
+    }
+  }
+
+  async function cancelCorrespondenceInvite() {
+    if (correspondenceInviteGame) {
+      await deleteGame(correspondenceInviteGame.code);
+    }
+    setCorrespondenceInviteGame(null);
+    setCorrespondenceInviteOpen(false);
+    setCorrespondenceInviteLoading(false);
+  }
+
+  async function inviteCorrespondenceFriend(username: string) {
+    if (!correspondenceInviteGame || correspondenceInviteSending) return;
+    setCorrespondenceInviteSending(true);
+    try {
+      await requestApi(API_URL, `/games/${correspondenceInviteGame.code}/invitations`, {
+        method: 'POST',
+        body: JSON.stringify({ username }),
+      });
+      const nextGame = correspondenceInviteGame;
+      setCorrespondenceInviteOpen(false);
+      setCorrespondenceInviteGame(null);
+      openGame(nextGame);
+      await refreshCorrespondence();
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : t('error.invitation'));
+    } finally {
+      setCorrespondenceInviteSending(false);
     }
   }
 
@@ -742,6 +917,11 @@ export function useAppController() {
     view,
     lobbyGames,
     historyGames,
+    correspondenceGames,
+    correspondenceInviteOpen,
+    correspondenceInviteLoading,
+    correspondenceInviteSending,
+    correspondenceInviteGame,
     historyCursor,
     historyLoading,
     historyResultFilter,
@@ -751,9 +931,13 @@ export function useAppController() {
     replayLoading,
     profile,
     profileLoading,
+    profileSeasonId,
     publicProfile,
     friends,
     adminUsers,
+    leaderboard,
+    seasonArchive,
+    selectedSeasonLeaderboard,
     notifications,
     notificationsOpen,
     searchQuery,
@@ -787,9 +971,14 @@ export function useAppController() {
     setChatDraft,
     refreshLobby,
     refreshHistory,
+    refreshCorrespondence,
     refreshFriends,
     refreshProfile,
+    openProfileSeason,
     refreshAdminUsers,
+    refreshLeaderboard,
+    openSeasonLeaderboard,
+    loadLeaderboardPage,
     refreshNotifications,
     submitAuth,
     logout,
@@ -798,7 +987,10 @@ export function useAppController() {
     openProfile,
     openPublicProfile,
     openSelectedGame,
+    openCorrespondenceGame,
     createGame,
+    cancelCorrespondenceInvite,
+    inviteCorrespondenceFriend,
     joinGame,
     deleteGame,
     updateAdminRole,

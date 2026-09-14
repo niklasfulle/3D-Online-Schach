@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 
 import type { AppController } from '../../app/useAppController';
+import type { NotificationItem } from '../../app/types';
+import type { Translator } from '../../i18n';
 import { PROMOTION_OPTIONS } from '../../app/config';
 import {
   gamePath,
@@ -12,8 +14,11 @@ import {
 import { AppFooter } from './AppFooter';
 import {
   AdminView,
+  CorrespondenceInvitePopover,
+  CorrespondenceView,
   FriendsView,
   HistoryView,
+  LeaderboardView,
   LobbyView,
   ProfileView,
   ReplayView,
@@ -45,6 +50,7 @@ function promotionLabelKey(
 function notificationTarget(
   notification: AppController['notifications'][number],
 ): string | undefined {
+  if (notification.type === 'friend_request') return '/friends';
   if (!notification.gameCode) return undefined;
   if (notification.type === 'spectator_invitation') return spectatorPath(notification.gameCode);
   return gamePath(notification.gameCode);
@@ -63,6 +69,7 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
     setNotificationsOpen,
     setTheme,
     setLanguage,
+    setView,
     user,
     openProfile,
     logout,
@@ -146,9 +153,7 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
                         <span>{notificationMessage(notification, language, t)}</span>
                         {target ? (
                           <span className="text-xs font-bold text-[#9cc6ff]">
-                            {notification.type === 'spectator_invitation'
-                              ? t('notifications.openSpectator')
-                              : t('notifications.openGame')}
+                            {notificationTargetLabel(notification.type, t)}
                           </span>
                         ) : null}
                       </>
@@ -158,7 +163,13 @@ function AuthenticatedHeader({ controller }: AuthenticatedComponentProps) {
                         className={itemClass}
                         href={target}
                         key={notification.id}
-                        onClick={() => markNotificationRead(notification)}
+                        onClick={(event) => {
+                          if (notification.type === 'friend_request') {
+                            event.preventDefault();
+                            setView('friends');
+                          }
+                          void markNotificationRead(notification);
+                        }}
                       >
                         {content}
                       </a>
@@ -227,7 +238,10 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
     setView,
     lobbyGames,
     historyGames,
+    correspondenceGames,
+    leaderboard,
     openHistory,
+    refreshCorrespondence,
     openSelectedGame,
     user,
     adminUsers,
@@ -274,6 +288,22 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
             </span>
           </button>
           <button
+            className={`${navButtonClass} ${view === 'leaderboard' ? activeNavButtonClass : ''}`}
+            type="button"
+            onClick={() => setView('leaderboard')}
+          >
+            <span
+              className="grid size-6 place-items-center rounded-lg text-[#83b4e6]"
+              aria-hidden="true"
+            >
+              ♛
+            </span>
+            <span>{t('sidebar.leaderboard')}</span>
+            <span className="min-w-5 rounded-full bg-[var(--chrome-nav-badge)] px-1.5 py-0.5 text-center text-[.63rem] font-bold tabular-nums leading-none text-[var(--chrome-nav-badge-text)]">
+              {leaderboard?.entries.length ?? 0}
+            </span>
+          </button>
+          <button
             className={`${navButtonClass} ${view === 'history' ? activeNavButtonClass : ''}`}
             type="button"
             onClick={openHistory}
@@ -296,6 +326,34 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
             <span>{t('sidebar.history')}</span>
             <span className="min-w-5 rounded-full bg-[var(--chrome-nav-badge)] px-1.5 py-0.5 text-center text-[.63rem] font-bold tabular-nums leading-none text-[var(--chrome-nav-badge-text)]">
               {historyGames.length}
+            </span>
+          </button>
+          <button
+            className={`${navButtonClass} ${view === 'correspondence' ? activeNavButtonClass : ''}`}
+            type="button"
+            onClick={() => {
+              setView('correspondence');
+              refreshCorrespondence();
+            }}
+          >
+            <span
+              className="grid size-6 place-items-center rounded-lg text-[#83b4e6]"
+              aria-hidden="true"
+            >
+              <svg
+                className="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <path d="M4 6.5h16v11H4z" strokeLinejoin="round" />
+                <path d="M8 10h8M8 14h5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span>{t('sidebar.correspondence')}</span>
+            <span className="min-w-5 rounded-full bg-[var(--chrome-nav-badge)] px-1.5 py-0.5 text-center text-[.63rem] font-bold tabular-nums leading-none text-[var(--chrome-nav-badge-text)]">
+              {correspondenceGames.length}
             </span>
           </button>
           {user?.role === 'admin' ? (
@@ -401,6 +459,12 @@ function DashboardSidebar({ controller }: AuthenticatedComponentProps) {
   );
 }
 
+function notificationTargetLabel(type: NotificationItem['type'], t: Translator): string {
+  if (type === 'friend_request') return t('notifications.openFriends');
+  if (type === 'spectator_invitation') return t('notifications.openSpectator');
+  return t('notifications.openGame');
+}
+
 function DashboardHeading({
   view,
   pageHeading,
@@ -445,58 +509,14 @@ function DashboardContent({
     t,
     error,
     setError,
-    lobbyGames,
-    refreshLobby,
-    createGame,
-    joinGame,
-    deleteGame,
-    language,
     user,
-    historyGames,
-    historyCursor,
-    historyLoading,
-    historyResultFilter,
-    historyModeFilter,
-    selectedHistoryGame,
-    replayGame,
-    replayLoading,
-    setHistoryResultFilter,
-    setHistoryModeFilter,
-    setSelectedHistoryGame,
-    refreshHistory,
-    openReplay,
-    setView,
-    publicProfile,
     friends,
-    searchQuery,
-    setSearchQuery,
-    searchResults,
-    searchUsers,
-    sendFriendRequest,
-    respondToRequest,
-    inviteFriend,
-    inviteSpectator,
-    openPublicProfile,
-    adminUsers,
-    refreshAdminUsers,
-    updateAdminRole,
-    selectedGame,
-    gameState,
-    selectedSquare,
-    legalTargets,
-    moveHistory,
-    handleSelectSquare,
-    returnToLobby,
-    copyGameLink,
-    linkCopied,
-    spectatorMode,
-    copySpectatorLink,
-    spectatorLinkCopied,
-    chatMessages,
-    chatDraft,
-    setChatDraft,
-    sendChat,
-    resignGame,
+    correspondenceInviteOpen,
+    correspondenceInviteLoading,
+    correspondenceInviteSending,
+    correspondenceInviteGame,
+    cancelCorrespondenceInvite,
+    inviteCorrespondenceFriend,
   } = controller;
 
   if (!user) {
@@ -516,6 +536,17 @@ function DashboardContent({
           t={t}
         />
       ) : null}
+      {correspondenceInviteOpen ? (
+        <CorrespondenceInvitePopover
+          t={t}
+          friends={friends}
+          loading={correspondenceInviteLoading}
+          sending={correspondenceInviteSending}
+          game={correspondenceInviteGame}
+          onInvite={inviteCorrespondenceFriend}
+          onClose={cancelCorrespondenceInvite}
+        />
+      ) : null}
       {error ? (
         <div
           className="flex w-full items-start justify-between gap-4 rounded-xl border border-[#8e4654] bg-[#3d202b] px-4 py-3 text-sm leading-6 text-[#ffdce3]"
@@ -532,110 +563,158 @@ function DashboardContent({
         </div>
       ) : null}
       <DashboardHeading view={view} pageHeading={pageHeading} />
-      {view === 'lobby' ? (
-        <LobbyView
-          t={t}
-          games={lobbyGames}
-          onRefresh={() => refreshLobby()}
-          onCreate={(mode) => createGame(mode)}
-          onJoin={(code) => joinGame(code)}
-          onDelete={(code) => deleteGame(code)}
-        />
-      ) : null}
-      {view === 'history' ? (
-        <HistoryView
-          t={t}
-          language={language}
-          userId={user.id}
-          games={historyGames}
-          cursor={historyCursor}
-          loading={historyLoading}
-          resultFilter={historyResultFilter}
-          modeFilter={historyModeFilter}
-          selectedGame={selectedHistoryGame}
-          onResultFilterChange={setHistoryResultFilter}
-          onModeFilterChange={setHistoryModeFilter}
-          onSelect={setSelectedHistoryGame}
-          onLoadMore={() => refreshHistory(historyCursor)}
-          onOpenReplay={openReplay}
-        />
-      ) : null}
-      {view === 'replay' ? (
-        <ReplayView
-          game={replayGame}
-          loading={replayLoading}
-          userId={user.id}
-          t={t}
-          onBack={() => setView('history')}
-        />
-      ) : null}
-      {view === 'profile' ? profileContent : null}
-      {view === 'public-profile' && publicProfile ? (
-        <ProfileView t={t} language={language} profile={publicProfile} publicProfile />
-      ) : null}
-      {view === 'friends' ? (
-        <FriendsView
-          t={t}
-          friends={friends}
-          canInvite={Boolean(
-            selectedGame?.status === 'waiting' && selectedGame.whitePlayerId === user.id,
-          )}
-          canInviteSpectator={Boolean(
-            selectedGame?.status === 'active' &&
-            (selectedGame.whitePlayerId === user.id || selectedGame.blackPlayerId === user.id),
-          )}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          searchResults={searchResults}
-          onSearch={searchUsers}
-          onAdd={(username) => sendFriendRequest(username)}
-          onRespond={(id, action) => respondToRequest(id, action)}
-          onInvite={(username) => inviteFriend(username)}
-          onInviteSpectator={(username) => inviteSpectator(username)}
-          onViewProfile={(id) => openPublicProfile(id)}
-        />
-      ) : null}
-      {view === 'admin' && user.role === 'admin' ? (
-        <AdminView
-          t={t}
-          users={adminUsers}
-          onRefresh={() => refreshAdminUsers()}
-          onRoleChange={(id, role) => updateAdminRole(id, role)}
-        />
-      ) : null}
-      {view === 'game' && selectedGame ? (
-        <GameView
-          user={user}
-          language={language}
-          t={t}
-          selectedGame={selectedGame}
-          gameState={gameState}
-          selectedSquare={selectedSquare}
-          legalTargets={legalTargets}
-          moveHistory={moveHistory}
-          turnLabel={turnLabel}
-          onBackToLobby={returnToLobby}
-          onDeleteGame={() => {
-            if (!selectedGame) return;
-            deleteGame(selectedGame.code).then((deleted) => {
-              if (deleted) returnToLobby();
-            });
-          }}
-          handleSelectSquare={handleSelectSquare}
-          onCopyLink={() => copyGameLink()}
-          linkCopied={linkCopied}
-          spectatorMode={spectatorMode}
-          onCopySpectatorLink={() => copySpectatorLink()}
-          spectatorLinkCopied={spectatorLinkCopied}
-          chatMessages={chatMessages}
-          chatDraft={chatDraft}
-          onChatDraftChange={setChatDraft}
-          onSendChat={sendChat}
-          onResign={() => resignGame()}
-        />
-      ) : null}
+      <DashboardViewPanel controller={controller} profileContent={profileContent} turnLabel={turnLabel} />
     </section>
   );
+}
+
+function DashboardViewPanel({
+  controller,
+  profileContent,
+  turnLabel,
+}: AuthenticatedComponentProps & { profileContent: ReactNode; turnLabel: string }) {
+  const { view, user } = controller;
+  if (!user) return null;
+
+  switch (view) {
+    case 'lobby':
+      return (
+        <LobbyView
+          t={controller.t}
+          games={controller.lobbyGames}
+          onRefresh={() => controller.refreshLobby()}
+          onCreate={(mode) => controller.createGame(mode)}
+          onJoin={(code) => controller.joinGame(code)}
+          onDelete={(code) => controller.deleteGame(code)}
+        />
+      );
+    case 'history':
+      return (
+        <HistoryView
+          t={controller.t}
+          language={controller.language}
+          userId={user.id}
+          games={controller.historyGames}
+          cursor={controller.historyCursor}
+          loading={controller.historyLoading}
+          resultFilter={controller.historyResultFilter}
+          modeFilter={controller.historyModeFilter}
+          selectedGame={controller.selectedHistoryGame}
+          onResultFilterChange={controller.setHistoryResultFilter}
+          onModeFilterChange={controller.setHistoryModeFilter}
+          onSelect={controller.setSelectedHistoryGame}
+          onLoadMore={() => controller.refreshHistory(controller.historyCursor)}
+          onOpenReplay={controller.openReplay}
+        />
+      );
+    case 'correspondence':
+      return (
+        <CorrespondenceView
+          t={controller.t}
+          games={controller.correspondenceGames}
+          onStart={() => controller.createGame('correspondence')}
+          onOpen={controller.openCorrespondenceGame}
+        />
+      );
+    case 'leaderboard':
+      return (
+        <LeaderboardView
+          t={controller.t}
+          data={controller.leaderboard}
+          archive={controller.seasonArchive}
+          userId={user.id}
+          selectedSeason={controller.selectedSeasonLeaderboard}
+          onSelectSeason={controller.openSeasonLeaderboard}
+          onPageChange={controller.loadLeaderboardPage}
+        />
+      );
+    case 'replay':
+      return (
+        <ReplayView
+          game={controller.replayGame}
+          loading={controller.replayLoading}
+          userId={user.id}
+          t={controller.t}
+          onBack={() => controller.setView('history')}
+        />
+      );
+    case 'profile':
+      return profileContent;
+    case 'public-profile':
+      return controller.publicProfile ? (
+        <ProfileView
+          t={controller.t}
+          language={controller.language}
+          profile={controller.publicProfile}
+          publicProfile
+        />
+      ) : null;
+    case 'friends':
+      return (
+        <FriendsView
+          t={controller.t}
+          friends={controller.friends}
+          canInvite={controller.selectedGame?.status === 'waiting' && controller.selectedGame.whitePlayerId === user.id}
+          canInviteSpectator={controller.selectedGame?.status === 'active' && isPlayerInGame(controller.selectedGame, user.id)}
+          searchQuery={controller.searchQuery}
+          setSearchQuery={controller.setSearchQuery}
+          searchResults={controller.searchResults}
+          onSearch={controller.searchUsers}
+          onAdd={controller.sendFriendRequest}
+          onRespond={controller.respondToRequest}
+          onInvite={controller.inviteFriend}
+          onInviteSpectator={controller.inviteSpectator}
+          onViewProfile={controller.openPublicProfile}
+        />
+      );
+    case 'admin':
+      return user.role === 'admin' ? (
+        <AdminView
+          t={controller.t}
+          users={controller.adminUsers}
+          onRefresh={controller.refreshAdminUsers}
+          onRoleChange={controller.updateAdminRole}
+        />
+      ) : null;
+    case 'game':
+      return controller.selectedGame ? (
+        <GameView
+          user={user}
+          language={controller.language}
+          t={controller.t}
+          selectedGame={controller.selectedGame}
+          gameState={controller.gameState}
+          selectedSquare={controller.selectedSquare}
+          legalTargets={controller.legalTargets}
+          moveHistory={controller.moveHistory}
+          turnLabel={turnLabel}
+          onBackToLobby={controller.returnToLobby}
+          onDeleteGame={() => {
+            if (!controller.selectedGame) return;
+            controller.deleteGame(controller.selectedGame.code).then((deleted) => {
+              if (deleted) controller.returnToLobby();
+            });
+          }}
+          handleSelectSquare={controller.handleSelectSquare}
+          onCopyLink={controller.copyGameLink}
+          linkCopied={controller.linkCopied}
+          spectatorMode={controller.spectatorMode}
+          onCopySpectatorLink={controller.copySpectatorLink}
+          spectatorLinkCopied={controller.spectatorLinkCopied}
+          chatMessages={controller.chatMessages}
+          chatDraft={controller.chatDraft}
+          onChatDraftChange={controller.setChatDraft}
+          onSendChat={controller.sendChat}
+          onResign={controller.resignGame}
+        />
+      ) : null;
+    default:
+      return null;
+  }
+}
+
+function isPlayerInGame(game: NonNullable<AppController['selectedGame']>, userId: string): boolean {
+  return game.whitePlayerId === userId || game.blackPlayerId === userId;
 }
 
 function InsightsPanel({ controller }: AuthenticatedComponentProps) {
@@ -707,7 +786,19 @@ function PromotionDialog({ controller }: AuthenticatedComponentProps) {
   );
 }
 export function AuthenticatedView(controller: Readonly<AppController>) {
-  const { user, language, theme, view, gameState, profileLoading, profile, t } = controller;
+  const {
+    user,
+    language,
+    theme,
+    view,
+    gameState,
+    profileLoading,
+    profile,
+    seasonArchive,
+    profileSeasonId,
+    openProfileSeason,
+    t,
+  } = controller;
 
   if (!user) {
     return null;
@@ -724,7 +815,16 @@ export function AuthenticatedView(controller: Readonly<AppController>) {
       </div>
     );
   } else if (profile) {
-    profileContent = <ProfileView t={t} language={language} profile={profile} />;
+    profileContent = (
+      <ProfileView
+        t={t}
+        language={language}
+        profile={profile}
+        seasons={seasonArchive}
+        selectedSeasonId={profileSeasonId}
+        onSelectSeason={openProfileSeason}
+      />
+    );
   }
 
   return (

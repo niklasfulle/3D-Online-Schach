@@ -19,7 +19,8 @@ export function notificationTitle(
   if (language === 'de') return notification.title;
   if (notification.type === 'friend_request') return t('notification.friendRequest');
   if (notification.type === 'game_invitation') return t('notification.gameInvitation');
-  return t('notification.spectatorInvitation');
+  if (notification.type === 'spectator_invitation') return t('notification.spectatorInvitation');
+  return t('notification.moveTurn');
 }
 
 export function notificationMessage(
@@ -34,8 +35,10 @@ export function notificationMessage(
     key = 'notification.friendRequestMessage';
   } else if (notification.type === 'game_invitation') {
     key = 'notification.gameInvitationMessage';
-  } else {
+  } else if (notification.type === 'spectator_invitation') {
     key = 'notification.spectatorInvitationMessage';
+  } else {
+    key = 'notification.moveTurnMessage';
   }
   return t(key).replace('{username}', username);
 }
@@ -56,7 +59,14 @@ export function statusLabel(status: ReturnType<ChessGame['getStatus']>, t: Trans
 }
 
 export function gameLabel(game: GameSummary, t: Translator) {
-  return `${game.mode === 'ranked' ? t('mode.ranked') : t('mode.casual')} · ${game.code}`;
+  const modeLabel = gameModeLabel(game.mode, t);
+  return `${modeLabel} · ${game.code}`;
+}
+
+export function gameModeLabel(mode: GameSummary['mode'], t: Translator) {
+  if (mode === 'ranked') return t('mode.ranked');
+  if (mode === 'correspondence') return t('mode.correspondence');
+  return t('mode.casual');
 }
 
 export function gameStatusLabel(status: GameSummary['status'], t: Translator) {
@@ -109,6 +119,13 @@ export function pageHeadingFor(view: AppView, t: Translator): PageHeading {
       description: t('page.history.description'),
     };
   }
+  if (view === 'correspondence') {
+    return {
+      eyebrow: t('page.correspondence.eyebrow'),
+      title: t('page.correspondence.title'),
+      description: t('page.correspondence.description'),
+    };
+  }
   if (view === 'replay') {
     return {
       eyebrow: t('page.replay.eyebrow'),
@@ -135,6 +152,13 @@ export function pageHeadingFor(view: AppView, t: Translator): PageHeading {
       eyebrow: t('page.admin.eyebrow'),
       title: t('page.admin.title'),
       description: t('page.admin.description'),
+    };
+  }
+  if (view === 'leaderboard') {
+    return {
+      eyebrow: t('page.leaderboard.eyebrow'),
+      title: t('page.leaderboard.title'),
+      description: t('page.leaderboard.description'),
     };
   }
   return {
@@ -188,18 +212,32 @@ export function viewFromPath(pathname: string): AppView {
   if (publicProfileIdFromPath(pathname)) return 'public-profile';
   if (replayCodeFromPath(pathname)) return 'replay';
   if (pathname === '/history' || pathname === '/history/') return 'history';
+  if (pathname === '/correspondence' || pathname === '/correspondence/') return 'correspondence';
   if (pathname === '/friends' || pathname === '/friends/') return 'friends';
   if (pathname === '/profile' || pathname === '/profile/') return 'profile';
   if (pathname === '/admin' || pathname === '/admin/') return 'admin';
+  if (pathname === '/leaderboard' || pathname === '/leaderboard/') return 'leaderboard';
+  if (seasonLeaderboardIdFromPath(pathname)) return 'leaderboard';
   return 'lobby';
+}
+
+export function seasonLeaderboardIdFromPath(pathname: string): string | null {
+  const match = /^\/leaderboard\/seasons\/([^/]+)\/?$/i.exec(pathname);
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 export function pathForView(view: Exclude<AppView, 'game' | 'public-profile' | 'replay'>): string {
   if (view === 'history') return '/history';
+  if (view === 'correspondence') return '/correspondence';
   if (view === 'friends') return '/friends';
   if (view === 'profile') return '/profile';
   if (view === 'admin') return '/admin';
+  if (view === 'leaderboard') return '/leaderboard';
   return '/';
+}
+
+export function seasonLeaderboardPath(id: string): string {
+  return `/leaderboard/seasons/${encodeURIComponent(id)}`;
 }
 
 export function replayPath(code: string): string {

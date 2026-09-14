@@ -176,6 +176,23 @@ describe('server HTTP routes', () => {
     );
   });
 
+  it("protects and collects a player's correspondence games", async () => {
+    const gameManager = new GameManager();
+    const correspondenceGame = gameManager.createGame(user.id, undefined, 'correspondence');
+    const authProvider = createAuthProvider(undefined);
+    app = buildApp(gameManager, authProvider, createSocialProvider(), createNotificationProvider());
+
+    expect((await app.inject({ method: 'GET', url: '/games/correspondence' })).statusCode).toBe(
+      401,
+    );
+
+    authProvider.authenticate = vi.fn(async () => user);
+    const response = await app.inject({ method: 'GET', url: '/games/correspondence' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ games: [correspondenceGame] });
+  });
+
   it('protects replay data and only returns a finished game for its player', async () => {
     const replay: ReplayGame = {
       id: 'game-1',
@@ -243,6 +260,7 @@ describe('server HTTP routes', () => {
         draws: 0,
         ranked: { totalGames: 1, wins: 1, losses: 0, draws: 0 },
         casual: { totalGames: 1, wins: 0, losses: 1, draws: 0 },
+        correspondence: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
         ratingHistory: [{ at: '2026-01-01T00:00:00.000Z', rating: 1200 }],
       },
     };
@@ -268,7 +286,7 @@ describe('server HTTP routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(profile);
-    expect(profileProvider.getForUser).toHaveBeenCalledWith(user.id);
+    expect(profileProvider.getForUser).toHaveBeenCalledWith(user.id, undefined);
   });
 
   it('serves a public profile without private contact data', async () => {
@@ -286,6 +304,7 @@ describe('server HTTP routes', () => {
         draws: 0,
         ranked: { totalGames: 1, wins: 1, losses: 0, draws: 0 },
         casual: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
+        correspondence: { totalGames: 0, wins: 0, losses: 0, draws: 0 },
         ratingHistory: [{ at: '2026-01-01T00:00:00.000Z', rating: 1300 }],
       },
     };
@@ -553,9 +572,9 @@ describe('server HTTP routes', () => {
       ).statusCode,
     ).toBe(409);
 
-    expect((await app.inject({ method: 'GET', url: `/games/${active.code}/chat` })).statusCode).toBe(
-      429,
-    );
+    expect(
+      (await app.inject({ method: 'GET', url: `/games/${active.code}/chat` })).statusCode,
+    ).toBe(429);
     expect(
       (
         await app.inject({
@@ -567,9 +586,9 @@ describe('server HTTP routes', () => {
     ).toBe(503);
 
     authProvider.authenticate = vi.fn(async () => ({ ...user, id: 'spectator-outsider' }));
-    expect((await app.inject({ method: 'GET', url: `/games/${active.code}/chat` })).statusCode).toBe(
-      403,
-    );
+    expect(
+      (await app.inject({ method: 'GET', url: `/games/${active.code}/chat` })).statusCode,
+    ).toBe(403);
     expect(
       (
         await app.inject({
@@ -580,16 +599,16 @@ describe('server HTTP routes', () => {
       ).statusCode,
     ).toBe(403);
 
-    expect(
-      (await app.inject({ method: 'GET', url: '/games/history?limit=1' })).statusCode,
-    ).toBe(422);
+    expect((await app.inject({ method: 'GET', url: '/games/history?limit=1' })).statusCode).toBe(
+      422,
+    );
 
     historyProvider.listForUser = vi.fn(async () => {
       throw new Error('History database offline');
     });
-    expect(
-      (await app.inject({ method: 'GET', url: '/games/history?limit=1' })).statusCode,
-    ).toBe(503);
+    expect((await app.inject({ method: 'GET', url: '/games/history?limit=1' })).statusCode).toBe(
+      503,
+    );
   });
 
   it('handles lobby and legacy game endpoints', async () => {
@@ -754,7 +773,12 @@ describe('server HTTP routes', () => {
     const created = manager.createGame(user.id);
     await manager.flushPersistence();
     vi.spyOn(manager, 'deleteWaitingGame').mockReturnValue(false);
-    app = buildApp(manager, createAuthProvider(user), createSocialProvider(), createNotificationProvider());
+    app = buildApp(
+      manager,
+      createAuthProvider(user),
+      createSocialProvider(),
+      createNotificationProvider(),
+    );
 
     expect(
       (await app.inject({ method: 'DELETE', url: `/lobby/games/${created.code}` })).statusCode,
@@ -979,5 +1003,6 @@ function createNotificationProvider(): NotificationProvider {
       read: false,
       createdAt: '2026-09-11T12:00:00.000Z',
     })),
+    createMoveTurnNotification: vi.fn(async () => undefined),
   };
 }

@@ -17,7 +17,16 @@ export const GUEST_SPECTATOR: AuthUser = {
 };
 
 export type AppView =
-  'lobby' | 'history' | 'replay' | 'profile' | 'public-profile' | 'friends' | 'admin' | 'game';
+  | 'lobby'
+  | 'history'
+  | 'correspondence'
+  | 'replay'
+  | 'profile'
+  | 'public-profile'
+  | 'friends'
+  | 'admin'
+  | 'leaderboard'
+  | 'game';
 
 export interface PageHeading {
   eyebrow: string;
@@ -54,7 +63,7 @@ export interface AdminUser {
 
 export interface NotificationItem {
   id: string;
-  type: 'friend_request' | 'game_invitation' | 'spectator_invitation';
+  type: 'friend_request' | 'game_invitation' | 'spectator_invitation' | 'move_turn';
   title: string;
   message: string;
   gameCode?: string;
@@ -93,6 +102,8 @@ export interface LobbyGame extends GameSummary {
   isOwner: boolean;
 }
 
+export type CorrespondenceGame = GameSummary;
+
 export interface HistoryPlayer {
   id: string;
   username: string;
@@ -115,6 +126,9 @@ export interface HistoryGame {
   result: 'white' | 'black' | 'draw' | null;
   createdAt: string;
   finishedAt: string;
+  ratingBefore?: number;
+  ratingAfter?: number;
+  ratingDelta?: number;
   whitePlayer: HistoryPlayer | null;
   blackPlayer: HistoryPlayer | null;
   moves: HistoryMove[];
@@ -146,8 +160,39 @@ export interface UserProfile {
   stats: ProfileBreakdown & {
     ranked: ProfileBreakdown;
     casual: ProfileBreakdown;
+    correspondence: ProfileBreakdown;
     ratingHistory: Array<{ at: string; rating: number }>;
   };
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  username: string;
+  rating: number;
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
+export interface SeasonSummary {
+  id: string;
+  sequence: number;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  participantCount: number;
+}
+
+export interface LeaderboardData {
+  season: SeasonSummary;
+  entries: LeaderboardEntry[];
+  page: number;
+  pageSize: number;
+  total: number;
+  hasNext: boolean;
+  currentUserEntry?: LeaderboardEntry | null;
 }
 
 export type HistoryResultFilter = 'all' | 'wins' | 'losses' | 'draws';

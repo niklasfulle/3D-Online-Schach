@@ -33,6 +33,34 @@ describe('GameManager', () => {
     );
   });
 
+  it('creates Fernpartien without a clock or waiting expiration', () => {
+    let now = 1_000;
+    manager = new GameManager(() => now);
+
+    const created = manager.createGame(
+      'player-a',
+      { initialMs: 0, incrementMs: 0 },
+      'correspondence',
+    );
+
+    expect(created).toMatchObject({
+      mode: 'correspondence',
+      timeControl: { initialMs: 0, incrementMs: 0, unlimited: true },
+    });
+    expect(created.expiresAt).toBeUndefined();
+    expect(manager.listWaitingGames()).toEqual([]);
+
+    manager.joinGame(created.code, 'player-b');
+    const onGameEnd = vi.fn();
+    manager.onGameEnded(onGameEnd);
+    now += 365 * 24 * 60 * 60 * 1_000;
+
+    expect(() =>
+      manager.requestMove(created.code, 'player-a', { from: 'e2', to: 'e4' }),
+    ).not.toThrow();
+    expect(onGameEnd).not.toHaveBeenCalled();
+  });
+
   it('moves the timeout to the next player after a move', () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);

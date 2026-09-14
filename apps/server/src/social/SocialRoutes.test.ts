@@ -96,6 +96,64 @@ describe('social and lobby API', () => {
       (await app.inject({ method: 'POST', url: '/notifications/notification-1/read' })).statusCode,
     ).toBe(200);
   });
+
+  it('keeps Fernpartien private and accepts only an invited friend', async () => {
+    const socialProvider = createSocialProvider();
+    socialProvider.getFriendsOverview = vi.fn(async () => ({ ...overview, friends: [bob] }));
+    const notificationProvider = createNotificationProvider();
+    const authProvider = createAuthProvider(user);
+    const manager = new GameManager();
+    app = buildApp(manager, authProvider, socialProvider, notificationProvider);
+
+    const game = await app.inject({
+      method: 'POST',
+      url: '/lobby/games',
+      payload: { mode: 'correspondence' },
+    });
+    expect(game.statusCode).toBe(201);
+    expect(game.json()).toMatchObject({
+      mode: 'correspondence',
+      timeControl: { initialMs: 0, incrementMs: 0, unlimited: true },
+    });
+    expect((await app.inject({ method: 'GET', url: '/lobby' })).json().games).toEqual([]);
+
+    const code = game.json().code as string;
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/games/${code}/invitations`,
+          payload: { username: 'stranger' },
+        })
+      ).statusCode,
+    ).toBe(403);
+
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/games/${code}/invitations`,
+          payload: { username: 'bob' },
+        })
+      ).statusCode,
+    ).toBe(201);
+    notificationProvider.list = vi.fn(async () => [
+      {
+        id: 'invitation-1',
+        type: 'game_invitation' as const,
+        title: 'Einladung',
+        message: 'Einladung',
+        gameCode: code,
+        read: false,
+        createdAt: '2026-09-11T10:00:00.000Z',
+      },
+    ]);
+    authProvider.authenticate = vi.fn(async () => bob);
+
+    expect(
+      (await app.inject({ method: 'POST', url: `/lobby/games/${code}/join` })).statusCode,
+    ).toBe(200);
+  });
 });
 
 function createAuthProvider(authenticatedUser: typeof user | undefined): AuthProvider {
@@ -152,5 +210,6 @@ function createNotificationProvider(): NotificationProvider & {
       read: false,
       createdAt: '2026-09-11T10:00:00.000Z',
     })),
+    createMoveTurnNotification: vi.fn(async () => undefined),
   };
 }

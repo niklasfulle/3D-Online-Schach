@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { io as connect, type Socket } from 'socket.io-client';
 
 import { buildApp } from './index.js';
 import { GameManager } from './game/GameManager.js';
 import { registerRealtime } from './realtime.js';
 import type { ChatProvider } from './chat/ChatService.js';
+import type { NotificationProvider } from './notifications/NotificationService.js';
 
 function waitForEvent<T>(socket: Socket, event: string): Promise<T> {
   return new Promise((resolve) => {
@@ -96,6 +97,45 @@ describe('realtime game rooms', () => {
     const sync = await syncPromise;
     expect(sync.fen).toContain(' b ');
     expect(sync.moves[0].san).toBe('e4');
+  });
+
+  it('creates a turn notification when a Fernpartie opponent is not connected', async () => {
+    const gameManager = new GameManager();
+    const created = gameManager.createGame(
+      'player-a',
+      { initialMs: 0, incrementMs: 0 },
+      'correspondence',
+    );
+    gameManager.joinGame(created.code, 'player-b');
+    app = buildApp(gameManager);
+    const notificationProvider = {
+      createMoveTurnNotification: vi.fn(async () => undefined),
+    } as unknown as NotificationProvider;
+    realtime = registerRealtime(app, gameManager, undefined, undefined, notificationProvider);
+    await app.listen({ host: '127.0.0.1', port: 0 });
+
+    const address = app.server.address();
+    if (!address || typeof address === 'string') throw new Error('Server address unavailable');
+    const white = connect(`http://127.0.0.1:${address.port}`, {
+      auth: { playerId: 'player-a' },
+      transports: ['websocket'],
+    });
+    clients = [white];
+
+    await waitForEvent(white, 'connect');
+    const statePromise = waitForEvent(white, 'game:state');
+    white.emit('game:sync', { code: created.code });
+    await statePromise;
+
+    const acceptedPromise = waitForEvent(white, 'move:accepted');
+    white.emit('move:request', { code: created.code, from: 'e2', to: 'e4' });
+    await acceptedPromise;
+
+    expect(notificationProvider.createMoveTurnNotification).toHaveBeenCalledWith(
+      'player-b',
+      'player-a',
+      created.code,
+    );
   });
 
   it('broadcasts game end with the winning color', async () => {

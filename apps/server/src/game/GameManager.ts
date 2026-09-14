@@ -12,6 +12,11 @@ import type { GameMode, GameSummary, TimeControl, TimedMove } from '@chess3d/sha
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 const DEFAULT_TIME_CONTROL: TimeControl = { initialMs: 15 * 60 * 1000, incrementMs: 0 };
+const CORRESPONDENCE_TIME_CONTROL: TimeControl = {
+  initialMs: 0,
+  incrementMs: 0,
+  unlimited: true,
+};
 export const WAITING_GAME_TTL_MS = 30 * 60 * 1000;
 
 interface ManagedGame {
@@ -109,7 +114,13 @@ export class GameManager {
     timeControl = DEFAULT_TIME_CONTROL,
     mode: GameMode = 'casual',
   ): GameSummary {
-    if (timeControl.initialMs <= 0 || timeControl.incrementMs < 0) {
+    const normalizedTimeControl =
+      mode === 'correspondence' ? CORRESPONDENCE_TIME_CONTROL : timeControl;
+    if (
+      normalizedTimeControl.initialMs < 0 ||
+      (!normalizedTimeControl.unlimited && normalizedTimeControl.initialMs === 0) ||
+      normalizedTimeControl.incrementMs < 0
+    ) {
       throw new Error('Invalid time control');
     }
 
@@ -125,14 +136,16 @@ export class GameManager {
         mode,
         status: 'waiting',
         whitePlayerId,
-        timeControl,
-        whiteRemainingMs: timeControl.initialMs,
-        blackRemainingMs: timeControl.initialMs,
-        expiresAt: this.now() + WAITING_GAME_TTL_MS,
+        timeControl: normalizedTimeControl,
+        whiteRemainingMs: normalizedTimeControl.initialMs,
+        blackRemainingMs: normalizedTimeControl.initialMs,
+        ...(mode === 'correspondence' ? {} : { expiresAt: this.now() + WAITING_GAME_TTL_MS }),
       },
     };
     this.games.set(code, game);
-    this.enqueuePersistence(game.summary.id, () => this.persistence.saveGame(game.summary, STARTING_FEN));
+    this.enqueuePersistence(game.summary.id, () =>
+      this.persistence.saveGame(game.summary, STARTING_FEN),
+    );
     return this.snapshot(game);
   }
 
@@ -190,11 +203,14 @@ export class GameManager {
       ...game.summary,
       status: 'finished',
       result,
+      finishedAt: this.now(),
       turnStartedAt: undefined,
     };
     this.scheduleClockTimeout(game);
     const snapshot = this.snapshot(game);
-    this.enqueuePersistence(snapshot.id, () => this.persistence.saveGame(snapshot, game.chess.getState().fen));
+    this.enqueuePersistence(snapshot.id, () =>
+      this.persistence.saveGame(snapshot, game.chess.getState().fen),
+    );
     this.publishGameUpdate(snapshot);
     this.publishGameEnd(snapshot, result);
     return snapshot;
@@ -244,6 +260,7 @@ export class GameManager {
       blackRemainingMs: movingColor === 'black' ? movedRemainingMs : clock.blackRemainingMs,
       turnStartedAt: nextTurnStartedAt,
       result: result ?? game.summary.result,
+      ...(result ? { finishedAt: this.now() } : {}),
     };
     this.scheduleClockTimeout(game);
 
@@ -284,7 +301,22 @@ export class GameManager {
 
   listWaitingGames(): GameSummary[] {
     return [...this.games.values()]
-      .filter(({ summary }) => summary.status === 'waiting' && !this.isExpired(summary))
+      .filter(
+        ({ summary }) =>
+          summary.status === 'waiting' &&
+          summary.mode !== 'correspondence' &&
+          !this.isExpired(summary),
+      )
+      .map((game) => this.snapshot(game));
+  }
+
+  listCorrespondenceGames(playerId: string): GameSummary[] {
+    return [...this.games.values()]
+      .filter(
+        ({ summary }) =>
+          summary.mode === 'correspondence' &&
+          (summary.whitePlayerId === playerId || summary.blackPlayerId === playerId),
+      )
       .map((game) => this.snapshot(game));
   }
 
@@ -352,18 +384,27 @@ export class GameManager {
   }
 
   private expireIfNeeded(game: ManagedGame): GameTimeoutError | undefined {
-    if (game.summary.status !== 'active') return undefined;
+    if (game.summary.status !== 'active' || isUnlimitedGame(game.summary)) return undefined;
 
     const clock = this.clockSnapshot(game);
     const activeColor = game.chess.getState().activeColor;
     const remainingMs = activeColor === 'white' ? clock.whiteRemainingMs : clock.blackRemainingMs;
     if (remainingMs > 0) return undefined;
 
-    game.summary = { ...game.summary, ...clock, status: 'finished', turnStartedAt: undefined };
+    const result = activeColor === 'white' ? 'black' : 'white';
+    game.summary = {
+      ...game.summary,
+      ...clock,
+      status: 'finished',
+      finishedAt: this.now(),
+      result,
+      turnStartedAt: undefined,
+    };
     this.scheduleClockTimeout(game);
     const snapshot = this.snapshot(game);
-    const result = activeColor === 'white' ? 'black' : 'white';
-    this.enqueuePersistence(snapshot.id, () => this.persistence.saveGame(snapshot, game.chess.getState().fen));
+    this.enqueuePersistence(snapshot.id, () =>
+      this.persistence.saveGame(snapshot, game.chess.getState().fen),
+    );
     this.publishGameUpdate(snapshot);
     this.publishGameEnd(snapshot, result);
     return new GameTimeoutError(snapshot, result);
@@ -371,11 +412,9 @@ export class GameManager {
 
   private enqueuePersistence(gameId: string, operation: () => Promise<void>): void {
     const previous = this.persistenceQueues.get(gameId) ?? Promise.resolve();
-    const pending = previous
-      .then(operation)
-      .catch((error: unknown) => {
-        this.persistenceError ??= error;
-      });
+    const pending = previous.then(operation).catch((error: unknown) => {
+      this.persistenceError ??= error;
+    });
     this.persistenceQueues.set(gameId, pending);
     this.pendingPersistence.add(pending);
     void pending
@@ -434,6 +473,12 @@ export class GameManager {
   private clockSnapshot(
     game: ManagedGame,
   ): Pick<GameSummary, 'whiteRemainingMs' | 'blackRemainingMs'> {
+    if (isUnlimitedGame(game.summary)) {
+      return {
+        whiteRemainingMs: game.summary.whiteRemainingMs,
+        blackRemainingMs: game.summary.blackRemainingMs,
+      };
+    }
     if (game.summary.status !== 'active' || game.summary.turnStartedAt === undefined) {
       return {
         whiteRemainingMs: game.summary.whiteRemainingMs,
@@ -458,16 +503,25 @@ export class GameManager {
     const previous = this.clockTimers.get(game.summary.code);
     if (previous) clearTimeout(previous);
     this.clockTimers.delete(game.summary.code);
-    if (game.summary.status !== 'active' || game.summary.turnStartedAt === undefined) return;
+    if (
+      game.summary.status !== 'active' ||
+      game.summary.turnStartedAt === undefined ||
+      isUnlimitedGame(game.summary)
+    )
+      return;
 
     const clock = this.clockSnapshot(game);
-    const remainingMs = game.chess.getState().activeColor === 'white'
-      ? clock.whiteRemainingMs
-      : clock.blackRemainingMs;
-    const timer = setTimeout(() => {
-      this.clockTimers.delete(game.summary.code);
-      this.expireIfNeeded(game);
-    }, Math.max(1, Math.ceil(remainingMs)));
+    const remainingMs =
+      game.chess.getState().activeColor === 'white'
+        ? clock.whiteRemainingMs
+        : clock.blackRemainingMs;
+    const timer = setTimeout(
+      () => {
+        this.clockTimers.delete(game.summary.code);
+        this.expireIfNeeded(game);
+      },
+      Math.max(1, Math.ceil(remainingMs)),
+    );
     timer.unref?.();
     this.clockTimers.set(game.summary.code, timer);
   }
@@ -487,6 +541,10 @@ export class GameManager {
       () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)],
     ).join('');
   }
+}
+
+function isUnlimitedGame(summary: GameSummary): boolean {
+  return summary.mode === 'correspondence' || summary.timeControl.unlimited === true;
 }
 
 function moveResult(

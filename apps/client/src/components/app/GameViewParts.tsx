@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import { Canvas } from '@react-three/fiber';
 
 import type { ChessGame } from '@chess3d/chess-core';
@@ -11,6 +19,7 @@ import {
   formatChatTime,
   formatClock,
   gameLabel,
+  gameModeLabel,
   gameStatusLabel,
   isChatNearBottom,
   viewerPlayerLabel,
@@ -92,9 +101,7 @@ function GameToolbarActions({
 }>) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-2 max-[760px]:items-start max-[760px]:flex-col max-[760px]:pl-12">
-      {!spectatorMode && (
-        <CopyLinkButton t={t} copied={linkCopied} onCopy={onCopyLink} />
-      )}
+      {!spectatorMode && <CopyLinkButton t={t} copied={linkCopied} onCopy={onCopyLink} />}
       <CopySpectatorLinkButton t={t} copied={spectatorLinkCopied} onCopy={onCopySpectatorLink} />
       {desktopLayout && <ChatToggleButton t={t} open={chatOpen} onToggle={onToggleChat} />}
     </div>
@@ -202,9 +209,7 @@ export function GameToolbar({
           ←
         </button>
         <div>
-          <span className={panelLabelClass}>
-            {selectedGame.mode === 'ranked' ? t('game.ranked') : t('game.casual')}
-          </span>
+          <span className={panelLabelClass}>{gameModeLabel(selectedGame.mode, t)}</span>
           <h2 className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-lg tracking-[-.03em] text-[var(--game-text)]">
             {selectedGame.code}
           </h2>
@@ -337,6 +342,7 @@ export function GameBoardPanel({
           userId={user.id}
           spectatorMode={spectatorMode}
           remainingMs={selectedGame.whiteRemainingMs}
+          unlimited={selectedGame.timeControl.unlimited === true}
           running={selectedGame.status === 'active' && selectedGame.turnStartedAt !== undefined}
           turnStartedAt={selectedGame.turnStartedAt}
           t={t}
@@ -349,6 +355,7 @@ export function GameBoardPanel({
           userId={user.id}
           spectatorMode={spectatorMode}
           remainingMs={selectedGame.blackRemainingMs}
+          unlimited={selectedGame.timeControl.unlimited === true}
           running={selectedGame.status === 'active' && selectedGame.turnStartedAt !== undefined}
           turnStartedAt={selectedGame.turnStartedAt}
           t={t}
@@ -396,6 +403,7 @@ function PlayerCard({
   userId,
   spectatorMode,
   remainingMs,
+  unlimited,
   running,
   turnStartedAt,
   t,
@@ -406,12 +414,13 @@ function PlayerCard({
   userId: string;
   spectatorMode: boolean;
   remainingMs: number;
+  unlimited: boolean;
   running: boolean;
   turnStartedAt?: number;
   t: Translator;
 }>) {
   const isWhite = color === 'white';
-  const ticking = running && active;
+  const ticking = running && active && !unlimited;
   const snapshot = useMemo(
     () => ({ remainingMs, receivedAt: Date.now() }),
     [remainingMs, turnStartedAt, ticking],
@@ -444,7 +453,9 @@ function PlayerCard({
           {isWhite ? t('game.white') : t('game.black')}
         </span>
       </div>
-      <strong className="tabular-nums">{formatClock(displayedMs)}</strong>
+      <strong className="tabular-nums">
+        {unlimited ? t('game.unlimited') : formatClock(displayedMs)}
+      </strong>
     </div>
   );
 }
@@ -490,7 +501,9 @@ export function GameInfoPanel({
       </div>
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
         <div className="grid min-w-0 gap-1 rounded-lg border border-[var(--game-divider)] bg-[var(--game-surface-inset)] p-2.5">
-          <span className={`${mutedClass} overflow-hidden text-ellipsis whitespace-nowrap`}>{t('game.status')}</span>
+          <span className={`${mutedClass} overflow-hidden text-ellipsis whitespace-nowrap`}>
+            {t('game.status')}
+          </span>
           <strong className="text-xs text-[var(--game-text)]">
             {gameStatusLabel(selectedGame.status, t)}
           </strong>
@@ -500,7 +513,9 @@ export function GameInfoPanel({
             {t('game.timeControl')}
           </span>
           <strong className="text-xs text-[var(--game-text)]">
-            {Math.round(selectedGame.timeControl.initialMs / 60000)} {t('game.minutes')}
+            {selectedGame.timeControl.unlimited
+              ? t('game.unlimited')
+              : `${Math.round(selectedGame.timeControl.initialMs / 60000)} ${t('game.minutes')}`}
           </strong>
         </div>
       </div>
@@ -565,7 +580,9 @@ export function GameInfoPanel({
                     {Math.floor(index / 2) + 1}
                     {index % 2 === 0 ? '.' : '…'}
                   </span>
-                  <strong className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{move.san}</strong>
+                  <strong className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                    {move.san}
+                  </strong>
                 </div>
               );
             })
@@ -574,7 +591,9 @@ export function GameInfoPanel({
       </div>
       <div className="row-start-6 grid min-h-0 min-w-0 gap-1.5 self-start border-t border-[var(--game-divider)] pt-3">
         <span className={panelLabelClass}>{t('game.fen')}</span>
-        <code className="min-w-0 break-all text-[.63rem] leading-4 text-[#7189a5]">{gameState.fen}</code>
+        <code className="min-w-0 break-all text-[.63rem] leading-4 text-[#7189a5]">
+          {gameState.fen}
+        </code>
       </div>
     </aside>
   );
@@ -625,7 +644,10 @@ function GameConfirmationDialog({
       <h3 id={`${dialogId}-title`} className="m-0 text-lg font-bold leading-snug">
         {title}
       </h3>
-      <p id={`${dialogId}-message`} className="mt-3 mb-0 text-sm leading-6 text-[var(--game-muted)]">
+      <p
+        id={`${dialogId}-message`}
+        className="mt-3 mb-0 text-sm leading-6 text-[var(--game-muted)]"
+      >
         {message}
       </p>
       <div className="mt-5 grid grid-cols-2 gap-3 max-[420px]:grid-cols-1">

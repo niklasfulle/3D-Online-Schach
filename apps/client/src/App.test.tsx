@@ -678,6 +678,84 @@ describe('App', () => {
     expect(mocks.socket.emit).toHaveBeenCalledWith('game:sync', { code: activeGame.code });
   });
 
+  it('opens the correspondence invite popover before redirecting to the game', async () => {
+    const friend = { id: 'friend-1', username: 'Mara', rating: 1250, online: true };
+    const correspondenceGame = {
+      ...waitingGame,
+      mode: 'correspondence' as const,
+      timeControl: { initialMs: 0, incrementMs: 0, unlimited: true },
+      whiteRemainingMs: 0,
+      blackRemainingMs: 0,
+      expiresAt: undefined,
+    };
+
+    mocks.requestJson.mockImplementation(
+      async (_baseUrl: string, path: string, options?: RequestInit) => {
+        if (path === '/auth/me') return { user };
+        if (path === '/lobby') return { games: [] };
+        if (path === '/friends') return { ...emptyFriends, friends: [friend] };
+        if (path === '/notifications') return { notifications: [] };
+        if (path === '/games/correspondence') return { games: [correspondenceGame] };
+        if (path === '/lobby/games' && options?.method === 'POST') return correspondenceGame;
+        if (path === '/games/ABC123/invitations' && options?.method === 'POST') {
+          return { id: 'notification-2' };
+        }
+        if (path === '/games/ABC123/chat') return { messages: [] };
+        throw new Error(`Unexpected request: ${path}`);
+      },
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Fernpartie starten/ }));
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Freund zur Fernpartie einladen' }),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Mara/ })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Am Brett' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Mara/ }));
+    await waitFor(() =>
+      expect(mocks.requestJson).toHaveBeenCalledWith(
+        expect.any(String),
+        '/games/ABC123/invitations',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ username: 'Mara' }) }),
+      ),
+    );
+    expect(await screen.findByRole('heading', { name: 'Am Brett' })).toBeTruthy();
+  });
+
+  it('collects correspondence games under their own navigation item', async () => {
+    const correspondenceGame = {
+      ...waitingGame,
+      mode: 'correspondence' as const,
+      timeControl: { initialMs: 0, incrementMs: 0, unlimited: true },
+      whiteRemainingMs: 0,
+      blackRemainingMs: 0,
+      expiresAt: undefined,
+    };
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      if (path === '/games/correspondence') return { games: [correspondenceGame] };
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Fernpartien/ }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Partien mit Zeit zum Denken' }),
+    ).toBeTruthy();
+    expect(screen.getByText('ABC123')).toBeTruthy();
+    expect(globalThis.location.pathname).toBe('/correspondence');
+  });
+
   it('returns to the root path from the game view', async () => {
     const activeGame = {
       ...waitingGame,
@@ -962,6 +1040,40 @@ describe('App', () => {
     expect(invitationLink.getAttribute('href')).toBe('/game/ABC123');
   });
 
+  it('takes a friendship request notification to the friends area', async () => {
+    const notification = {
+      id: 'notification-friend-1',
+      type: 'friend_request',
+      title: 'Neue Freundschaftsanfrage',
+      message: 'Mara möchte mit dir befreundet sein.',
+      friendRequestId: 'request-1',
+      read: false,
+      createdAt: '2026-09-11T10:00:00.000Z',
+      actor: { id: 'friend-1', username: 'Mara', rating: 1250, online: true },
+    };
+
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [notification] };
+      if (path === '/notifications/notification-friend-1/read') {
+        return { ...notification, read: true };
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Bereit für den nächsten Zug?' });
+    fireEvent.click(screen.getByRole('button', { name: /Benachrichtigungen/ }));
+
+    const friendsLink = await screen.findByRole('link', { name: /Freundebereich öffnen/ });
+    expect(friendsLink.getAttribute('href')).toBe('/friends');
+    fireEvent.click(friendsLink);
+
+    expect(await screen.findByRole('heading', { name: 'Deine Freunde' })).toBeTruthy();
+  });
+
   it('links spectator invitations to the read-only spectator view', async () => {
     const notification = {
       id: 'notification-spectator-1',
@@ -1077,7 +1189,9 @@ describe('App', () => {
     expect(
       within(reopenedChatColumn).getByText('Viel Erfolg!').closest('[aria-label]'),
     ).toBeTruthy();
-    expect(within(reopenedChatColumn).getByText(formatChatTime(chatMessage.createdAt, 'de'))).toBeTruthy();
+    expect(
+      within(reopenedChatColumn).getByText(formatChatTime(chatMessage.createdAt, 'de')),
+    ).toBeTruthy();
 
     const chatLog = within(reopenedChatColumn).getByRole('log');
     Object.defineProperties(chatLog, {

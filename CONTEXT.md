@@ -50,6 +50,22 @@ _Avoid_: unbewertetes Match
 Eine Partie, deren bestätigtes Ergebnis in die Wertung einfließt.
 _Avoid_: kompetitives Spiel
 
+**Season**:
+Ein acht Wochen dauernder Wertungsabschnitt für Ranked-Partien mit festem Beginn und Ende.
+_Avoid_: unbegrenzte Rangliste
+
+**Saisonwertung**:
+Die Wertung eines Users innerhalb genau einer Season.
+_Avoid_: globale Wertung
+
+**Leaderboard**:
+Die geordnete Platzierung der gewerteten User einer Season.
+_Avoid_: Freundesliste
+
+**Seasonarchiv**:
+Die dauerhaft einsehbare Abschlussplatzierung einer beendeten Season.
+_Avoid_: laufendes Leaderboard
+
 **Zuschauer**:
 Eine lesende Person einer laufenden oder beendeten Partie ohne Zug- oder Chatberechtigung.
 _Avoid_: dritter Spieler

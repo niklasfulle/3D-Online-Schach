@@ -31,6 +31,9 @@ export interface HistoryGame {
   result: 'white' | 'black' | 'draw' | null;
   createdAt: string;
   finishedAt: string;
+  ratingBefore?: number;
+  ratingAfter?: number;
+  ratingDelta?: number;
   whitePlayer: HistoryPlayer | null;
   blackPlayer: HistoryPlayer | null;
   moves: HistoryMove[];
@@ -108,11 +111,15 @@ export class PrismaHistoryProvider implements HistoryProvider {
             elapsedMs: true,
           },
         },
+        ratingEvents: {
+          where: { userId },
+          select: { ratingBefore: true, ratingAfter: true },
+        },
       },
     });
 
     const hasMore = records.length > limit;
-    const games = records.slice(0, limit).map(toHistoryGame);
+    const games = records.slice(0, limit).map((record) => toHistoryGame(record));
     const lastRecord = records[limit - 1];
 
     return {
@@ -150,6 +157,10 @@ export class PrismaHistoryProvider implements HistoryProvider {
             fenAfterMove: true,
             elapsedMs: true,
           },
+        },
+        ratingEvents: {
+          where: { userId },
+          select: { ratingBefore: true, ratingAfter: true },
         },
       },
     });
@@ -198,18 +209,34 @@ function toHistoryGame(record: {
   whitePlayer: HistoryPlayer | null;
   blackPlayer: HistoryPlayer | null;
   moves: HistoryMove[];
+  ratingEvents?: Array<{ ratingBefore: number; ratingAfter: number }>;
 }): HistoryGame {
+  const ratingEvent = record.ratingEvents?.[0];
+  const mode = toHistoryMode(record.mode);
   return {
     id: record.id,
     code: record.code,
-    mode: record.mode === 'ranked' ? 'ranked' : 'casual',
+    mode,
     result: toResult(record.result),
     createdAt: record.createdAt.toISOString(),
     finishedAt: record.finishedAt!.toISOString(),
     whitePlayer: record.whitePlayer,
     blackPlayer: record.blackPlayer,
     moves: record.moves.map((move) => ({ ...move, elapsedMs: move.elapsedMs ?? 0 })),
+    ...(ratingEvent
+      ? {
+          ratingBefore: Math.round(ratingEvent.ratingBefore),
+          ratingAfter: Math.round(ratingEvent.ratingAfter),
+          ratingDelta: Math.round(ratingEvent.ratingAfter - ratingEvent.ratingBefore),
+        }
+      : {}),
   };
+}
+
+function toHistoryMode(mode: string): GameMode {
+  if (mode === 'ranked') return 'ranked';
+  if (mode === 'correspondence') return 'correspondence';
+  return 'casual';
 }
 
 function toResult(value: string | null): HistoryGame['result'] {

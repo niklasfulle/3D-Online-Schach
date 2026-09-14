@@ -118,6 +118,29 @@ describe('PrismaAuthProvider', () => {
     expect(result.user.role).toBe('admin');
   });
 
+  it('uses the active season rating in the authenticated user projection', async () => {
+    const client = createClient();
+    client.user.findUnique = vi.fn(async () => ({
+      ...user,
+      passwordHash: await hashPassword('password123'),
+    }));
+    client.user.update = vi.fn(async () => undefined);
+    client.session.create = vi.fn(async () => undefined);
+    client.season = {
+      findFirst: vi.fn(async () => ({ id: 'season-1' })),
+    };
+    client.seasonRating = {
+      findUnique: vi.fn(async () => ({ rating: 1337 })),
+    };
+
+    const result = await new PrismaAuthProvider(client, () => now).login({
+      username: 'alice',
+      password: 'password123',
+    });
+
+    expect(result.user.rating).toBe(1337);
+  });
+
   it('authenticates active sessions, removes expired sessions, and logs out', async () => {
     const client = createClient();
     const provider = new PrismaAuthProvider(client, () => now);

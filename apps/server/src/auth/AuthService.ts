@@ -75,7 +75,7 @@ export class PrismaAuthProvider implements AuthProvider {
         lastOnline: this.now(),
       },
     });
-    return this.createSession(toAuthUser(user));
+    return this.createSession(await toAuthUserWithActiveSeason(user, this.client));
   }
 
   async login(input: LoginInput): Promise<AuthResult> {
@@ -92,7 +92,7 @@ export class PrismaAuthProvider implements AuthProvider {
       where: { id: user.id },
       data: { lastOnline: this.now() },
     });
-    return this.createSession(toAuthUser(user));
+    return this.createSession(await toAuthUserWithActiveSeason(user, this.client));
   }
 
   async authenticate(sessionToken: string | undefined): Promise<AuthUser | undefined> {
@@ -114,7 +114,7 @@ export class PrismaAuthProvider implements AuthProvider {
       this.client.session.update({ where: { id: session.id }, data: { lastSeenAt: now } }),
       this.client.user.update({ where: { id: session.user.id }, data: { lastOnline: now } }),
     ]);
-    return toAuthUser(session.user);
+    return toAuthUserWithActiveSeason(session.user, this.client);
   }
 
   async logout(sessionToken: string | undefined): Promise<void> {
@@ -187,6 +187,35 @@ function toAuthUser(user: {
     rating: user.rating,
     role: toUserRole(user.role),
   } satisfies AuthUser;
+}
+
+async function toAuthUserWithActiveSeason(
+  user: {
+    id: string;
+    username: string;
+    email: string | null;
+    rating: number;
+    role?: string;
+  },
+  client: PrismaClient,
+): Promise<AuthUser> {
+  const seasonDelegate = (client as PrismaClient & { season?: PrismaClient['season'] }).season;
+  const seasonRatingDelegate = (client as PrismaClient & { seasonRating?: PrismaClient['seasonRating'] })
+    .seasonRating;
+  if (!seasonDelegate || !seasonRatingDelegate) return toAuthUser(user);
+
+  const activeSeason = await seasonDelegate.findFirst({
+    where: { status: 'active' },
+    orderBy: { sequence: 'desc' },
+    select: { id: true },
+  });
+  if (!activeSeason) return toAuthUser(user);
+
+  const seasonRating = await seasonRatingDelegate.findUnique({
+    where: { seasonId_userId: { seasonId: activeSeason.id, userId: user.id } },
+    select: { rating: true },
+  });
+  return toAuthUser({ ...user, rating: seasonRating?.rating ?? 1200 });
 }
 
 function toUserRole(role: string | undefined): UserRole {

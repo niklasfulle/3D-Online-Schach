@@ -1,7 +1,7 @@
 export type Color = 'white' | 'black';
 export { APP_VERSION } from './version.js';
 export type GameStatus = 'waiting' | 'active' | 'finished';
-export type GameMode = 'casual' | 'ranked';
+export type GameMode = 'casual' | 'ranked' | 'correspondence';
 export type UserRole = 'user' | 'admin' | 'spectator';
 export type Square =
   `${'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h'}${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
@@ -9,6 +9,7 @@ export type Square =
 export interface TimeControl {
   initialMs: number;
   incrementMs: number;
+  unlimited?: boolean;
 }
 
 export interface MoveRequest {
@@ -31,6 +32,7 @@ export interface GameSummary {
   expiresAt?: number;
   startedAt?: number;
   turnStartedAt?: number;
+  finishedAt?: number;
   result?: 'white' | 'black' | 'draw';
 }
 

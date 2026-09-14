@@ -36,6 +36,14 @@ import {
   type HistoryProvider,
 } from './history/HistoryService.js';
 import { PrismaProfileProvider, type ProfileProvider } from './profile/ProfileService.js';
+import {
+  DEFAULT_LEADERBOARD_PAGE_SIZE,
+  MAX_LEADERBOARD_PAGE_SIZE,
+  PrismaRatingService,
+} from './rating/RatingService.js';
+
+type LeaderboardQuery = { page?: string; pageSize?: string };
+type ProfileQuery = { seasonId?: string };
 
 type BuildAppOptions = Partial<{
   authProvider: AuthProvider;
@@ -45,6 +53,7 @@ type BuildAppOptions = Partial<{
   adminProvider: AdminProvider;
   historyProvider: HistoryProvider;
   profileProvider: ProfileProvider;
+  ratingProvider: PrismaRatingService;
 }>;
 
 type LegacyProviderArgs = [
@@ -94,6 +103,7 @@ export function buildApp(
   const adminProvider = options.adminProvider ?? new PrismaAdminProvider(prisma);
   const historyProvider = options.historyProvider ?? new PrismaHistoryProvider(prisma);
   const profileProvider = options.profileProvider ?? new PrismaProfileProvider(prisma);
+  const ratingProvider = options.ratingProvider ?? new PrismaRatingService(prisma);
   const app = Fastify({ logger: true });
 
   app.register(cors, {
@@ -266,12 +276,18 @@ export function buildApp(
     });
   });
 
-  app.get('/profile', async (request, reply) => {
+  app.get('/games/correspondence', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    return reply.send({ games: gameManager.listCorrespondenceGames(user.id) });
+  });
+
+  app.get<{ Querystring: ProfileQuery }>('/profile', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
     if (!user) return;
 
     try {
-      const profile = await profileProvider.getForUser(user.id);
+      const profile = await profileProvider.getForUser(user.id, request.query.seasonId);
       if (!profile) return reply.code(404).send({ error: 'Profile not found' });
       return reply.send(profile);
     } catch (error) {
@@ -280,6 +296,58 @@ export function buildApp(
       });
     }
   });
+
+  app.get<{ Querystring: LeaderboardQuery }>('/leaderboard', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    try {
+      const query = parseLeaderboardQuery(request.query, reply);
+      if (!query) return;
+      return reply.send(
+        await ratingProvider.getCurrentLeaderboard(undefined, query.page, query.pageSize, user.id),
+      );
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to load leaderboard',
+      });
+    }
+  });
+
+  app.get('/leaderboard/seasons', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    try {
+      return reply.send({ seasons: await ratingProvider.listSeasons() });
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to load season archive',
+      });
+    }
+  });
+
+  app.get<{ Params: { id: string }; Querystring: LeaderboardQuery }>(
+    '/leaderboard/seasons/:id',
+    async (request, reply) => {
+      const user = await requireUser(request, reply, authProvider);
+      if (!user) return;
+      try {
+        const query = parseLeaderboardQuery(request.query, reply);
+        if (!query) return;
+        const result = await ratingProvider.getSeasonLeaderboard(
+          request.params.id,
+          query.page,
+          query.pageSize,
+          user.id,
+        );
+        if (!result) return reply.code(404).send({ error: 'Season not found' });
+        return reply.send(result);
+      } catch (error) {
+        return reply.code(503).send({
+          error: error instanceof Error ? error.message : 'Unable to load season leaderboard',
+        });
+      }
+    },
+  );
 
   app.delete<{ Params: { code: string } }>('/lobby/games/:code', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
@@ -312,7 +380,9 @@ export function buildApp(
     const user = await requireUser(request, reply, authProvider);
     if (!user) return;
     const mode = request.body?.mode ?? 'casual';
-    if (!isGameMode(mode)) return reply.code(400).send({ error: 'mode must be casual or ranked' });
+    if (!isGameMode(mode)) {
+      return reply.code(400).send({ error: 'mode must be casual, ranked or correspondence' });
+    }
 
     try {
       const game = gameManager.createGame(
@@ -335,6 +405,19 @@ export function buildApp(
   app.post<{ Params: { code: string } }>('/lobby/games/:code/join', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
     if (!user) return;
+
+    const waitingGame = gameManager.getGame(request.params.code);
+    if (!waitingGame) return reply.code(404).send({ error: 'Game not found' });
+    if (waitingGame.mode === 'correspondence' && waitingGame.whitePlayerId !== user.id) {
+      const invitations = await notificationProvider.list(user.id);
+      const hasInvitation = invitations.some(
+        (notification) =>
+          notification.type === 'game_invitation' && notification.gameCode === waitingGame.code,
+      );
+      if (!hasInvitation) {
+        return reply.code(403).send({ error: 'Fernpartien sind nur per Einladung zugänglich' });
+      }
+    }
 
     try {
       const game = gameManager.joinGame(request.params.code, user.id);
@@ -360,6 +443,16 @@ export function buildApp(
       if (game.status !== 'waiting') return reply.code(409).send({ error: 'Game is not waiting' });
       if (game.whitePlayerId !== user.id)
         return reply.code(403).send({ error: 'Only the owner can invite players' });
+
+      if (game.mode === 'correspondence') {
+        const friends = await socialProvider.getFriendsOverview(user.id);
+        const invitedFriend = friends.friends.some(
+          (friend) => friend.username.toLowerCase() === username.toLowerCase(),
+        );
+        if (!invitedFriend) {
+          return reply.code(403).send({ error: 'Fernpartien können nur an Freunde gehen' });
+        }
+      }
 
       try {
         return reply
@@ -680,7 +773,7 @@ function sendSocialError(reply: FastifyReply, error: unknown) {
 }
 
 function isGameMode(value: string): value is GameMode {
-  return value === 'casual' || value === 'ranked';
+  return value === 'casual' || value === 'ranked' || value === 'correspondence';
 }
 
 function parseHistoryLimit(value: string | undefined): number | undefined {
@@ -705,11 +798,38 @@ function toLobbyGame(
   };
 }
 
+function parseLeaderboardQuery(
+  query: LeaderboardQuery,
+  reply: FastifyReply,
+): { page: number; pageSize: number } | undefined {
+  const page = query.page === undefined ? 1 : Number(query.page);
+  const pageSize =
+    query.pageSize === undefined ? DEFAULT_LEADERBOARD_PAGE_SIZE : Number(query.pageSize);
+  if (
+    !Number.isInteger(page) ||
+    page < 1 ||
+    !Number.isInteger(pageSize) ||
+    pageSize < 1 ||
+    pageSize > MAX_LEADERBOARD_PAGE_SIZE
+  ) {
+    void reply.code(400).send({ error: 'Invalid leaderboard pagination' });
+    return undefined;
+  }
+  return { page, pageSize };
+}
+
 async function start() {
-  const gameManager = new GameManager(undefined, new PrismaGamePersistence(prisma));
+  const ratingProvider = new PrismaRatingService(prisma);
+  const gameManager = new GameManager(undefined, new PrismaGamePersistence(prisma, ratingProvider));
   const authProvider = new PrismaAuthProvider(prisma);
-  const app = buildApp(gameManager, authProvider);
-  const realtime = registerRealtime(app, gameManager, authProvider);
+  const app = buildApp(gameManager, { authProvider, ratingProvider });
+  const realtime = registerRealtime(
+    app,
+    gameManager,
+    authProvider,
+    undefined,
+    new PrismaNotificationProvider(prisma),
+  );
   const expiredGamesWorker = new ExpiredGamesWorker(gameManager, {
     onError: (error) => app.log.error(error, 'Expired game cleanup failed'),
   });

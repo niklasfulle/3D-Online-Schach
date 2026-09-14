@@ -33,6 +33,63 @@ model User {
   notifications          Notification[]  @relation("NotificationRecipient")
   sentNotifications      Notification[]  @relation("NotificationActor")
   chatMessages            ChatMessage[]
+  seasonRatings           SeasonRating[]
+  ratingEvents            RatingEvent[]
+}
+
+model Season {
+  id                 String         @id @default(cuid())
+  sequence           Int            @unique
+  startsAt           DateTime
+  endsAt             DateTime
+  status             String         @default("active")
+  completedAt        DateTime?
+  leaderboardSnapshot Json?
+  createdAt          DateTime       @default(now())
+  ratings            SeasonRating[]
+  ratingEvents       RatingEvent[]
+
+  @@index([status, startsAt, endsAt])
+}
+
+model SeasonRating {
+  id         String   @id @default(cuid())
+  seasonId   String
+  userId     String
+  rating     Float    @default(1200)
+  rd         Float    @default(350)
+  volatility Float    @default(0.06)
+  games      Int      @default(0)
+  wins       Int      @default(0)
+  draws      Int      @default(0)
+  losses     Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  season     Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, userId])
+  @@index([seasonId, rating])
+}
+
+model RatingEvent {
+  id            String   @id @default(cuid())
+  gameId        String
+  seasonId      String
+  userId        String
+  result        String
+  ratingBefore  Float
+  ratingAfter   Float
+  rdBefore      Float
+  rdAfter       Float
+  volatilityBefore Float
+  volatilityAfter  Float
+  createdAt     DateTime @default(now())
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  season        Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+  @@index([seasonId, userId, createdAt])
 }
 
 model Session {
@@ -70,6 +127,7 @@ model Game {
   winner          User?     @relation("Winner", fields: [winnerId], references: [id])
   moves           Move[]
   chatMessages    ChatMessage[]
+  ratingEvents    RatingEvent[]
 
   @@index([status, expiresAt])
   @@index([whitePlayerId, status, finishedAt, id])

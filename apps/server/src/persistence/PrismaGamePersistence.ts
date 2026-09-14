@@ -1,53 +1,94 @@
 import { ChessGame, STARTING_FEN, type MoveRecord } from '@chess3d/chess-core';
 import type { GameMode, GameStatus, GameSummary, TimedMove } from '@chess3d/shared';
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 
 import { pgnHeaders, type GameHistory, type GamePersistence } from '../game/GameManager.js';
 
+export interface RatingRecorder {
+  recordGame(input: {
+    gameId: string;
+    finishedAt: Date;
+    whitePlayerId: string;
+    blackPlayerId: string;
+    result: 'white' | 'black' | 'draw';
+  }): Promise<void>;
+  recordGameInTransaction(
+    input: Parameters<RatingRecorder['recordGame']>[0],
+    transaction: Prisma.TransactionClient,
+  ): Promise<void>;
+}
+
 export class PrismaGamePersistence implements GamePersistence {
-  constructor(private readonly client: PrismaClient) {}
+  constructor(
+    private readonly client: PrismaClient,
+    private readonly ratingRecorder?: RatingRecorder,
+  ) {}
 
   async saveGame(summary: GameSummary, fen: string): Promise<void> {
-    const whitePlayerId = await this.ensureUser(summary.whitePlayerId);
-    const blackPlayerId = await this.ensureUser(summary.blackPlayerId);
-    const winnerId = await this.ensureUser(winnerPlayerId(summary));
+    const finishedAt = summary.finishedAt ? new Date(summary.finishedAt) : undefined;
 
-    await this.client.game.upsert({
-      where: { id: summary.id },
-      create: {
-        id: summary.id,
-        code: summary.code,
-        mode: summary.mode ?? 'casual',
-        status: summary.status,
-        initialFen: STARTING_FEN,
-        currentFen: fen,
-        whiteTimeMs: summary.whiteRemainingMs,
-        blackTimeMs: summary.blackRemainingMs,
-        incrementMs: summary.timeControl.incrementMs,
-        result: summary.result,
-        expiresAt: summary.expiresAt ? new Date(summary.expiresAt) : undefined,
-        whitePlayerId,
-        blackPlayerId,
-        winnerId,
-        startedAt: summary.startedAt === undefined ? undefined : new Date(summary.startedAt),
-        finishedAt: summary.status === 'finished' ? new Date() : undefined,
-      },
-      update: {
-        code: summary.code,
-        mode: summary.mode ?? 'casual',
-        status: summary.status,
-        currentFen: fen,
-        whiteTimeMs: summary.whiteRemainingMs,
-        blackTimeMs: summary.blackRemainingMs,
-        incrementMs: summary.timeControl.incrementMs,
-        result: summary.result,
-        expiresAt: summary.expiresAt ? new Date(summary.expiresAt) : null,
-        whitePlayerId,
-        blackPlayerId,
-        winnerId,
-        startedAt: summary.startedAt === undefined ? undefined : new Date(summary.startedAt),
-        finishedAt: summary.status === 'finished' ? new Date() : undefined,
-      },
+    await this.client.$transaction(async (transaction) => {
+      const whitePlayerId = await this.ensureUser(summary.whitePlayerId, transaction);
+      const blackPlayerId = await this.ensureUser(summary.blackPlayerId, transaction);
+      const winnerId = await this.ensureUser(winnerPlayerId(summary), transaction);
+      await transaction.game.upsert({
+        where: { id: summary.id },
+        create: {
+          id: summary.id,
+          code: summary.code,
+          mode: summary.mode ?? 'casual',
+          status: summary.status,
+          initialFen: STARTING_FEN,
+          currentFen: fen,
+          whiteTimeMs: summary.whiteRemainingMs,
+          blackTimeMs: summary.blackRemainingMs,
+          incrementMs: summary.timeControl.incrementMs,
+          result: summary.result,
+          expiresAt: summary.expiresAt ? new Date(summary.expiresAt) : undefined,
+          whitePlayerId,
+          blackPlayerId,
+          winnerId,
+          startedAt: summary.startedAt === undefined ? undefined : new Date(summary.startedAt),
+          finishedAt: finishedAt ?? (summary.status === 'finished' ? new Date() : undefined),
+        },
+        update: {
+          code: summary.code,
+          mode: summary.mode ?? 'casual',
+          status: summary.status,
+          currentFen: fen,
+          whiteTimeMs: summary.whiteRemainingMs,
+          blackTimeMs: summary.blackRemainingMs,
+          incrementMs: summary.timeControl.incrementMs,
+          result: summary.result,
+          expiresAt: summary.expiresAt ? new Date(summary.expiresAt) : null,
+          whitePlayerId,
+          blackPlayerId,
+          winnerId,
+          startedAt: summary.startedAt === undefined ? undefined : new Date(summary.startedAt),
+          finishedAt,
+        },
+      });
+
+      if (
+        this.ratingRecorder &&
+        summary.mode === 'ranked' &&
+        summary.status === 'finished' &&
+        summary.finishedAt &&
+        summary.result &&
+        summary.whitePlayerId &&
+        summary.blackPlayerId
+      ) {
+        await this.ratingRecorder.recordGameInTransaction(
+          {
+            gameId: summary.id,
+            finishedAt: new Date(summary.finishedAt),
+            whitePlayerId: whitePlayerId!,
+            blackPlayerId: blackPlayerId!,
+            result: summary.result,
+          },
+          transaction,
+        );
+      }
     });
   }
 
@@ -116,12 +157,14 @@ export class PrismaGamePersistence implements GamePersistence {
       timeControl: {
         initialMs: record.whiteTimeMs,
         incrementMs: record.incrementMs,
+        ...(record.mode === 'correspondence' ? { unlimited: true } : {}),
       },
       whiteRemainingMs: record.whiteTimeMs,
       blackRemainingMs: record.blackTimeMs,
       startedAt: record.startedAt?.getTime(),
       turnStartedAt: record.startedAt?.getTime(),
       result: toResult(record.result),
+      finishedAt: record.finishedAt?.getTime(),
     };
     const chess = new ChessGame(record.initialFen);
     const moves: TimedMove[] = [];
@@ -143,22 +186,25 @@ export class PrismaGamePersistence implements GamePersistence {
     };
   }
 
-  private async ensureUser(playerId: string | undefined): Promise<string | undefined> {
+  private async ensureUser(
+    playerId: string | undefined,
+    database: Pick<PrismaClient, 'user'> = this.client,
+  ): Promise<string | undefined> {
     if (!playerId) return undefined;
 
-    const existingUser = await this.client.user.findUnique({
+    const existingUser = await database.user.findUnique({
       where: { id: playerId },
       select: { id: true },
     });
     if (existingUser) {
-      await this.client.user.update({
+      await database.user.update({
         where: { id: existingUser.id },
         data: { lastOnline: new Date() },
       });
       return existingUser.id;
     }
 
-    const user = await this.client.user.upsert({
+    const user = await database.user.upsert({
       where: { username: playerId },
       update: { lastOnline: new Date() },
       create: { username: playerId, lastOnline: new Date() },
@@ -180,6 +226,7 @@ function toGameStatus(status: string): GameStatus {
 }
 
 function toGameMode(mode: string): GameMode {
+  if (mode === 'correspondence') return 'correspondence';
   return mode === 'ranked' ? 'ranked' : 'casual';
 }
 

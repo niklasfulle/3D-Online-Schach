@@ -2,7 +2,8 @@ import type { PrismaClient } from '@prisma/client';
 
 import type { FriendRequestView, SocialUser } from '../social/SocialService.js';
 
-export type NotificationType = 'friend_request' | 'game_invitation' | 'spectator_invitation';
+export type NotificationType =
+  'friend_request' | 'game_invitation' | 'spectator_invitation' | 'move_turn';
 
 export interface NotificationView {
   id: string;
@@ -30,6 +31,7 @@ export interface NotificationProvider {
     username: string,
     gameCode: string,
   ): Promise<NotificationView>;
+  createMoveTurnNotification(recipientId: string, actorId: string, gameCode: string): Promise<void>;
 }
 
 export class NotificationError extends Error {
@@ -134,6 +136,23 @@ export class PrismaNotificationProvider implements NotificationProvider {
     return this.toView(notification);
   }
 
+  async createMoveTurnNotification(
+    recipientId: string,
+    actorId: string,
+    gameCode: string,
+  ): Promise<void> {
+    await this.client.notification.create({
+      data: {
+        recipientId,
+        actorId,
+        type: 'move_turn',
+        title: 'Du bist am Zug',
+        message: 'Dein Gegner hat gezogen. Jetzt bist du am Zug.',
+        gameCode: gameCode.toUpperCase(),
+      },
+    });
+  }
+
   private toView(notification: {
     id: string;
     type: string;
@@ -170,6 +189,8 @@ export class PrismaNotificationProvider implements NotificationProvider {
 }
 
 function toNotificationType(type: string): NotificationType {
-  if (type === 'game_invitation' || type === 'spectator_invitation') return type;
+  if (type === 'game_invitation' || type === 'spectator_invitation' || type === 'move_turn') {
+    return type;
+  }
   return 'friend_request';
 }

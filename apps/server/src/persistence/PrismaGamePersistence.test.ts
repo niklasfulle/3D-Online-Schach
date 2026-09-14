@@ -18,7 +18,7 @@ const baseSummary = {
 };
 
 function createClient(): any {
-  return {
+  const client: any = {
     user: {
       findUnique: vi.fn(async () => undefined),
       update: vi.fn(async () => undefined),
@@ -27,6 +27,8 @@ function createClient(): any {
     game: { upsert: vi.fn(), findUnique: vi.fn() },
     move: { upsert: vi.fn() },
   };
+  client.$transaction = vi.fn(async (callback: (transaction: any) => Promise<unknown>) => callback(client));
+  return client;
 }
 
 describe('PrismaGamePersistence', () => {
@@ -128,5 +130,31 @@ describe('PrismaGamePersistence', () => {
     expect(client.game.findUnique).toHaveBeenLastCalledWith(
       expect.objectContaining({ where: { code: 'ABC123' } }),
     );
+  });
+
+  it('rolls back the game snapshot when atomic rating persistence fails', async () => {
+    const client = createClient();
+    const recorder = {
+      recordGame: vi.fn(),
+      recordGameInTransaction: vi.fn(async () => {
+        throw new Error('rating write failed');
+      }),
+    };
+    const persistence = new PrismaGamePersistence(client, recorder);
+
+    await expect(
+      persistence.saveGame(
+        {
+          ...baseSummary,
+          mode: 'ranked',
+          status: 'finished',
+          result: 'white',
+          finishedAt: Date.parse('2026-09-11T12:05:00.000Z'),
+        },
+        'fen-finished',
+      ),
+    ).rejects.toThrow('rating write failed');
+    expect(client.$transaction).toHaveBeenCalledOnce();
+    expect(recorder.recordGame).not.toHaveBeenCalled();
   });
 });

@@ -8,6 +8,7 @@ import type { AuthProvider } from './auth/AuthService.js';
 import { readSessionToken } from './auth/sessionCookie.js';
 import { PrismaChatProvider, type ChatProvider } from './chat/ChatService.js';
 import { prisma } from './db/client.js';
+import type { NotificationProvider } from './notifications/NotificationService.js';
 
 interface JoinPayload {
   code?: string;
@@ -35,6 +36,7 @@ export function registerRealtime(
   gameManager: GameManager,
   authProvider?: AuthProvider,
   chatProvider: ChatProvider = new PrismaChatProvider(prisma),
+  notificationProvider?: NotificationProvider,
 ): Server {
   const io = new Server(app.server, { cors: { origin: true, credentials: true } });
   gameManager.onGameUpdate((game) => {
@@ -167,6 +169,15 @@ export function registerRealtime(
         await gameManager.flushPersistence();
         const room = payload.code.toUpperCase();
         io.to(room).emit('move:accepted', accepted);
+        if (notificationProvider && accepted.game.mode === 'correspondence') {
+          await notifyInactiveCorrespondenceOpponent(
+            io,
+            notificationProvider,
+            accepted,
+            playerId,
+            room,
+          );
+        }
       } catch (error) {
         if (error instanceof GameTimeoutError) {
           return;
@@ -205,4 +216,27 @@ export function registerRealtime(
   });
 
   return io;
+}
+
+async function notifyInactiveCorrespondenceOpponent(
+  io: Server,
+  notificationProvider: NotificationProvider,
+  accepted: Awaited<ReturnType<GameManager['requestMoveQueued']>>,
+  playerId: string,
+  room: string,
+): Promise<void> {
+  const recipientId = getOpponentId(accepted.game.whitePlayerId, accepted.game.blackPlayerId, playerId);
+  if (!recipientId) return;
+  const roomSockets = await io.in(room).fetchSockets();
+  const opponentIsActive = roomSockets.some((roomSocket) => roomSocket.data.playerId === recipientId);
+  if (opponentIsActive) return;
+  await notificationProvider.createMoveTurnNotification(recipientId, playerId, accepted.game.code);
+}
+
+function getOpponentId(
+  whitePlayerId: string | undefined,
+  blackPlayerId: string | undefined,
+  playerId: string,
+): string | undefined {
+  return whitePlayerId === playerId ? blackPlayerId : whitePlayerId;
 }

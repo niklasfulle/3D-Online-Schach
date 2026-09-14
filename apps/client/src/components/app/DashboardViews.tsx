@@ -5,21 +5,26 @@ import type { GameMode, UserRole } from '@chess3d/shared';
 import { API_URL } from '../../app/config';
 import type {
   AdminUser,
+  CorrespondenceGame,
   FriendsOverview,
   HistoryGame,
   HistoryModeFilter,
   HistoryResultFilter,
+  LeaderboardData,
   LobbyGame,
   ProfileBreakdown,
   ReplayGame,
   SocialUser,
   UserProfile,
+  SeasonSummary,
 } from '../../app/types';
 import type { Language, Translator } from '../../i18n';
 import {
   formatHistoryDate,
   formatClock,
+  gameModeLabel,
   gameLabel,
+  gameStatusLabel,
   historyOutcome,
   matchesHistoryFilter,
 } from '../../app/utils';
@@ -29,6 +34,19 @@ function historyResultMark(result: HistoryGame['result']): string {
   if (!result) return '—';
   if (result === 'draw') return '½';
   return result === 'white' ? '1' : '0';
+}
+
+function formatRatingDelta(delta: number | undefined, prefix = ''): string | undefined {
+  if (delta === undefined) return undefined;
+  const sign = delta > 0 ? '+' : '';
+  return `${prefix}${sign}${delta}`;
+}
+
+function formatRemainingTime(milliseconds: number): string {
+  const totalHours = Math.max(0, Math.floor(milliseconds / 3_600_000));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return `${days}d ${hours}h`;
 }
 
 function breakdownLabel(breakdown: ProfileBreakdown): string {
@@ -59,6 +77,8 @@ const secondaryButtonClass =
   'inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-app-accent/45 bg-[var(--action-surface)] px-3.5 py-2.5 text-center text-xs font-bold leading-tight text-[var(--action-text)] transition hover:border-app-accent hover:bg-[var(--action-surface-hover)] hover:text-white active:translate-y-px';
 const tinyButtonClass =
   'inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-app-accent/40 bg-[var(--action-surface)] px-2.5 py-1.5 text-[.7rem] font-bold leading-tight text-[var(--action-text)] transition hover:-translate-y-px hover:border-app-accent hover:bg-[var(--action-surface-hover)] hover:text-white';
+const quietButtonClass =
+  'cursor-pointer rounded-xl px-3 py-2 text-app-accent transition hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-60';
 
 export function LobbyView({
   t,
@@ -108,6 +128,16 @@ export function LobbyView({
             >
               {t('lobby.playRanked')}
             </button>
+            <button
+              className="min-h-11 cursor-pointer rounded-xl border border-[var(--lobby-hero-secondary-border)] bg-transparent px-4 py-3 text-[var(--lobby-hero-secondary-text)] transition hover:bg-app-muted"
+              type="button"
+              onClick={() => onCreate('correspondence')}
+            >
+              {t('lobby.createCorrespondence')}
+            </button>
+            <span className="basis-full text-xs text-[var(--lobby-hero-muted)]">
+              {t('lobby.correspondenceDescription')}
+            </span>
           </div>
         </div>
         <div
@@ -140,7 +170,7 @@ export function LobbyView({
           <div className="grid min-w-0 gap-1">
             <span className={mutedClass}>{t('lobby.gameModes')}</span>
             <strong className="block text-lg font-bold text-app-text-strong">
-              {t('mode.casual')} &amp; {t('mode.ranked')}
+              {t('mode.casual')} · {t('mode.ranked')} · {t('mode.correspondence')}
             </strong>
           </div>
         </div>
@@ -262,6 +292,154 @@ export function LobbyView({
   );
 }
 
+export function CorrespondenceView({
+  t,
+  games,
+  onStart,
+  onOpen,
+}: Readonly<{
+  t: Translator;
+  games: CorrespondenceGame[];
+  onStart: () => void;
+  onOpen: (game: CorrespondenceGame) => void;
+}>) {
+  return (
+    <div className="grid w-full min-w-0 gap-4">
+      <section
+        className={`${cardClass} flex items-center justify-between gap-5 max-sm:flex-col max-sm:items-start`}
+      >
+        <div className="grid gap-2">
+          <span className={panelLabelClass}>{t('correspondence.label')}</span>
+          <h2 className="text-xl font-semibold text-app-text-strong">
+            {t('correspondence.listTitle')}
+          </h2>
+          <p className={mutedClass}>{t('correspondence.listDescription')}</p>
+        </div>
+        <button className={secondaryButtonClass} type="button" onClick={onStart}>
+          {t('correspondence.start')}
+        </button>
+      </section>
+      <section className={cardClass} aria-label={t('correspondence.listTitle')}>
+        {games.length ? (
+          <div className="grid gap-2">
+            {games.map((game) => (
+              <button
+                className="grid min-h-[4.75rem] grid-cols-[2.1rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-app-border bg-app-muted px-3.5 py-3 text-left transition hover:border-app-border-strong hover:bg-app-surface max-[620px]:grid-cols-[2.1rem_minmax(0,1fr)]"
+                key={game.code}
+                type="button"
+                onClick={() => onOpen(game)}
+              >
+                <span
+                  className="grid size-7 place-items-center rounded-full bg-[#1e3d5e] text-[#bfe2ff]"
+                  aria-hidden="true"
+                >
+                  ♟
+                </span>
+                <span className="grid min-w-0 gap-1">
+                  <strong>{game.code}</strong>
+                  <span className={mutedClass}>{gameLabel(game, t)}</span>
+                </span>
+                <span className="justify-self-end whitespace-nowrap text-sm font-bold text-app-text-strong max-[620px]:col-start-2 max-[620px]:justify-self-start">
+                  {gameStatusLabel(game.status, t)}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="grid justify-items-center gap-2 p-6 text-center">
+            <div
+              className="grid size-10 place-items-center rounded-xl bg-[#1e3d5e] text-xl text-[#d4a34e]"
+              aria-hidden="true"
+            >
+              ♞
+            </div>
+            <strong>{t('correspondence.empty')}</strong>
+            <span className={mutedClass}>{t('correspondence.emptyDescription')}</span>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+export function CorrespondenceInvitePopover({
+  t,
+  friends,
+  loading,
+  sending,
+  game,
+  onInvite,
+  onClose,
+}: Readonly<{
+  t: Translator;
+  friends: FriendsOverview | null;
+  loading: boolean;
+  sending: boolean;
+  game: CorrespondenceGame | null;
+  onInvite: (username: string) => void;
+  onClose: () => void;
+}>) {
+  return (
+    <dialog
+      open
+      className="fixed left-1/2 top-1/2 z-20 grid w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 gap-5 rounded-2xl border border-app-border-strong bg-app-surface p-5 text-app-text shadow-2xl"
+      aria-label={t('correspondence.inviteTitle')}
+    >
+      <div className="grid gap-2">
+        <span className={panelLabelClass}>{t('correspondence.label')}</span>
+        <h2 className="text-xl font-semibold text-app-text-strong">
+          {t('correspondence.inviteTitle')}
+        </h2>
+        <p className={mutedClass}>{t('correspondence.inviteDescription')}</p>
+      </div>
+      {renderCorrespondenceInviteContent({ t, friends, loading, sending, game, onInvite })}
+      <div className="flex justify-end gap-2 border-t border-app-border pt-4">
+        <button className={quietButtonClass} type="button" onClick={onClose} disabled={sending}>
+          {t('correspondence.cancel')}
+        </button>
+      </div>
+    </dialog>
+  );
+}
+
+function renderCorrespondenceInviteContent({
+  t,
+  friends,
+  loading,
+  sending,
+  game,
+  onInvite,
+}: Readonly<{
+  t: Translator;
+  friends: FriendsOverview | null;
+  loading: boolean;
+  sending: boolean;
+  game: CorrespondenceGame | null;
+  onInvite: (username: string) => void;
+}>) {
+  if (loading) return <p className={mutedClass}>{t('correspondence.preparing')}</p>;
+  if (!game) return null;
+  if (!friends?.friends.length) return <p className={mutedClass}>{t('correspondence.noFriends')}</p>;
+  return (
+    <div className="grid gap-2" aria-label={t('correspondence.selectFriend')}>
+      {friends.friends.map((friend) => (
+        <button
+          className="flex min-h-11 items-center justify-between rounded-xl border border-app-border bg-app-muted px-3.5 py-2.5 text-left font-semibold transition hover:border-app-accent hover:bg-app-surface disabled:cursor-wait disabled:opacity-60"
+          key={friend.id}
+          type="button"
+          disabled={sending}
+          onClick={() => onInvite(friend.username)}
+        >
+          <span>{friend.username}</span>
+          <span className="text-app-accent" aria-hidden="true">
+            →
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function HistoryView({
   t,
   language,
@@ -337,6 +515,7 @@ export function HistoryView({
                 <option value="all">{t('history.allModes')}</option>
                 <option value="casual">{t('mode.casual')}</option>
                 <option value="ranked">{t('mode.ranked')}</option>
+                <option value="correspondence">{t('mode.correspondence')}</option>
               </select>
             </label>
           </div>
@@ -349,6 +528,7 @@ export function HistoryView({
                   ? historyGame.blackPlayer?.username
                   : historyGame.whitePlayer?.username;
               const outcome = historyOutcome(historyGame, userId, t);
+              const ratingDelta = formatRatingDelta(historyGame.ratingDelta);
               return (
                 <button
                   className={
@@ -369,13 +549,18 @@ export function HistoryView({
                   <span className="grid min-w-0 gap-1">
                     <strong>{historyGame.code}</strong>
                     <span className={mutedClass}>
-                      {historyGame.mode === 'ranked' ? t('mode.ranked') : t('mode.casual')} ·{' '}
-                      {t('history.opponent')}: {opponent ?? t('player.open')}
+                      {gameModeLabel(historyGame.mode, t)}{' '}
+                      · {t('history.opponent')}: {opponent ?? t('player.open')}
                     </span>
                   </span>
                   <span className="justify-self-end whitespace-nowrap text-sm font-bold text-app-text-strong">
                     {outcome}
                   </span>
+                  {ratingDelta ? (
+                    <span className="whitespace-nowrap text-xs text-app-accent">
+                      {ratingDelta}
+                    </span>
+                  ) : null}
                   <time
                     className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-app-text-muted"
                     dateTime={historyGame.finishedAt}
@@ -400,6 +585,7 @@ export function HistoryView({
         {cursor ? (
           <button
             className="mt-4 min-h-11 cursor-pointer rounded-xl px-3 py-2 text-app-accent transition hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={t('history.loadMore')}
             type="button"
             onClick={onLoadMore}
             disabled={loading}
@@ -423,6 +609,11 @@ export function HistoryView({
                 <time dateTime={selectedGame.finishedAt}>
                   {formatHistoryDate(selectedGame.finishedAt, language)}
                 </time>
+                {formatRatingDelta(selectedGame.ratingDelta, `${t('history.ratingChange')}: `) ? (
+                  <span className="text-app-accent">
+                    {formatRatingDelta(selectedGame.ratingDelta, `${t('history.ratingChange')}: `)}
+                  </span>
+                ) : null}
               </div>
             </div>
             <a
@@ -523,11 +714,17 @@ export function ProfileView({
   language,
   profile,
   publicProfile = false,
+  seasons = [],
+  selectedSeasonId,
+  onSelectSeason,
 }: Readonly<{
   t: Translator;
   language: Language;
   profile: UserProfile;
   publicProfile?: boolean;
+  seasons?: SeasonSummary[];
+  selectedSeasonId?: string | null;
+  onSelectSeason?: (seasonId: string) => void;
 }>) {
   const { stats } = profile;
   const highestRating = Math.max(...stats.ratingHistory.map((snapshot) => snapshot.rating));
@@ -606,6 +803,10 @@ export function ProfileView({
           {[
             ['mode.ranked', stats.ranked],
             ['mode.casual', stats.casual],
+            [
+              'mode.correspondence',
+              stats.correspondence ?? { totalGames: 0, wins: 0, losses: 0, draws: 0 },
+            ],
           ].map(([label, breakdown]) => (
             <div
               className="flex justify-between gap-4 border-b border-app-border py-2.5"
@@ -631,6 +832,20 @@ export function ProfileView({
           </div>
           <strong className="text-2xl text-app-accent">{profile.user.rating}</strong>
         </div>
+        {!publicProfile && onSelectSeason ? (
+          <select
+            className="mt-3 rounded-xl border border-app-border bg-app-muted px-3 py-2 text-sm"
+            value={selectedSeasonId ?? ''}
+            onChange={(event) => onSelectSeason(event.target.value)}
+          >
+            <option value="">Aktuelle Wertung</option>
+            {seasons.map((season) => (
+              <option value={season.id} key={season.id}>
+                Season {season.sequence}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <div className="grid gap-3">
           {stats.ratingHistory.map((snapshot, index) => (
             <div key={`${snapshot.at}-${index}`}>
@@ -953,5 +1168,147 @@ export function FriendsView({
         </div>
       </div>
     </section>
+  );
+}
+
+export function LeaderboardView({
+  t,
+  data,
+  archive,
+  userId,
+  selectedSeason,
+  onSelectSeason,
+  onPageChange,
+}: Readonly<{
+  t: Translator;
+  data: LeaderboardData | null;
+  archive: SeasonSummary[];
+  userId: string;
+  selectedSeason: LeaderboardData | null;
+  onSelectSeason: (seasonId: string) => void;
+  onPageChange: (page: number) => void;
+}>) {
+  const displayData = selectedSeason ?? data;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = globalThis.setInterval(() => setNow(Date.now()), 60_000);
+    return () => globalThis.clearInterval(timer);
+  }, []);
+  const currentEntry =
+    displayData?.currentUserEntry ?? displayData?.entries.find((entry) => entry.userId === userId);
+  return (
+    <div className="grid w-full gap-4">
+      <section className={cardClass}>
+        <div className="mb-4 flex items-start justify-between gap-4 border-b border-app-border pb-4">
+          <div>
+            <span className={panelLabelClass}>{t('leaderboard.current')}</span>
+            <h2 className="mt-1 text-xl font-semibold text-app-text-strong">
+              {t('leaderboard.season')} {displayData?.season.sequence ?? '—'}
+            </h2>
+            {displayData ? (
+              <p className={mutedClass}>
+                {new Date(displayData.season.endsAt).getTime() > now
+                  ? `${t('leaderboard.remaining')}: ${formatRemainingTime(
+                      new Date(displayData.season.endsAt).getTime() - now,
+                    )}`
+                  : t('leaderboard.finished')}
+              </p>
+            ) : null}
+          </div>
+          {currentEntry ? (
+            <div className="text-right">
+              <strong className="block text-2xl text-app-accent">#{currentEntry.rank}</strong>
+              <span className={mutedClass}>{currentEntry.rating}</span>
+            </div>
+          ) : null}
+        </div>
+        {displayData?.entries.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[36rem] text-left text-sm">
+              <thead className="text-xs uppercase tracking-[.1em] text-app-text-muted">
+                <tr>
+                  <th className="px-3 py-2">#</th>
+                  <th className="px-3 py-2">{t('player.player')}</th>
+                  <th className="px-3 py-2">{t('sidebar.rating')}</th>
+                  <th className="px-3 py-2">{t('leaderboard.games')}</th>
+                  <th className="px-3 py-2">{t('leaderboard.wins')}</th>
+                  <th className="px-3 py-2">{t('leaderboard.draws')}</th>
+                  <th className="px-3 py-2">{t('leaderboard.losses')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayData.entries.map((entry) => (
+                  <tr
+                    className={`border-t border-app-border ${entry.userId === userId ? 'bg-app-muted font-bold' : ''}`}
+                    key={entry.userId}
+                  >
+                    <td className="px-3 py-3 tabular-nums">{entry.rank}</td>
+                    <td className="px-3 py-3">{entry.username}</td>
+                    <td className="px-3 py-3 tabular-nums text-app-accent">{entry.rating}</td>
+                    <td className="px-3 py-3 tabular-nums">{entry.games}</td>
+                    <td className="px-3 py-3 tabular-nums">{entry.wins}</td>
+                    <td className="px-3 py-3 tabular-nums">{entry.draws}</td>
+                    <td className="px-3 py-3 tabular-nums">{entry.losses}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className={mutedClass}>{t('leaderboard.empty')}</p>}
+        {displayData ? (
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-app-border pt-3">
+            <button
+              className={quietButtonClass}
+              disabled={displayData.page <= 1}
+              onClick={() => onPageChange(displayData.page - 1)}
+              type="button"
+            >
+              ‹
+            </button>
+            <span className={mutedClass}>
+              {displayData.page} /{' '}
+              {Math.max(1, Math.ceil(displayData.total / displayData.pageSize))}
+            </span>
+            <button
+              className={quietButtonClass}
+              disabled={!displayData.hasNext}
+              onClick={() => onPageChange(displayData.page + 1)}
+              type="button"
+            >
+              ›
+            </button>
+          </div>
+        ) : null}
+      </section>
+      <section className={`${cardClass} grid gap-3`}>
+        <div>
+          <span className={panelLabelClass}>{t('leaderboard.archive')}</span>
+          <h2 className="mt-1 text-xl font-semibold text-app-text-strong">Seasons</h2>
+        </div>
+        <div className="grid gap-2">
+          {selectedSeason ? (
+            <button className={quietButtonClass} type="button" onClick={() => onSelectSeason('')}>
+              {t('leaderboard.current')}
+            </button>
+          ) : null}
+          {archive.map((season) => (
+            <button
+              className="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-app-muted p-3"
+              onClick={() => onSelectSeason(season.id)}
+              type="button"
+              key={season.id}
+            >
+              <strong>
+                {t('leaderboard.season')} {season.sequence}
+              </strong>
+              <span className={mutedClass}>
+                {season.participantCount} {t('player.player')}
+              </span>
+              <span className="text-xs text-app-text-muted">{season.status}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
