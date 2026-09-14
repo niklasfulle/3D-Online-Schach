@@ -10,7 +10,14 @@ import {
   spectatorPath,
 } from '../../app/utils';
 import { AppFooter } from './AppFooter';
-import { AdminView, FriendsView, HistoryView, LobbyView, ProfileView } from './DashboardViews';
+import {
+  AdminView,
+  FriendsView,
+  HistoryView,
+  LobbyView,
+  ProfileView,
+  ReplayView,
+} from './DashboardViews';
 import { GameView } from './GameView';
 import { LanguageMenu, ThemeMenu } from './Menus';
 import { LobbyUnavailablePopover } from './LobbyUnavailablePopover';
@@ -451,10 +458,14 @@ function DashboardContent({
     historyResultFilter,
     historyModeFilter,
     selectedHistoryGame,
+    replayGame,
+    replayLoading,
     setHistoryResultFilter,
     setHistoryModeFilter,
     setSelectedHistoryGame,
     refreshHistory,
+    openReplay,
+    setView,
     publicProfile,
     friends,
     searchQuery,
@@ -546,6 +557,16 @@ function DashboardContent({
           onModeFilterChange={setHistoryModeFilter}
           onSelect={setSelectedHistoryGame}
           onLoadMore={() => refreshHistory(historyCursor)}
+          onOpenReplay={openReplay}
+        />
+      ) : null}
+      {view === 'replay' ? (
+        <ReplayView
+          game={replayGame}
+          loading={replayLoading}
+          userId={user.id}
+          t={t}
+          onBack={() => setView('history')}
         />
       ) : null}
       {view === 'profile' ? profileContent : null}

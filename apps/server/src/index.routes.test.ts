@@ -6,7 +6,12 @@ import { AuthError, type AuthProvider, type AuthResult } from './auth/AuthServic
 import { AdminError, type AdminProvider } from './admin/AdminService.js';
 import { ChatError, type ChatProvider } from './chat/ChatService.js';
 import { GameManager, GameTimeoutError, type GamePersistence } from './game/GameManager.js';
-import { HistoryError, type HistoryPage, type HistoryProvider } from './history/HistoryService.js';
+import {
+  HistoryError,
+  type HistoryPage,
+  type HistoryProvider,
+  type ReplayGame,
+} from './history/HistoryService.js';
 import { buildApp } from './index.js';
 import {
   NotificationError,
@@ -169,6 +174,58 @@ describe('server HTTP routes', () => {
     expect((await app.inject({ method: 'GET', url: '/games/history?limit=0' })).statusCode).toBe(
       400,
     );
+  });
+
+  it('protects replay data and only returns a finished game for its player', async () => {
+    const replay: ReplayGame = {
+      id: 'game-1',
+      code: 'ABC123',
+      mode: 'casual',
+      result: 'white',
+      createdAt: '2026-09-11T09:00:00.000Z',
+      finishedAt: '2026-09-11T12:00:00.000Z',
+      initialFen: 'start-fen',
+      whitePlayer: { id: user.id, username: user.username },
+      blackPlayer: { id: bob.id, username: bob.username },
+      moves: [
+        {
+          moveNumber: 1,
+          from: 'e2',
+          to: 'e4',
+          promotion: null,
+          san: 'e4',
+          fenAfterMove: 'after-e4',
+          elapsedMs: 1200,
+        },
+      ],
+    };
+    const historyProvider: HistoryProvider = {
+      listForUser: vi.fn(async () => ({ games: [] })),
+      getReplayForUser: vi.fn(async (userId, code) =>
+        userId === user.id && code === 'ABC123' ? replay : null,
+      ),
+    };
+    const authProvider = createAuthProvider(undefined);
+    app = buildApp(
+      new GameManager(),
+      authProvider,
+      createSocialProvider(),
+      createNotificationProvider(),
+      undefined,
+      undefined,
+      historyProvider,
+    );
+
+    expect((await app.inject({ method: 'GET', url: '/games/ABC123/replay' })).statusCode).toBe(401);
+
+    authProvider.authenticate = vi.fn(async () => user);
+    const response = await app.inject({ method: 'GET', url: '/games/ABC123/replay' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(replay);
+    expect(historyProvider.getReplayForUser).toHaveBeenCalledWith(user.id, 'ABC123');
+
+    const missing = await app.inject({ method: 'GET', url: '/games/OTHER/replay' });
+    expect(missing.statusCode).toBe(404);
   });
 
   it('protects and returns the authenticated user profile', async () => {

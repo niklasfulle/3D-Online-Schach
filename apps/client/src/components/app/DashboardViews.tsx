@@ -11,6 +11,7 @@ import type {
   HistoryResultFilter,
   LobbyGame,
   ProfileBreakdown,
+  ReplayGame,
   SocialUser,
   UserProfile,
 } from '../../app/types';
@@ -275,6 +276,7 @@ export function HistoryView({
   onModeFilterChange,
   onSelect,
   onLoadMore,
+  onOpenReplay,
 }: Readonly<{
   t: Translator;
   language: Language;
@@ -289,6 +291,7 @@ export function HistoryView({
   onModeFilterChange: (filter: HistoryModeFilter) => void;
   onSelect: (game: HistoryGame) => void;
   onLoadMore: () => void;
+  onOpenReplay: (code: string) => void;
 }>) {
   const filteredGames = games.filter(
     (historyGame) =>
@@ -429,6 +432,15 @@ export function HistoryView({
             >
               {t('history.downloadPgn')}
             </a>
+            {selectedGame.moves.length ? (
+              <button
+                className={`${secondaryButtonClass} shrink-0 max-[620px]:w-full`}
+                type="button"
+                onClick={() => onOpenReplay(selectedGame.code)}
+              >
+                {t('history.openReplay')}
+              </button>
+            ) : null}
           </div>
           <div className="mt-5 grid min-w-0 gap-5 border-t border-app-border pt-5 min-[1100px]:grid-cols-[minmax(0,1.45fr)_minmax(19rem,.55fr)]">
             {selectedGame.moves.length ? (
@@ -478,6 +490,31 @@ export function HistoryView({
         </section>
       ) : null}
     </div>
+  );
+}
+
+export function ReplayView({
+  game,
+  loading,
+  userId,
+  t,
+  onBack,
+}: Readonly<{
+  game: ReplayGame | null;
+  loading: boolean;
+  userId: string;
+  t: Translator;
+  onBack: () => void;
+}>) {
+  return (
+    <section className={`${cardClass} grid min-w-0 gap-5`} aria-label={t('replay.title')}>
+      <button className={`${secondaryButtonClass} w-fit`} type="button" onClick={onBack}>
+        ← {t('history.back')}
+      </button>
+      {loading ? <p className={mutedClass}>{t('history.loading')}</p> : null}
+      {!loading && game ? <ReplayPanel game={game} userId={userId} t={t} /> : null}
+      {!loading && !game ? <p className={mutedClass}>{t('error.replayLoad')}</p> : null}
+    </section>
   );
 }
 

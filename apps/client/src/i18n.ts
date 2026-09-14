@@ -37,6 +37,9 @@ export type TranslationKey =
   | 'page.history.eyebrow'
   | 'page.history.title'
   | 'page.history.description'
+  | 'page.replay.eyebrow'
+  | 'page.replay.title'
+  | 'page.replay.description'
   | 'page.profile.eyebrow'
   | 'page.profile.title'
   | 'page.profile.description'
@@ -136,6 +139,8 @@ export type TranslationKey =
   | 'history.loadMore'
   | 'history.details'
   | 'history.downloadPgn'
+  | 'history.openReplay'
+  | 'history.back'
   | 'history.moves'
   | 'history.noMoves'
   | 'history.opponent'
@@ -248,6 +253,7 @@ export type TranslationKey =
   | 'error.authentication'
   | 'error.lobbyLoad'
   | 'error.historyLoad'
+  | 'error.replayLoad'
   | 'error.profileLoad'
   | 'error.friendsLoad'
   | 'error.notificationsUpdate'
@@ -313,6 +319,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'page.history.eyebrow': 'DEINE PARTIEN',
     'page.history.title': 'Spielhistorie',
     'page.history.description': 'Sieh dir deine abgeschlossenen Partien und Züge an.',
+    'page.replay.eyebrow': 'WIEDERGABE',
+    'page.replay.title': 'Partie-Replay',
+    'page.replay.description': 'Sieh dir die Partie Zug für Zug noch einmal an.',
     'page.profile.eyebrow': 'DEIN PROFIL',
     'page.profile.title': 'Mein Profil',
     'page.profile.description': 'Behalte deine Spielstatistiken und Wertungsentwicklung im Blick.',
@@ -412,6 +421,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.loadMore': 'Mehr laden',
     'history.details': 'Partiedetails',
     'history.downloadPgn': 'PGN herunterladen',
+    'history.openReplay': 'Replay öffnen',
+    'history.back': 'Zurück zur Historie',
     'history.moves': 'Züge',
     'history.noMoves': 'Für diese Partie sind keine Züge gespeichert.',
     'history.opponent': 'Gegner',
@@ -524,6 +535,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'error.authentication': 'Authentifizierung fehlgeschlagen',
     'error.lobbyLoad': 'Lobby konnte nicht geladen werden',
     'error.historyLoad': 'Spielhistorie konnte nicht geladen werden',
+    'error.replayLoad': 'Replay konnte nicht geladen werden',
     'error.profileLoad': 'Profil konnte nicht geladen werden',
     'error.friendsLoad': 'Freunde konnten nicht geladen werden',
     'error.notificationsUpdate': 'Benachrichtigung konnte nicht aktualisiert werden',
@@ -585,6 +597,9 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'page.history.eyebrow': 'YOUR GAMES',
     'page.history.title': 'Game history',
     'page.history.description': 'Review your finished games and moves.',
+    'page.replay.eyebrow': 'REPLAY',
+    'page.replay.title': 'Game replay',
+    'page.replay.description': 'Review the game move by move.',
     'page.profile.eyebrow': 'YOUR PROFILE',
     'page.profile.title': 'My profile',
     'page.profile.description': 'Keep your game statistics and rating development in view.',
@@ -684,6 +699,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.loadMore': 'Load more',
     'history.details': 'Game details',
     'history.downloadPgn': 'Download PGN',
+    'history.openReplay': 'Open replay',
+    'history.back': 'Back to history',
     'history.moves': 'Moves',
     'history.noMoves': 'No moves were saved for this game.',
     'history.opponent': 'Opponent',
@@ -796,6 +813,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     'error.authentication': 'Authentication failed',
     'error.lobbyLoad': 'Could not load lobby',
     'error.historyLoad': 'Could not load game history',
+    'error.replayLoad': 'Could not load replay',
     'error.profileLoad': 'Could not load profile',
     'error.friendsLoad': 'Could not load friends',
     'error.notificationsUpdate': 'Could not update notification',

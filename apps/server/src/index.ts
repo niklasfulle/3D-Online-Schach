@@ -506,6 +506,22 @@ export function buildApp(
     },
   );
 
+  app.get<{ Params: { code: string } }>('/games/:code/replay', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    if (!historyProvider.getReplayForUser) {
+      return reply.code(503).send({ error: 'Replay service unavailable' });
+    }
+
+    try {
+      const replay = await historyProvider.getReplayForUser(user.id, request.params.code);
+      if (!replay) return reply.code(404).send({ error: 'Replay not found' });
+      return reply.send(replay);
+    } catch {
+      return reply.code(503).send({ error: 'Replay service unavailable' });
+    }
+  });
+
   app.post<{ Params: { code: string }; Body: { playerId?: string } }>(
     '/games/:code/join',
     async (request, reply) => {

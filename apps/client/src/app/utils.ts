@@ -109,6 +109,13 @@ export function pageHeadingFor(view: AppView, t: Translator): PageHeading {
       description: t('page.history.description'),
     };
   }
+  if (view === 'replay') {
+    return {
+      eyebrow: t('page.replay.eyebrow'),
+      title: t('page.replay.title'),
+      description: t('page.replay.description'),
+    };
+  }
   if (view === 'profile') {
     return {
       eyebrow: t('page.profile.eyebrow'),
@@ -166,6 +173,11 @@ export function spectatorCodeFromPath(pathname: string): string | null {
   return match?.[1]?.toUpperCase() ?? null;
 }
 
+export function replayCodeFromPath(pathname: string): string | null {
+  const match = /^\/replay\/([a-z0-9]+)\/?$/i.exec(pathname);
+  return match?.[1]?.toUpperCase() ?? null;
+}
+
 export function publicProfileIdFromPath(pathname: string): string | null {
   const match = /^\/users\/([^/]+)\/?$/i.exec(pathname);
   return match ? decodeURIComponent(match[1]) : null;
@@ -174,6 +186,7 @@ export function publicProfileIdFromPath(pathname: string): string | null {
 export function viewFromPath(pathname: string): AppView {
   if (invitationCodeFromPath(pathname) || spectatorCodeFromPath(pathname)) return 'game';
   if (publicProfileIdFromPath(pathname)) return 'public-profile';
+  if (replayCodeFromPath(pathname)) return 'replay';
   if (pathname === '/history' || pathname === '/history/') return 'history';
   if (pathname === '/friends' || pathname === '/friends/') return 'friends';
   if (pathname === '/profile' || pathname === '/profile/') return 'profile';
@@ -181,12 +194,16 @@ export function viewFromPath(pathname: string): AppView {
   return 'lobby';
 }
 
-export function pathForView(view: Exclude<AppView, 'game' | 'public-profile'>): string {
+export function pathForView(view: Exclude<AppView, 'game' | 'public-profile' | 'replay'>): string {
   if (view === 'history') return '/history';
   if (view === 'friends') return '/friends';
   if (view === 'profile') return '/profile';
   if (view === 'admin') return '/admin';
   return '/';
+}
+
+export function replayPath(code: string): string {
+  return `/replay/${encodeURIComponent(code)}`;
 }
 
 export function publicProfilePath(id: string): string {

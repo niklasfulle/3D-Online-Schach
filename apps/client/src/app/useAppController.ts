@@ -24,6 +24,7 @@ import type {
   LobbyGame,
   MoveRecord,
   NotificationItem,
+  ReplayGame,
   SocialUser,
   UserProfile,
 } from './types';
@@ -34,6 +35,8 @@ import {
   pathForView,
   publicProfileIdFromPath,
   publicProfilePath,
+  replayCodeFromPath,
+  replayPath,
   spectatorCodeFromPath,
   spectatorPath,
   setGamePath,
@@ -59,6 +62,8 @@ export function useAppController() {
   const [historyResultFilter, setHistoryResultFilter] = useState<HistoryResultFilter>('all');
   const [historyModeFilter, setHistoryModeFilter] = useState<HistoryModeFilter>('all');
   const [selectedHistoryGame, setSelectedHistoryGame] = useState<HistoryGame | null>(null);
+  const [replayGame, setReplayGame] = useState<ReplayGame | null>(null);
+  const [replayLoading, setReplayLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [publicProfile, setPublicProfile] = useState<UserProfile | null>(null);
@@ -86,12 +91,22 @@ export function useAppController() {
   const pathname = globalThis.location?.pathname ?? '/';
   const inviteCode = invitationCodeFromPath(pathname);
   const spectatorCode = spectatorCodeFromPath(pathname);
+  const replayCode = replayCodeFromPath(pathname);
   const publicProfileId = publicProfileIdFromPath(pathname);
   const t = createTranslator(language);
 
-  function navigateToView(nextView: Exclude<AppView, 'game' | 'public-profile'>) {
+  function navigateToView(nextView: Exclude<AppView, 'game' | 'public-profile' | 'replay'>) {
     setView(nextView);
     const nextPath = pathForView(nextView);
+    if (globalThis.location?.pathname !== nextPath) {
+      globalThis.history?.pushState({}, '', nextPath);
+    }
+  }
+
+  function openReplay(code: string) {
+    setView('replay');
+    setReplayGame(null);
+    const nextPath = replayPath(code);
     if (globalThis.location?.pathname !== nextPath) {
       globalThis.history?.pushState({}, '', nextPath);
     }
@@ -199,6 +214,16 @@ export function useAppController() {
         setError(error_ instanceof Error ? error_.message : t('error.historyLoad')),
       );
     }
+    if (view === 'replay' && replayCode) {
+      setReplayLoading(true);
+      setReplayGame(null);
+      void requestApi<ReplayGame>(API_URL, `/games/${encodeURIComponent(replayCode)}/replay`)
+        .then(setReplayGame)
+        .catch((error_: unknown) =>
+          setError(error_ instanceof Error ? error_.message : t('error.replayLoad')),
+        )
+        .finally(() => setReplayLoading(false));
+    }
     if (view === 'profile') {
       void refreshProfile().catch((error_: unknown) =>
         setError(error_ instanceof Error ? error_.message : t('error.profileLoad')),
@@ -224,6 +249,7 @@ export function useAppController() {
     }
   }, [
     publicProfileId,
+    replayCode,
     refreshAdminUsers,
     refreshFriends,
     refreshHistory,
@@ -721,6 +747,8 @@ export function useAppController() {
     historyResultFilter,
     historyModeFilter,
     selectedHistoryGame,
+    replayGame,
+    replayLoading,
     profile,
     profileLoading,
     publicProfile,
@@ -766,6 +794,7 @@ export function useAppController() {
     submitAuth,
     logout,
     openHistory,
+    openReplay,
     openProfile,
     openPublicProfile,
     openSelectedGame,

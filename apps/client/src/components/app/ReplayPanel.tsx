@@ -10,9 +10,9 @@ import { ChessScene } from '../../board/ChessScene';
 
 const REPLAY_SPEEDS = [0.25, 0.5, 1, 2, 4, 8] as const;
 
-function buildPositions(moves: HistoryMove[]): string[] {
-  const chess = new ChessGame(STARTING_FEN);
-  const positions = [STARTING_FEN];
+function buildPositions(moves: HistoryMove[], initialFen = STARTING_FEN): string[] {
+  const chess = new ChessGame(initialFen);
+  const positions = [initialFen];
 
   for (const move of moves) {
     try {
@@ -41,14 +41,17 @@ export function ReplayPanel({
   game,
   userId,
   t,
-}: Readonly<{ game: HistoryGame; userId: string; t: Translator }>) {
-  const positions = useMemo(() => buildPositions(game.moves), [game.moves]);
+}: Readonly<{ game: HistoryGame & { initialFen?: string }; userId: string; t: Translator }>) {
+  const positions = useMemo(
+    () => buildPositions(game.moves, game.initialFen),
+    [game.initialFen, game.moves],
+  );
   const [position, setPosition] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof REPLAY_SPEEDS)[number]>(1);
   const boardColor = game.whitePlayer?.id === userId ? 'white' : 'black';
   const currentMove = position > 0 ? game.moves[position - 1] : undefined;
-  const currentFen = positions[position] ?? STARTING_FEN;
+  const currentFen = positions[position] ?? game.initialFen ?? STARTING_FEN;
 
   useEffect(() => {
     setPosition(0);

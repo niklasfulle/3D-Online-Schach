@@ -17,7 +17,7 @@ export const GUEST_SPECTATOR: AuthUser = {
 };
 
 export type AppView =
-  'lobby' | 'history' | 'profile' | 'public-profile' | 'friends' | 'admin' | 'game';
+  'lobby' | 'history' | 'replay' | 'profile' | 'public-profile' | 'friends' | 'admin' | 'game';
 
 export interface PageHeading {
   eyebrow: string;
@@ -118,6 +118,10 @@ export interface HistoryGame {
   whitePlayer: HistoryPlayer | null;
   blackPlayer: HistoryPlayer | null;
   moves: HistoryMove[];
+}
+
+export interface ReplayGame extends HistoryGame {
+  initialFen: string;
 }
 
 export interface HistoryPage {

@@ -36,6 +36,10 @@ export interface HistoryGame {
   moves: HistoryMove[];
 }
 
+export interface ReplayGame extends HistoryGame {
+  initialFen: string;
+}
+
 export interface HistoryPage {
   games: HistoryGame[];
   nextCursor?: string;
@@ -43,6 +47,7 @@ export interface HistoryPage {
 
 export interface HistoryProvider {
   listForUser(userId: string, options: HistoryListOptions): Promise<HistoryPage>;
+  getReplayForUser?(userId: string, code: string): Promise<ReplayGame | null>;
 }
 
 export class HistoryError extends Error {
@@ -121,6 +126,35 @@ export class PrismaHistoryProvider implements HistoryProvider {
           }
         : {}),
     };
+  }
+
+  async getReplayForUser(userId: string, code: string): Promise<ReplayGame | null> {
+    const record = await this.client.game.findFirst({
+      where: {
+        code: code.toUpperCase(),
+        status: 'finished',
+        finishedAt: { not: null },
+        OR: [{ whitePlayerId: userId }, { blackPlayerId: userId }],
+      },
+      include: {
+        whitePlayer: { select: { id: true, username: true } },
+        blackPlayer: { select: { id: true, username: true } },
+        moves: {
+          orderBy: { moveNumber: 'asc' },
+          select: {
+            moveNumber: true,
+            from: true,
+            to: true,
+            promotion: true,
+            san: true,
+            fenAfterMove: true,
+            elapsedMs: true,
+          },
+        },
+      },
+    });
+
+    return record ? { ...toHistoryGame(record), initialFen: record.initialFen } : null;
   }
 }
 

@@ -203,6 +203,47 @@ describe('App', () => {
     );
   });
 
+  it('opens a protected replay from a direct link without game actions', async () => {
+    const replay = {
+      id: 'finished-1',
+      code: 'ABC123',
+      mode: 'casual',
+      result: 'white',
+      createdAt: '2026-09-11T09:00:00.000Z',
+      finishedAt: '2026-09-11T12:00:00.000Z',
+      initialFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      whitePlayer: user,
+      blackPlayer: { id: 'user-2', username: 'Bob' },
+      moves: [
+        {
+          moveNumber: 1,
+          from: 'e2',
+          to: 'e4',
+          promotion: null,
+          san: 'e4',
+          fenAfterMove: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+          elapsedMs: 1000,
+        },
+      ],
+    };
+    window.history.replaceState({}, '', '/replay/ABC123');
+    mocks.requestJson.mockImplementation(async (_baseUrl: string, path: string) => {
+      if (path === '/auth/me') return { user };
+      if (path === '/lobby') return { games: [] };
+      if (path === '/friends') return emptyFriends;
+      if (path === '/notifications') return { notifications: [] };
+      if (path === '/games/ABC123/replay') return replay;
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Partie-Replay' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Partie abspielen' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Aufgeben' })).toBeNull();
+    expect(mocks.requestJson).toHaveBeenCalledWith(expect.any(String), '/games/ABC123/replay');
+  });
+
   it('opens the user profile with game statistics and rating history', async () => {
     const profile = {
       user: { ...user, createdAt: '2026-01-01T00:00:00.000Z' },
