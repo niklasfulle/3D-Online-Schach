@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { Canvas } from '@react-three/fiber';
 
 import type { ChessGame } from '@chess3d/chess-core';
@@ -357,7 +357,12 @@ export function GameBoardPanel({
       <div className="min-h-0 h-[min(calc(100dvh-23.75rem),calc(100vw-24rem))] w-full min-w-0 overflow-hidden max-[1120px]:h-[min(calc(100dvh-23.75rem),calc(100vw-4rem))] max-[760px]:h-[min(82vw,500px)]">
         <Canvas
           className="!block !h-full !min-h-0 !w-full"
-          camera={{ position: [0, 13.5, boardColor === 'black' ? -16.5 : 16.5], fov: 36 }}
+          camera={{
+            position: [0, 13.5, boardColor === 'black' ? -16.5 : 16.5],
+            rotation: [-0.67, boardColor === 'black' ? Math.PI : 0, 0],
+            fov: 36,
+          }}
+          gl={{ preserveDrawingBuffer: true }}
           onContextMenu={(event) => event.preventDefault()}
           shadows
         >
@@ -469,27 +474,31 @@ export function GameInfoPanel({
 }>) {
   return (
     <aside
-      className="grid min-w-0 min-h-[calc(100dvh-18.5rem)] h-full content-start grid-rows-[auto_auto_auto_auto_minmax(0,1fr)_auto] gap-3 self-stretch overflow-hidden rounded-2xl border border-[var(--game-border)] bg-[var(--game-surface)] p-4 shadow-[0_18px_48px_rgb(0_0_0_/_22%)] max-[820px]:grid-cols-2 max-[820px]:min-h-0 max-[820px]:overflow-y-auto"
+      className="grid min-w-0 min-h-0 h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto_auto_auto_minmax(0,1fr)_auto] gap-3 self-stretch overflow-hidden rounded-2xl border border-[var(--game-border)] bg-[var(--game-surface)] p-4 shadow-[0_18px_48px_rgb(0_0_0_/_22%)] max-[820px]:min-h-0 max-[820px]:overflow-y-auto"
       aria-label={t('game.info')}
     >
-      <div className="flex items-start justify-between gap-2.5">
-        <div>
+      <div className="flex min-w-0 items-start justify-between gap-2.5">
+        <div className="min-w-0">
           <span className={panelLabelClass}>{t('game.overview')}</span>
-          <h3 className="mt-1 text-sm text-[var(--game-text)]">{gameLabel(selectedGame, t)}</h3>
+          <h3 className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-[var(--game-text)]">
+            {gameLabel(selectedGame, t)}
+          </h3>
         </div>
-        <span className="whitespace-nowrap rounded-full border border-[rgb(112_168_255_/_24%)] bg-[rgb(29_56_88_/_80%)] px-2 py-1 text-[.62rem] text-[#c7e2ff]">
+        <span className="shrink-0 whitespace-nowrap rounded-full border border-[rgb(112_168_255_/_24%)] bg-[rgb(29_56_88_/_80%)] px-2 py-1 text-[.62rem] text-[#c7e2ff]">
           {moveHistory.length} {t('game.moves')}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="grid gap-1 rounded-lg border border-[var(--game-divider)] bg-[var(--game-surface-inset)] p-2.5">
-          <span className={mutedClass}>{t('game.status')}</span>
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+        <div className="grid min-w-0 gap-1 rounded-lg border border-[var(--game-divider)] bg-[var(--game-surface-inset)] p-2.5">
+          <span className={`${mutedClass} overflow-hidden text-ellipsis whitespace-nowrap`}>{t('game.status')}</span>
           <strong className="text-xs text-[var(--game-text)]">
             {gameStatusLabel(selectedGame.status, t)}
           </strong>
         </div>
-        <div className="grid gap-1 rounded-lg border border-[var(--game-divider)] bg-[var(--game-surface-inset)] p-2.5">
-          <span className={mutedClass}>{t('game.timeControl')}</span>
+        <div className="grid min-w-0 gap-1 rounded-lg border border-[var(--game-divider)] bg-[var(--game-surface-inset)] p-2.5">
+          <span className={`${mutedClass} overflow-hidden text-ellipsis whitespace-nowrap`}>
+            {t('game.timeControl')}
+          </span>
           <strong className="text-xs text-[var(--game-text)]">
             {Math.round(selectedGame.timeControl.initialMs / 60000)} {t('game.minutes')}
           </strong>
@@ -524,12 +533,12 @@ export function GameInfoPanel({
           />
         )}
       </div>
-      <div className="row-start-5 grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 overflow-hidden border-t border-[var(--game-divider)] pt-3">
+      <div className="row-start-5 grid min-h-0 min-w-0 max-h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] gap-2.5 overflow-hidden border-t border-[var(--game-divider)] pt-3 max-[820px]:max-h-72">
         <div className="flex items-start justify-between gap-2.5">
           <span className={panelLabelClass}>{t('game.moveHistory')}</span>
           <span className={mutedClass}>{t('game.san')}</span>
         </div>
-        <div className="grid min-h-[30rem] content-start gap-1.5 overflow-y-auto pr-1">
+        <div className="grid min-h-0 min-w-0 max-h-full grid-cols-[minmax(0,1fr)] content-start gap-1.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {moveHistory.length === 0 ? (
             <div className="grid justify-items-center gap-1.5 self-center p-4 text-center text-[var(--game-text)]">
               <span
@@ -544,26 +553,90 @@ export function GameInfoPanel({
               </small>
             </div>
           ) : (
-            moveHistory.map((move, index) => (
-              <div
-                className="grid grid-cols-[2rem_1fr] items-center gap-2 border-b border-[var(--game-divider)] py-1.5 text-sm"
-                key={`${move.san}-${index}`}
-              >
-                <span>
-                  {Math.floor(index / 2) + 1}
-                  {index % 2 === 0 ? '.' : '…'}
-                </span>
-                <strong>{move.san}</strong>
-              </div>
-            ))
+            [...moveHistory].reverse().map((move, reverseIndex) => {
+              const index = moveHistory.length - 1 - reverseIndex;
+
+              return (
+                <div
+                  className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 border-b border-[var(--game-divider)] py-1.5 text-sm"
+                  key={`${move.san}-${index}`}
+                >
+                  <span>
+                    {Math.floor(index / 2) + 1}
+                    {index % 2 === 0 ? '.' : '…'}
+                  </span>
+                  <strong className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{move.san}</strong>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
-      <div className="row-start-6 grid min-h-0 gap-1.5 self-start border-t border-[var(--game-divider)] pt-3">
+      <div className="row-start-6 grid min-h-0 min-w-0 gap-1.5 self-start border-t border-[var(--game-divider)] pt-3">
         <span className={panelLabelClass}>{t('game.fen')}</span>
-        <code className="break-words text-[.63rem] leading-4 text-[#7189a5]">{gameState.fen}</code>
+        <code className="min-w-0 break-all text-[.63rem] leading-4 text-[#7189a5]">{gameState.fen}</code>
       </div>
     </aside>
+  );
+}
+
+function GameConfirmationDialog({
+  dialogId,
+  title,
+  message,
+  cancel,
+  confirm,
+  onCancel,
+  onConfirm,
+}: Readonly<{
+  dialogId: string;
+  title: string;
+  message: string;
+  cancel: string;
+  confirm: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}>) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+      return () => dialog.close();
+    }
+    dialog.setAttribute('open', '');
+    return () => dialog.removeAttribute('open');
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      id={dialogId}
+      aria-labelledby={`${dialogId}-title`}
+      aria-describedby={`${dialogId}-message`}
+      onCancel={(event) => {
+        event.preventDefault();
+        onCancel();
+      }}
+      className="m-auto w-[min(24rem,calc(100vw-2rem))] max-w-none rounded-2xl border border-[var(--game-danger-border)] bg-app-surface-raised p-5 text-[var(--game-text)] shadow-[0_24px_64px_rgb(0_0_0_/_40%)] backdrop:bg-black/65 max-[420px]:p-4"
+    >
+      <h3 id={`${dialogId}-title`} className="m-0 text-lg font-bold leading-snug">
+        {title}
+      </h3>
+      <p id={`${dialogId}-message`} className="mt-3 mb-0 text-sm leading-6 text-[var(--game-muted)]">
+        {message}
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-3 max-[420px]:grid-cols-1">
+        <button className={secondaryButtonClass} type="button" autoFocus onClick={onCancel}>
+          {cancel}
+        </button>
+        <button className={dangerButtonClass} type="button" onClick={onConfirm}>
+          {confirm}
+        </button>
+      </div>
+    </dialog>
   );
 }
 
@@ -593,7 +666,7 @@ function GameAction({
   const isOpen = confirmationAction === action;
 
   return (
-    <div className="relative grid w-full max-w-48 justify-items-center">
+    <div className="grid w-full max-w-48 justify-items-center">
       <button
         className={dangerButtonClass}
         type="button"
@@ -604,34 +677,18 @@ function GameAction({
         {label}
       </button>
       {isOpen ? (
-        <dialog
-          open
-          id={dialogId}
-          className="absolute left-1/2 top-[calc(100%+.75rem)] z-20 grid w-[min(20rem,calc(100%-1rem))] max-w-[calc(100vw-2rem)] -translate-x-1/2 gap-3 rounded-2xl border border-[rgb(226_118_133_/_42%)] bg-[linear-gradient(150deg,#321b29,#241827)] p-4 text-[#ffe7ea] shadow-[0_18px_48px_rgb(0_0_0_/_36%)]"
-          aria-label={title}
-        >
-          <strong>{title}</strong>
-          <p className="m-0 text-xs leading-6 text-[#dcb9c0]">{message}</p>
-          <div className="grid grid-cols-2 gap-2.5 max-[420px]:grid-cols-1 [&>button]:w-full">
-            <button
-              className={secondaryButtonClass}
-              type="button"
-              onClick={() => setConfirmationAction(null)}
-            >
-              {cancel}
-            </button>
-            <button
-              className={dangerButtonClass}
-              type="button"
-              onClick={() => {
-                setConfirmationAction(null);
-                onConfirm();
-              }}
-            >
-              {confirm}
-            </button>
-          </div>
-        </dialog>
+        <GameConfirmationDialog
+          dialogId={dialogId}
+          title={title}
+          message={message}
+          cancel={cancel}
+          confirm={confirm}
+          onCancel={() => setConfirmationAction(null)}
+          onConfirm={() => {
+            setConfirmationAction(null);
+            onConfirm();
+          }}
+        />
       ) : null}
     </div>
   );

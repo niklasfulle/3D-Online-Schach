@@ -101,7 +101,7 @@ export function GameView({
   }
 
   return (
-    <section className="grid gap-4">
+    <section className="grid min-h-0 h-full grid-rows-[auto_minmax(0,1fr)] gap-4">
       <h1 className="sr-only">{t('page.game.title')}</h1>
       <GameToolbar
         selectedGame={selectedGame}
@@ -119,8 +119,8 @@ export function GameView({
       <div
         className={
           chatOpen && desktopLayout
-            ? 'grid min-w-0 grid-cols-[minmax(32rem,1fr)_18rem_18rem] gap-4 max-[1120px]:grid-cols-[minmax(0,1fr)_18rem] max-[820px]:grid-cols-1'
-            : 'grid min-w-0 grid-cols-[minmax(0,1fr)_18rem] gap-4 max-[820px]:grid-cols-1'
+            ? 'grid min-h-0 min-w-0 h-full grid-cols-[minmax(32rem,1fr)_18rem_18rem] gap-4 max-[1120px]:grid-cols-[minmax(0,1fr)_18rem] max-[820px]:grid-cols-1'
+            : 'grid min-h-0 min-w-0 h-full grid-cols-[minmax(0,1fr)_18rem] gap-4 max-[820px]:grid-cols-1'
         }
       >
         <GameBoardPanel

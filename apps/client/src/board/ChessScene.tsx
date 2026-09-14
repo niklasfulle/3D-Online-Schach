@@ -1,13 +1,12 @@
-import { OrbitControls, useGLTF } from '@react-three/drei';
+import { OrbitControls, Text, useGLTF } from '@react-three/drei';
 import { memo, useEffect, useMemo, useRef, type ComponentRef } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { MOUSE, Mesh, MeshStandardMaterial, type Group } from 'three';
+import { Box3, MOUSE, Mesh, MeshStandardMaterial, Vector3, type Group } from 'three';
 
 import type { Move } from '@chess3d/chess-core';
 import type { Square } from '@chess3d/shared';
 
 import { squareToWorld } from './coordinates';
-import { KnightSculpt } from './KnightSculpt';
 import {
   pieceFinishForNode,
   pieceRotationY,
@@ -18,21 +17,34 @@ import {
   type PieceType,
 } from './pieces';
 
-const LIGHT_TILE = '#d8c7a4';
-const DARK_TILE = '#6b4f3a';
+const LIGHT_TILE = '#d9b994';
+const DARK_TILE = '#17191d';
 const SELECTED_TILE = '#4e91d9';
-const BOARD_EDGE = 8.35;
+const BOARD_EDGE = 8.6;
+const BOARD_SURFACE_Y = 0.16;
+const BOARD_FRAME_Y = 0.105;
+const BOARD_FRAME_HEIGHT = 0.07;
+const BOARD_LABEL_Y = BOARD_FRAME_Y + BOARD_FRAME_HEIGHT / 2 + 0.006;
 const PAN_LIMIT = 1.5;
 const MIN_TARGET_Y = -0.2;
 const MAX_TARGET_Y = 1.2;
+const PIECE_TARGET_HEIGHTS: Record<PieceType, number> = {
+  pawn: 0.76,
+  rook: 1.04,
+  knight: 1.08,
+  bishop: 1.17,
+  queen: 1.31,
+  king: 1.38,
+};
+const PIECE_BASE_Y = BOARD_SURFACE_Y + 0.02;
 
 const MODEL_URLS: Record<PieceType, string> = {
-  bishop: '/models/chess/bishop.glb',
-  king: '/models/chess/king.glb',
-  knight: '/models/chess/knight.glb',
-  pawn: '/models/chess/pawn.glb',
-  queen: '/models/chess/queen.glb',
-  rook: '/models/chess/rook.glb',
+  bishop: '/models/chess/blend/bishop.glb',
+  king: '/models/chess/blend/king.glb',
+  knight: '/models/chess/blend/knight.glb',
+  pawn: '/models/chess/blend/pawn.glb',
+  queen: '/models/chess/blend/queen.glb',
+  rook: '/models/chess/blend/rook.glb',
 };
 
 const PIECE_MATERIALS: Record<PieceColor, Record<PieceFinish, MeshStandardMaterial>> = {
@@ -53,6 +65,49 @@ Object.values(MODEL_URLS).forEach((url) => useGLTF.preload(url));
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 type BoardSquare = `${(typeof FILES)[number]}${(typeof RANKS)[number]}`;
+
+const BOARD_LABEL_STYLE = {
+  color: '#f4f0e8',
+  font: '/fonts/Inter-Regular.woff',
+  fontSize: 0.24,
+  anchorX: 'center' as const,
+  anchorY: 'middle' as const,
+};
+
+function BoardCoordinates() {
+  const labelOffset = 4.12;
+
+  return (
+    <group rotation={[0, 0, 0]}>
+      {FILES.map((file, index) => {
+        const x = index - 3.5;
+        return (
+          <group key={`file-${file}`}>
+            <Text {...BOARD_LABEL_STYLE} position={[x, BOARD_LABEL_Y, labelOffset]} rotation={[-Math.PI / 2, 0, 0]}>
+              {file.toUpperCase()}
+            </Text>
+            <Text {...BOARD_LABEL_STYLE} position={[x, BOARD_LABEL_Y, -labelOffset]} rotation={[-Math.PI / 2, 0, Math.PI]}>
+              {file.toUpperCase()}
+            </Text>
+          </group>
+        );
+      })}
+      {RANKS.map((rank, index) => {
+        const z = 3.5 - index;
+        return (
+          <group key={`rank-${rank}`}>
+            <Text {...BOARD_LABEL_STYLE} position={[-labelOffset, BOARD_LABEL_Y, z]} rotation={[-Math.PI / 2, 0, Math.PI / 2]}>
+              {rank}
+            </Text>
+            <Text {...BOARD_LABEL_STYLE} position={[labelOffset, BOARD_LABEL_Y, z]} rotation={[-Math.PI / 2, 0, -Math.PI / 2]}>
+              {rank}
+            </Text>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
 
 interface SquareTileProps {
   highlighted: boolean;
@@ -105,21 +160,29 @@ const PieceModel = memo(function PieceModel({ color, type }: PieceModelProps) {
     const clone = scene.clone(true);
     clone.traverse((child) => {
       if (child instanceof Mesh) {
-        if (type === 'knight' && !['base', 'base_ring', 'base_shoulder'].includes(child.name)) {
-          child.visible = false;
-        }
         child.castShadow = true;
         child.receiveShadow = true;
         child.material = PIECE_MATERIALS[color][pieceFinishForNode(child.name)];
       }
     });
+
+    clone.updateMatrixWorld(true);
+    const bounds = new Box3().setFromObject(clone);
+    const size = bounds.getSize(new Vector3());
+    const center = bounds.getCenter(new Vector3());
+    const scale = PIECE_TARGET_HEIGHTS[type] / Math.max(size.y, 0.001);
+    clone.scale.setScalar(scale);
+    clone.position.set(
+      -center.x * scale,
+      PIECE_BASE_Y - bounds.min.y * scale,
+      -center.z * scale,
+    );
     return clone;
   }, [color, scene, type]);
 
   return (
     <group>
       <primitive object={model} />
-      {type === 'knight' ? <KnightSculpt color={color} materials={PIECE_MATERIALS[color]} /> : null}
     </group>
   );
 });
@@ -256,8 +319,13 @@ export function ChessScene({
       />
       <mesh position={[0, -0.12, 0]} receiveShadow>
         <boxGeometry args={[BOARD_EDGE, 0.24, BOARD_EDGE]} />
-        <meshStandardMaterial color="#2a2020" />
+        <meshStandardMaterial color="#0c0e12" roughness={0.32} />
       </mesh>
+      <mesh position={[0, BOARD_FRAME_Y, 0]} receiveShadow>
+        <boxGeometry args={[BOARD_EDGE, BOARD_FRAME_HEIGHT, BOARD_EDGE]} />
+        <meshStandardMaterial color="#171a20" roughness={0.28} />
+      </mesh>
+      <BoardCoordinates />
       {squares.map((square) => (
         <SquareTile
           key={square}

@@ -27,7 +27,10 @@ Der Multiplayer-MVP ist umgesetzt:
 - serverseitige Zugvalidierung und Socket.IO-Synchronisierung inklusive automatischem Join-Update
 - responsiver Spielmodus, der das 3D-Brett auf der verfügbaren Browserfläche maximiert
 - Spieluhr, Timeout, Reconnect und State-Sync
+- 15-Minuten-Spieluhr mit laufender Anzeige während des eigenen Zuges
 - Prisma-Persistenz für Games, Moves, FEN, Uhrwerte und Ergebnisse
+- Replay-Ansicht mit gespeicherten Zugzeitpunkten und variabler Wiedergabegeschwindigkeit
+- leiser Zug-Sound beim Bewegen einer Figur
 - versionierte PostgreSQL-Migrationen für Games, Sessions und soziale Beziehungen
 - responsiver Footer mit Version, Repository-, Datenschutz- und Impressum-Links auf Deutsch und Englisch
 - zentrale Anwendungsversion für Client-Footer und Server-Health-Endpunkt
@@ -38,7 +41,7 @@ PGN-Export und ladbare Spielhistorie sind bereits über die Server-API verfügba
 
 ## Produktansichten
 
-Die wichtigsten Oberflächen im aktuellen Stand: Anmeldung, Dashboard-Lobby, Freundesbereich und Partieansicht.
+Die wichtigsten Oberflächen im aktuellen Stand: Anmeldung, Dashboard-Lobby, Freundesbereich und Partieansicht. Die Bilder zeigen den aktuellen Dark Mode.
 
 <p>
   <img src="docs/images/auth-login.png" alt="Anmeldemaske" width="49%">
@@ -49,11 +52,13 @@ Die wichtigsten Oberflächen im aktuellen Stand: Anmeldung, Dashboard-Lobby, Fre
   <img src="docs/images/game-screen.png" alt="3D-Spielansicht" width="49%">
 </p>
 
-Die Screenshots können mit laufendem Client, Server und PostgreSQL neu erzeugt werden:
+Die Screenshots können mit laufendem Client, Server und PostgreSQL neu erzeugt werden. Das Skript legt dafür einen temporären Demo-Account an, setzt den Dark Mode und wartet vor der Partieaufnahme, bis die 3D-Modelle geladen sind:
 
 ```bash
 pnpm docs:screenshots
 ```
+
+Die Dateien werden unter `docs/images` abgelegt. Für eine Aufnahme ohne sichtbares Browserfenster kann der Standardlauf verwendet werden; mit `README_HEADED=1` lässt sich der Browser zur Kontrolle sichtbar öffnen.
 
 ## Navigation
 

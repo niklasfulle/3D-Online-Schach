@@ -493,7 +493,11 @@ function DashboardContent({
   }
 
   return (
-    <section className="w-full min-w-0 px-[clamp(1rem,3vw,2rem)] py-6">
+    <section
+      className={`w-full min-w-0 px-[clamp(1rem,3vw,2rem)] py-6 ${
+        view === 'game' ? 'grid min-h-0 h-full' : ''
+      }`}
+    >
       {unavailableLobbyCode ? (
         <LobbyUnavailablePopover
           code={unavailableLobbyCode}
@@ -704,15 +708,21 @@ export function AuthenticatedView(controller: Readonly<AppController>) {
 
   return (
     <main
-      className="grid min-h-dvh grid-rows-[1fr_auto] bg-[var(--app-bg)] text-app-text"
+      className={`grid min-h-dvh grid-rows-[1fr_auto] bg-[var(--app-bg)] text-app-text ${
+        isGameView ? 'min-[821px]:h-dvh min-[821px]:grid-rows-[minmax(0,1fr)_auto]' : ''
+      }`}
       data-theme={theme}
     >
-      <div className="grid min-h-0 w-full min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--app-shell)] backdrop-blur-3xl">
+      <div
+        className={`grid min-h-0 w-full min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--app-shell)] backdrop-blur-3xl ${
+          isGameView ? 'min-[821px]:grid-rows-[auto_minmax(0,1fr)]' : ''
+        }`}
+      >
         <AuthenticatedHeader controller={controller} />
         <div
           className={
             isGameView
-              ? 'grid min-w-0 grid-cols-[minmax(0,1fr)]'
+              ? 'grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)]'
               : 'grid min-w-0 grid-cols-[minmax(14rem,16rem)_minmax(0,1fr)_minmax(14rem,18rem)] max-xl:grid-cols-[minmax(13rem,15rem)_minmax(0,1fr)] max-xl:[&>aside:last-child]:hidden max-lg:grid-cols-1'
           }
         >
