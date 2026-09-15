@@ -94,7 +94,7 @@ export class StockfishEngine {
   }
 
   async getBestMove(fen: string, level: number): Promise<Move> {
-    if (this.closed) return Promise.reject(new Error('Stockfish worker was closed'));
+    if (this.closed) throw new Error('Stockfish worker was closed');
     validateEngineLevel(level);
     validatePosition(fen);
 

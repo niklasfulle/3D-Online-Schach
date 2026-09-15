@@ -80,12 +80,15 @@ export function pgnHeaders(summary: GameSummary): PgnHeaders {
     Event: '3D Online-Schach',
     Site: '3D Online-Schach',
     White: summary.whitePlayerId ?? 'White',
-    Black:
-      summary.opponentType === 'stockfish'
-        ? `Stockfish${summary.engineLevel === undefined ? '' : ` (Level ${summary.engineLevel})`}`
-        : (summary.blackPlayerId ?? 'Black'),
+    Black: blackPlayerName(summary),
     Result: resultToPgn(summary.result),
   };
+}
+
+function blackPlayerName(summary: GameSummary): string {
+  if (summary.opponentType !== 'stockfish') return summary.blackPlayerId ?? 'Black';
+  if (summary.engineLevel === undefined) return 'Stockfish';
+  return `Stockfish (Level ${summary.engineLevel})`;
 }
 
 export class GameTimeoutError extends Error {

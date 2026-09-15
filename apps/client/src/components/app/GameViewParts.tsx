@@ -67,6 +67,15 @@ function turnStatusText(
   return t('game.waitingForOpponent');
 }
 
+function stockfishOpponentLabel(
+  game: GameSummary,
+  t: Translator,
+): string | undefined {
+  if (game.opponentType !== 'stockfish') return undefined;
+  if (game.engineLevel === undefined) return t('game.stockfish');
+  return `${t('game.stockfish')} · ${game.engineLevel}`;
+}
+
 function GameStatusBadge({
   status,
   positionStatus,
@@ -372,11 +381,7 @@ export function GameBoardPanel({
           color="black"
           active={gameState.activeColor === 'black'}
           playerId={selectedGame.blackPlayerId}
-          labelOverride={
-            selectedGame.opponentType === 'stockfish'
-              ? `${t('game.stockfish')}${selectedGame.engineLevel === undefined ? '' : ` · ${selectedGame.engineLevel}`}`
-              : undefined
-          }
+          labelOverride={stockfishOpponentLabel(selectedGame, t)}
           userId={user.id}
           spectatorMode={spectatorMode}
           remainingMs={selectedGame.blackRemainingMs}

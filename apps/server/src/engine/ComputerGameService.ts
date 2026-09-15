@@ -36,8 +36,7 @@ export class ComputerGameService {
   private async runEngineTurn(code: string): Promise<AcceptedMove | undefined> {
     const game = this.gameManager.getGame(code);
     if (
-      !game ||
-      game.opponentType !== 'stockfish' ||
+      game?.opponentType !== 'stockfish' ||
       game.status !== 'active' ||
       game.engineLevel === undefined ||
       !game.whitePlayerId

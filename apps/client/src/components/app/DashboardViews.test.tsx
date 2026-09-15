@@ -80,6 +80,8 @@ describe('LobbyView Stockfish setup', () => {
     const launcher = screen.getByRole('button', { name: 'lobby.playAi' });
     fireEvent.click(launcher);
     const dialog = screen.getByRole('dialog');
+    expect(dialog.tagName).toBe('DIALOG');
+    expect((dialog as HTMLDialogElement).open).toBe(true);
     expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'lobby.aiLevel' }));
     fireEvent.keyDown(dialog, { key: 'Escape' });
 

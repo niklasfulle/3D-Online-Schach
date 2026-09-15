@@ -112,7 +112,7 @@ export function LobbyView({
   const [aiSetupOpen, setAiSetupOpen] = useState(false);
   const [engineLevel, setEngineLevel] = useState(8);
   const aiTriggerRef = useRef<HTMLButtonElement>(null);
-  const aiDialogRef = useRef<HTMLElement>(null);
+  const aiDialogRef = useRef<HTMLDialogElement>(null);
   const wasAiSetupOpen = useRef(false);
 
   useEffect(() => {
@@ -211,11 +211,11 @@ export function LobbyView({
       </section>
       {aiSetupOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4">
-          <section
+          <dialog
+            open
             ref={aiDialogRef}
-            className={`${cardClass} grid max-w-md gap-4`}
+            className={`${cardClass} relative m-0 grid max-h-none max-w-md gap-4`}
             id="stockfish-setup-dialog"
-            role="dialog"
             aria-modal="true"
             aria-labelledby="stockfish-setup-title"
           >
@@ -270,7 +270,7 @@ export function LobbyView({
                 {t('lobby.startAi')}
               </button>
             </div>
-          </section>
+          </dialog>
         </div>
       ) : null}
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
