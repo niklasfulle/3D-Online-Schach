@@ -62,6 +62,25 @@ describe('PrismaHistoryProvider', () => {
       }),
     );
   });
+
+  it('identifies Stockfish and keeps its selected level in game history', async () => {
+    const findMany = vi.fn(async () => [
+      { ...createRecord('game-ai', '2026-09-11T12:00:00.000Z'),
+        opponentType: 'stockfish',
+        engineLevel: 0,
+        blackPlayer: null,
+      },
+    ]);
+    const provider = new PrismaHistoryProvider({ game: { findMany } } as unknown as PrismaClient);
+
+    const page = await provider.listForUser('user-1', { limit: 10 });
+
+    expect(page.games[0]).toMatchObject({
+      opponentType: 'stockfish',
+      engineLevel: 0,
+      blackPlayer: { id: 'stockfish', username: 'Stockfish' },
+    });
+  });
 });
 
 function createRecord(id: string, finishedAt: string) {

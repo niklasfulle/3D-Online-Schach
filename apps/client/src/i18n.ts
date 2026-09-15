@@ -63,6 +63,8 @@ export type TranslationKey =
   | 'game.ranked'
   | 'game.casual'
   | 'game.correspondence'
+  | 'game.stockfish'
+  | 'game.engineLevel'
   | 'game.spectator'
   | 'game.live'
   | 'game.waiting'
@@ -214,6 +216,19 @@ export type TranslationKey =
   | 'lobby.description'
   | 'lobby.createCasual'
   | 'lobby.playRanked'
+  | 'lobby.playAi'
+  | 'lobby.aiTitle'
+  | 'lobby.aiDescription'
+  | 'lobby.aiLevel'
+  | 'lobby.aiLevelEasiest'
+  | 'lobby.aiLevelBeginner'
+  | 'lobby.aiLevelEasy'
+  | 'lobby.aiLevelBalanced'
+  | 'lobby.aiLevelChallenging'
+  | 'lobby.aiLevelVeryStrong'
+  | 'lobby.aiLevelMaximum'
+  | 'lobby.aiCancel'
+  | 'lobby.startAi'
   | 'lobby.createCorrespondence'
   | 'lobby.correspondenceDescription'
   | 'lobby.openGames'
@@ -387,6 +402,8 @@ const translationEntries: readonly TranslationEntry[] = [
   ["game.ranked", 'Ranked-Partie', 'Ranked game'],
   ["game.casual", 'Casual-Partie', 'Casual game'],
   ["game.correspondence", 'Fernpartie', 'Correspondence game'],
+  ["game.stockfish", 'Stockfish', 'Stockfish'],
+  ["game.engineLevel", 'Stufe', 'Level'],
   ["game.spectator", 'Zuschauer', 'Spectator'],
   ["game.live", 'Live', 'Live'],
   ["game.waiting", 'Wartet', 'Waiting'],
@@ -538,6 +555,19 @@ const translationEntries: readonly TranslationEntry[] = [
   ["lobby.description", 'Spiele entspannt gegen Freunde oder setze deine Wertung aufs Spiel.', 'Play casually with friends or put your rating on the line.'],
   ["lobby.createCasual", 'Casual-Spiel erstellen', 'Create casual game'],
   ["lobby.playRanked", 'Ranked spielen', 'Play ranked'],
+  ["lobby.playAi", 'Gegen KI spielen', 'Play against AI'],
+  ["lobby.aiTitle", 'Stockfish-Partie', 'Stockfish game'],
+  ["lobby.aiDescription", 'Wähle eine Spielstärke von 0 (leicht) bis 20 (stärkste Stufe). Die Stufen sind keine Elo-Angaben.', 'Choose a playing strength from 0 (easiest) to 20 (strongest). These levels are not Elo ratings.'],
+  ["lobby.aiLevel", 'Schwierigkeitsstufe', 'Difficulty level'],
+  ["lobby.aiLevelEasiest", 'Leichteste Einstellung', 'Easiest setting'],
+  ["lobby.aiLevelBeginner", 'Sehr leicht', 'Very easy'],
+  ["lobby.aiLevelEasy", 'Leicht', 'Easy'],
+  ["lobby.aiLevelBalanced", 'Ausgewogen', 'Balanced'],
+  ["lobby.aiLevelChallenging", 'Anspruchsvoll', 'Challenging'],
+  ["lobby.aiLevelVeryStrong", 'Sehr stark', 'Very strong'],
+  ["lobby.aiLevelMaximum", 'Maximale Stärke', 'Maximum strength'],
+  ["lobby.aiCancel", 'Abbrechen', 'Cancel'],
+  ["lobby.startAi", 'Partie starten', 'Start game'],
   ["lobby.createCorrespondence", 'Fernpartie starten', 'Start correspondence game'],
   ["lobby.correspondenceDescription", 'Ohne Zeitdruck, nur für eingeladene Freunde.', 'No clock, friends only by invitation.'],
   ["lobby.openGames", 'Offene Partien', 'Open games'],

@@ -123,6 +123,8 @@ export interface HistoryGame {
   id: string;
   code: string;
   mode: GameMode;
+  opponentType?: 'human' | 'stockfish';
+  engineLevel?: number;
   result: 'white' | 'black' | 'draw' | null;
   createdAt: string;
   finishedAt: string;

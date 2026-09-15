@@ -584,6 +584,7 @@ function DashboardViewPanel({
           games={controller.lobbyGames}
           onRefresh={() => controller.refreshLobby()}
           onCreate={(mode) => controller.createGame(mode)}
+          onCreateAi={(engineLevel) => controller.createAiGame(engineLevel)}
           onJoin={(code) => controller.joinGame(code)}
           onDelete={(code) => controller.deleteGame(code)}
         />

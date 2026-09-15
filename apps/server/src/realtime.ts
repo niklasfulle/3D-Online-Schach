@@ -9,6 +9,7 @@ import { readSessionToken } from './auth/sessionCookie.js';
 import { PrismaChatProvider, type ChatProvider } from './chat/ChatService.js';
 import { prisma } from './db/client.js';
 import type { NotificationProvider } from './notifications/NotificationService.js';
+import type { ComputerGameService } from './engine/ComputerGameService.js';
 
 interface JoinPayload {
   code?: string;
@@ -37,8 +38,15 @@ export function registerRealtime(
   authProvider?: AuthProvider,
   chatProvider: ChatProvider = new PrismaChatProvider(prisma),
   notificationProvider?: NotificationProvider,
+  computerGameService?: ComputerGameService,
 ): Server {
   const io = new Server(app.server, { cors: { origin: true, credentials: true } });
+  const unsubscribeMoveAccepted = gameManager.onMoveAccepted((accepted) => {
+    io.to(accepted.game.code).emit('move:accepted', accepted);
+  });
+  app.addHook('onClose', async () => {
+    unsubscribeMoveAccepted();
+  });
   gameManager.onGameUpdate((game) => {
     io.to(game.code).emit('game:updated', game);
   });
@@ -126,6 +134,9 @@ export function registerRealtime(
         await gameManager.flushPersistence();
         await socket.join(payload.code.toUpperCase());
         socket.emit('game:state', sync);
+        if (computerGameService && sync.game.opponentType === 'stockfish') {
+          await playPendingEngineTurn(computerGameService, payload.code, socket);
+        }
       } catch (error) {
         socket.emit('game:error', {
           error: error instanceof Error ? error.message : 'Unable to sync game',
@@ -168,7 +179,10 @@ export function registerRealtime(
         });
         await gameManager.flushPersistence();
         const room = payload.code.toUpperCase();
-        io.to(room).emit('move:accepted', accepted);
+        gameManager.publishMoveAccepted(accepted);
+        if (computerGameService && accepted.game.opponentType === 'stockfish') {
+          await playPendingEngineTurn(computerGameService, room, socket);
+        }
         if (notificationProvider && accepted.game.mode === 'correspondence') {
           await notifyInactiveCorrespondenceOpponent(
             io,
@@ -216,6 +230,20 @@ export function registerRealtime(
   });
 
   return io;
+}
+
+async function playPendingEngineTurn(
+  computerGameService: ComputerGameService,
+  code: string,
+  socket: { emit: (event: string, payload: unknown) => void },
+): Promise<void> {
+  try {
+    await computerGameService.playEngineTurn(code);
+  } catch (error) {
+    socket.emit('game:error', {
+      error: error instanceof Error ? error.message : 'Stockfish could not make a move',
+    });
+  }
 }
 
 async function notifyInactiveCorrespondenceOpponent(

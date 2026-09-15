@@ -166,6 +166,47 @@ describe('GameManager', () => {
     );
   });
 
+  it.each(['q', 'r', 'b', 'n'] as const)(
+    'accepts the selected %s when a player promotes by capturing',
+    (promotion) => {
+      manager = new GameManager();
+      const created = preparePlayerPromotion(manager);
+
+      const accepted = manager.requestMove(created.code, 'player-a', {
+        from: 'a7',
+        to: 'b8',
+        promotion,
+      });
+
+      expect(accepted.move).toMatchObject({ from: 'a7', to: 'b8', promotion });
+      expect(accepted.move.san).toBe(`axb8=${promotion.toUpperCase()}`);
+    },
+  );
+
+  it('rejects missing or unsupported player promotion choices without consuming the turn', () => {
+    manager = new GameManager();
+    const created = preparePlayerPromotion(manager);
+
+    expect(() => manager.requestMove(created.code, 'player-a', { from: 'a7', to: 'b8' })).toThrow(
+      'Illegal move',
+    );
+    expect(() =>
+      manager.requestMove(created.code, 'player-a', {
+        from: 'a7',
+        to: 'b8',
+        promotion: 'k' as never,
+      }),
+    ).toThrow('Illegal move');
+
+    expect(
+      manager.requestMove(created.code, 'player-a', {
+        from: 'a7',
+        to: 'b8',
+        promotion: 'q',
+      }).move.promotion,
+    ).toBe('q');
+  });
+
   it('returns the winning color when a move ends the game', () => {
     manager = new GameManager();
     const created = manager.createGame('player-a');
@@ -350,3 +391,22 @@ describe('GameManager', () => {
     expect(persistedMoveNumbers).toEqual([1, 2, 3, 4]);
   });
 });
+
+function preparePlayerPromotion(manager: GameManager) {
+  const created = manager.createGame('player-a');
+  manager.joinGame(created.code, 'player-b');
+  const prefixMoves = [
+    ['player-a', 'b2', 'b4'],
+    ['player-b', 'a7', 'a5'],
+    ['player-a', 'b4', 'a5'],
+    ['player-b', 'h7', 'h6'],
+    ['player-a', 'a5', 'a6'],
+    ['player-b', 'h6', 'h5'],
+    ['player-a', 'a6', 'a7'],
+    ['player-b', 'g7', 'g6'],
+  ] as const;
+  for (const [playerId, from, to] of prefixMoves) {
+    manager.requestMove(created.code, playerId, { from, to });
+  }
+  return created;
+}

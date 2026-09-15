@@ -16,6 +16,8 @@ import {
 } from './auth/AuthService.js';
 import { readSessionToken, SESSION_COOKIE } from './auth/sessionCookie.js';
 import { GameManager, GameTimeoutError } from './game/GameManager.js';
+import { ComputerGameService } from './engine/ComputerGameService.js';
+import { StockfishEngine, stockfishEngineOptionsFromEnv } from './engine/StockfishEngine.js';
 import { ChatError, PrismaChatProvider, type ChatProvider } from './chat/ChatService.js';
 import { prisma } from './db/client.js';
 import { PrismaGamePersistence } from './persistence/PrismaGamePersistence.js';
@@ -54,6 +56,7 @@ type BuildAppOptions = Partial<{
   historyProvider: HistoryProvider;
   profileProvider: ProfileProvider;
   ratingProvider: PrismaRatingService;
+  computerGameService: ComputerGameService;
 }>;
 
 type LegacyProviderArgs = [
@@ -402,6 +405,25 @@ export function buildApp(
     }
   });
 
+  app.post<{ Body: { engineLevel?: number } }>('/games/ai', async (request, reply) => {
+    const user = await requireUser(request, reply, authProvider);
+    if (!user) return;
+    const engineLevel = request.body?.engineLevel;
+    if (!Number.isInteger(engineLevel) || engineLevel === undefined || engineLevel < 0 || engineLevel > 20) {
+      return reply.code(400).send({ error: 'engineLevel must be an integer between 0 and 20' });
+    }
+
+    try {
+      const game = gameManager.createAiGame(user.id, engineLevel);
+      await gameManager.flushPersistence();
+      return reply.code(201).send(game);
+    } catch (error) {
+      return reply.code(503).send({
+        error: error instanceof Error ? error.message : 'Unable to create Stockfish game',
+      });
+    }
+  });
+
   app.post<{ Params: { code: string } }>('/lobby/games/:code/join', async (request, reply) => {
     const user = await requireUser(request, reply, authProvider);
     if (!user) return;
@@ -703,6 +725,17 @@ export function buildApp(
         promotion,
       });
       await gameManager.flushPersistence();
+      gameManager.publishMoveAccepted(accepted);
+      if (options.computerGameService && accepted.game.opponentType === 'stockfish') {
+        try {
+          await options.computerGameService.playEngineTurn(accepted.game.code);
+        } catch (error) {
+          request.log.error(
+            { err: error, gameCode: accepted.game.code },
+            'Stockfish turn failed after the player move was accepted',
+          );
+        }
+      }
       return reply.send(accepted);
     } catch (error) {
       if (error instanceof GameTimeoutError) {
@@ -821,19 +854,27 @@ function parseLeaderboardQuery(
 async function start() {
   const ratingProvider = new PrismaRatingService(prisma);
   const gameManager = new GameManager(undefined, new PrismaGamePersistence(prisma, ratingProvider));
+  const computerGameService = new ComputerGameService(
+    gameManager,
+    new StockfishEngine(stockfishEngineOptionsFromEnv(process.env)),
+  );
   const authProvider = new PrismaAuthProvider(prisma);
-  const app = buildApp(gameManager, { authProvider, ratingProvider });
+  const app = buildApp(gameManager, { authProvider, ratingProvider, computerGameService });
   const realtime = registerRealtime(
     app,
     gameManager,
     authProvider,
     undefined,
     new PrismaNotificationProvider(prisma),
+    computerGameService,
   );
   const expiredGamesWorker = new ExpiredGamesWorker(gameManager, {
     onError: (error) => app.log.error(error, 'Expired game cleanup failed'),
   });
-  app.addHook('onClose', async () => expiredGamesWorker.stop());
+  app.addHook('onClose', async () => {
+    expiredGamesWorker.stop();
+    await computerGameService.close();
+  });
   expiredGamesWorker.start();
   const port = Number(process.env.PORT ?? 3001);
   const host = process.env.HOST ?? '127.0.0.1';

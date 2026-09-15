@@ -24,6 +24,8 @@ export interface GameSummary {
   code: string;
   status: GameStatus;
   mode?: GameMode;
+  opponentType?: 'human' | 'stockfish';
+  engineLevel?: number;
   whitePlayerId?: string;
   blackPlayerId?: string;
   timeControl: TimeControl;

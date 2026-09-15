@@ -109,6 +109,8 @@ model Game {
   code            String    @unique
   status          String
   mode            String    @default("casual")
+  opponentType    String    @default("human")
+  engineLevel     Int?
   initialFen      String
   currentFen      String
   whiteTimeMs     Int

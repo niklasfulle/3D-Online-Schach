@@ -105,6 +105,7 @@ export function GameView({
       <h1 className="sr-only">{t('page.game.title')}</h1>
       <GameToolbar
         selectedGame={selectedGame}
+        positionStatus={gameState.status}
         t={t}
         spectatorMode={spectatorMode}
         linkCopied={linkCopied}

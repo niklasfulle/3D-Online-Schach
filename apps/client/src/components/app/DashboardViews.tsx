@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { GameMode, UserRole } from '@chess3d/shared';
 
@@ -72,6 +72,17 @@ const profileMetricClasses: Record<string, string> = {
 function profileMetricClass(color: string) {
   return profileMetricClasses[color] ?? profileMetricClasses.blue;
 }
+
+function stockfishLevelDescription(level: number, t: Translator): string {
+  if (level === 0) return t('lobby.aiLevelEasiest');
+  if (level <= 4) return t('lobby.aiLevelBeginner');
+  if (level <= 8) return t('lobby.aiLevelEasy');
+  if (level <= 12) return t('lobby.aiLevelBalanced');
+  if (level <= 16) return t('lobby.aiLevelChallenging');
+  if (level <= 19) return t('lobby.aiLevelVeryStrong');
+  return t('lobby.aiLevelMaximum');
+}
+
 const cardClass = 'w-full rounded-2xl border border-app-border bg-app-surface p-5 shadow-lg';
 const secondaryButtonClass =
   'inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-app-accent/45 bg-[var(--action-surface)] px-3.5 py-2.5 text-center text-xs font-bold leading-tight text-[var(--action-text)] transition hover:border-app-accent hover:bg-[var(--action-surface-hover)] hover:text-white active:translate-y-px';
@@ -85,6 +96,7 @@ export function LobbyView({
   games,
   onRefresh,
   onCreate,
+  onCreateAi,
   onJoin,
   onDelete,
 }: Readonly<{
@@ -92,15 +104,54 @@ export function LobbyView({
   games: LobbyGame[];
   onRefresh: () => void;
   onCreate: (mode: GameMode) => void;
+  onCreateAi: (engineLevel: number) => void;
   onJoin: (code: string) => void;
   onDelete: (code: string) => void;
 }>) {
   const [now, setNow] = useState(() => Date.now());
+  const [aiSetupOpen, setAiSetupOpen] = useState(false);
+  const [engineLevel, setEngineLevel] = useState(8);
+  const aiTriggerRef = useRef<HTMLButtonElement>(null);
+  const aiDialogRef = useRef<HTMLElement>(null);
+  const wasAiSetupOpen = useRef(false);
 
   useEffect(() => {
     const timer = globalThis.setInterval(() => setNow(Date.now()), 1_000);
     return () => globalThis.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!aiSetupOpen) {
+      if (wasAiSetupOpen.current) aiTriggerRef.current?.focus();
+      wasAiSetupOpen.current = false;
+      return;
+    }
+
+    wasAiSetupOpen.current = true;
+    const focusableElements = () =>
+      [...(aiDialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), select') ?? [])];
+    focusableElements()[0]?.focus();
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setAiSetupOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = focusableElements();
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleDialogKeyDown);
+    return () => document.removeEventListener('keydown', handleDialogKeyDown);
+  }, [aiSetupOpen]);
 
   return (
     <div className="grid w-full gap-4">
@@ -122,7 +173,7 @@ export function LobbyView({
               {t('lobby.createCasual')} <span aria-hidden="true">→</span>
             </button>
             <button
-              className="min-h-11 cursor-pointer rounded-xl border border-[var(--lobby-hero-secondary-border)] bg-transparent px-4 py-3 text-[var(--lobby-hero-secondary-text)] transition hover:bg-app-muted"
+              className="min-h-11 cursor-pointer rounded-xl border border-[var(--lobby-hero-secondary-border)] bg-transparent px-4 py-3 text-[var(--lobby-hero-secondary-text)] transition hover:bg-app-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
               type="button"
               onClick={() => onCreate('ranked')}
             >
@@ -134,6 +185,17 @@ export function LobbyView({
               onClick={() => onCreate('correspondence')}
             >
               {t('lobby.createCorrespondence')}
+            </button>
+            <button
+              ref={aiTriggerRef}
+              className="min-h-11 cursor-pointer rounded-xl border border-[var(--lobby-hero-secondary-border)] bg-transparent px-4 py-3 text-[var(--lobby-hero-secondary-text)] transition hover:bg-app-muted"
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={aiSetupOpen}
+              aria-controls="stockfish-setup-dialog"
+              onClick={() => setAiSetupOpen(true)}
+            >
+              {t('lobby.playAi')}
             </button>
             <span className="basis-full text-xs text-[var(--lobby-hero-muted)]">
               {t('lobby.correspondenceDescription')}
@@ -147,6 +209,70 @@ export function LobbyView({
           ♞
         </div>
       </section>
+      {aiSetupOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4">
+          <section
+            ref={aiDialogRef}
+            className={`${cardClass} grid max-w-md gap-4`}
+            id="stockfish-setup-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stockfish-setup-title"
+          >
+            <div>
+              <span className={panelLabelClass}>{t('lobby.playAi')}</span>
+              <h2 id="stockfish-setup-title" className="mt-1 text-xl font-semibold text-app-text-strong">
+                {t('lobby.aiTitle')}
+              </h2>
+              <p id="stockfish-setup-description" className={`mt-2 ${mutedClass}`}>
+                {t('lobby.aiDescription')}
+              </p>
+            </div>
+            <label className="grid gap-2 text-sm font-semibold text-app-text-strong">
+              {t('lobby.aiLevel')}
+              <select
+                aria-label={t('lobby.aiLevel')}
+                aria-describedby="stockfish-setup-description stockfish-level-description"
+                className="min-h-11 rounded-xl border border-app-border bg-app-surface px-3 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
+                value={engineLevel}
+                onChange={(event) => setEngineLevel(Number(event.target.value))}
+              >
+                {Array.from({ length: 21 }, (_, level) => (
+                  <option key={level} value={level}>
+                    {level} — {stockfishLevelDescription(level, t)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p
+              id="stockfish-level-description"
+              aria-live="polite"
+              className={`-mt-2 ${mutedClass}`}
+            >
+              {stockfishLevelDescription(engineLevel, t)}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className={`${quietButtonClass} min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent`}
+                type="button"
+                onClick={() => setAiSetupOpen(false)}
+              >
+                {t('lobby.aiCancel')}
+              </button>
+              <button
+                className={`${secondaryButtonClass} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent`}
+                type="button"
+                onClick={() => {
+                  onCreateAi(engineLevel);
+                  setAiSetupOpen(false);
+                }}
+              >
+                {t('lobby.startAi')}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
         <div className="flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface p-4 shadow-lg">
           <span

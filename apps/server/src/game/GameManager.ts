@@ -58,6 +58,7 @@ export interface GameSync {
 export type GameUpdateListener = (game: GameSummary) => void;
 export type GameRemovalListener = (game: GameSummary) => void;
 export type GameEndListener = (game: GameSummary, result: 'white' | 'black' | 'draw') => void;
+export type AcceptedMoveListener = (move: AcceptedMove) => void;
 
 export interface GameHistory {
   game: GameSummary;
@@ -79,7 +80,10 @@ export function pgnHeaders(summary: GameSummary): PgnHeaders {
     Event: '3D Online-Schach',
     Site: '3D Online-Schach',
     White: summary.whitePlayerId ?? 'White',
-    Black: summary.blackPlayerId ?? 'Black',
+    Black:
+      summary.opponentType === 'stockfish'
+        ? `Stockfish${summary.engineLevel === undefined ? '' : ` (Level ${summary.engineLevel})`}`
+        : (summary.blackPlayerId ?? 'Black'),
     Result: resultToPgn(summary.result),
   };
 }
@@ -101,6 +105,7 @@ export class GameManager {
   private readonly gameUpdateListeners = new Set<GameUpdateListener>();
   private readonly gameRemovalListeners = new Set<GameRemovalListener>();
   private readonly gameEndListeners = new Set<GameEndListener>();
+  private readonly acceptedMoveListeners = new Set<AcceptedMoveListener>();
   private readonly clockTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private persistenceError: unknown;
 
@@ -149,6 +154,32 @@ export class GameManager {
     return this.snapshot(game);
   }
 
+  createAiGame(whitePlayerId: string, engineLevel: number): GameSummary {
+    if (!Number.isInteger(engineLevel) || engineLevel < 0 || engineLevel > 20) {
+      throw new Error('Engine level must be between 0 and 20');
+    }
+
+    const waitingGame = this.createGame(whitePlayerId);
+    const game = this.games.get(waitingGame.code)!;
+    const startedAt = this.now();
+    game.summary = {
+      ...game.summary,
+      status: 'active',
+      opponentType: 'stockfish',
+      engineLevel,
+      expiresAt: undefined,
+      startedAt,
+      turnStartedAt: startedAt,
+    };
+    this.scheduleClockTimeout(game);
+    this.enqueuePersistence(game.summary.id, () =>
+      this.persistence.saveGame(game.summary, game.chess.getState().fen),
+    );
+    const snapshot = this.snapshot(game);
+    this.publishGameUpdate(snapshot);
+    return snapshot;
+  }
+
   joinGame(code: string, blackPlayerId: string): GameSummary {
     const game = this.getManagedGame(code);
     if (!game) throw new Error('Game not found');
@@ -190,6 +221,15 @@ export class GameManager {
     return () => this.gameEndListeners.delete(listener);
   }
 
+  onMoveAccepted(listener: AcceptedMoveListener): () => void {
+    this.acceptedMoveListeners.add(listener);
+    return () => this.acceptedMoveListeners.delete(listener);
+  }
+
+  publishMoveAccepted(move: AcceptedMove): void {
+    for (const listener of this.acceptedMoveListeners) listener(move);
+  }
+
   resignGame(code: string, playerId: string): GameSummary {
     const game = this.getManagedGame(code);
     if (!game) throw new Error('Game not found');
@@ -219,26 +259,40 @@ export class GameManager {
   requestMove(code: string, playerId: string, move: Move): AcceptedMove {
     const game = this.getManagedGame(code);
     if (!game) throw new Error('Game not found');
-    if (game.summary.status !== 'active') throw new Error('Game is not active');
-
     const timeout = this.expireIfNeeded(game);
     if (timeout) throw timeout;
+    if (game.summary.status !== 'active') throw new Error('Game is not active');
 
+    const movingColor = game.chess.getState().activeColor;
+    const expectedPlayerId =
+      movingColor === 'white' ? game.summary.whitePlayerId : game.summary.blackPlayerId;
+    if (expectedPlayerId !== playerId) throw new Error("It is not this player's turn");
+
+    return this.acceptMove(game, move);
+  }
+
+  requestEngineMove(code: string, move: Move): AcceptedMove {
+    const game = this.getManagedGame(code);
+    if (!game) throw new Error('Game not found');
+    const timeout = this.expireIfNeeded(game);
+    if (timeout) throw timeout;
+    if (game.summary.opponentType !== 'stockfish') throw new Error('Game is not a Stockfish game');
+    if (game.summary.status !== 'active') throw new Error('Game is not active');
+    if (game.chess.getState().activeColor !== 'black') throw new Error('It is not the engine turn');
+
+    return this.acceptMove(game, move);
+  }
+
+  private acceptMove(game: ManagedGame, move: Move): AcceptedMove {
     const clock = this.clockSnapshot(game);
     const state = game.chess.getState();
     const movingColor = state.activeColor;
     const remainingMs = movingColor === 'white' ? clock.whiteRemainingMs : clock.blackRemainingMs;
 
-    const expectedPlayerId =
-      movingColor === 'white' ? game.summary.whitePlayerId : game.summary.blackPlayerId;
-    if (expectedPlayerId !== playerId) throw new Error("It is not this player's turn");
-
     const legalMove = game.chess
       .legalMoves(move.from)
-      .find((candidate) => candidate.to === move.to);
-    if (!legalMove || (legalMove.promotion && move.promotion !== legalMove.promotion)) {
-      throw new Error('Illegal move');
-    }
+      .find((candidate) => candidate.to === move.to && candidate.promotion === move.promotion);
+    if (!legalMove) throw new Error('Illegal move');
 
     const playedMove = game.chess.move(move);
     const moveNumber = game.chess.history().length;
@@ -280,9 +334,17 @@ export class GameManager {
   }
 
   requestMoveQueued(code: string, playerId: string, move: Move): Promise<AcceptedMove> {
+    return this.queueMove(code, () => this.requestMove(code, playerId, move));
+  }
+
+  requestEngineMoveQueued(code: string, move: Move): Promise<AcceptedMove> {
+    return this.queueMove(code, () => this.requestEngineMove(code, move));
+  }
+
+  private queueMove(code: string, operation: () => AcceptedMove): Promise<AcceptedMove> {
     const normalizedCode = code.toUpperCase();
     const previous = this.moveQueues.get(normalizedCode) ?? Promise.resolve();
-    const next = previous.then(() => this.requestMove(normalizedCode, playerId, move));
+    const next = previous.then(operation);
     this.moveQueues.set(
       normalizedCode,
       next.then(

@@ -682,6 +682,19 @@ export function useAppController() {
     }
   }
 
+  async function createAiGame(engineLevel: number) {
+    try {
+      const created = await requestApi<GameSummary>(API_URL, '/games/ai', {
+        method: 'POST',
+        body: JSON.stringify({ engineLevel }),
+      });
+      openGame(created);
+      await refreshLobby();
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : t('error.gameCreate'));
+    }
+  }
+
   async function cancelCorrespondenceInvite() {
     if (correspondenceInviteGame) {
       await deleteGame(correspondenceInviteGame.code);
@@ -989,6 +1002,7 @@ export function useAppController() {
     openSelectedGame,
     openCorrespondenceGame,
     createGame,
+    createAiGame,
     cancelCorrespondenceInvite,
     inviteCorrespondenceFriend,
     joinGame,

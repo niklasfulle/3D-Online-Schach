@@ -20,7 +20,6 @@ import {
   formatClock,
   gameLabel,
   gameModeLabel,
-  gameStatusLabel,
   isChatNearBottom,
   viewerPlayerLabel,
 } from '../../app/utils';
@@ -40,40 +39,49 @@ const dangerButtonClass =
 
 function gameStatusText(
   status: GameSummary['status'],
+  positionStatus: GameState['status'],
   spectatorMode: boolean,
   t: Translator,
 ): string {
+  if (status === 'finished') {
+    if (positionStatus === 'checkmate') return t('status.checkmate');
+    if (positionStatus === 'stalemate') return t('status.stalemate');
+    if (positionStatus === 'draw') return t('status.draw');
+    return t('status.finished');
+  }
   if (spectatorMode) return t('game.spectator');
   if (status === 'active') return t('game.live');
-  if (status === 'finished') return t('status.finished');
   return t('game.waiting');
 }
 
 function turnStatusText(
   status: GameSummary['status'],
+  positionStatus: GameState['status'],
   spectatorMode: boolean,
   turnLabel: string,
   t: Translator,
 ): string {
+  if (status === 'finished') return gameStatusText(status, positionStatus, false, t);
   if (spectatorMode) return `${turnLabel} ${t('game.spectatorTurn')}`;
   if (status === 'active') return `${turnLabel} ${t('game.turn')}`;
-  if (status === 'finished') return t('status.finished');
   return t('game.waitingForOpponent');
 }
 
 function GameStatusBadge({
   status,
+  positionStatus,
   spectatorMode,
   t,
 }: Readonly<{
   status: GameSummary['status'];
+  positionStatus: GameState['status'];
   spectatorMode: boolean;
   t: Translator;
 }>) {
   return (
     <span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[rgb(95_214_153_/_25%)] bg-[#153d2b] px-3 py-1.5 text-[.72rem] font-bold text-[#b6f4cb]">
       <span className="inline-block size-[.42rem] rounded-full bg-[#6de29d] shadow-[0_0_0_3px_rgb(109_226_157_/_12%)]" />{' '}
-      {gameStatusText(status, spectatorMode, t)}
+      {gameStatusText(status, positionStatus, spectatorMode, t)}
     </span>
   );
 }
@@ -174,6 +182,7 @@ function ChatToggleButton({
 
 export function GameToolbar({
   selectedGame,
+  positionStatus,
   t,
   spectatorMode,
   linkCopied,
@@ -186,6 +195,7 @@ export function GameToolbar({
   onToggleChat,
 }: Readonly<{
   selectedGame: GameSummary;
+  positionStatus: GameState['status'];
   t: Translator;
   spectatorMode: boolean;
   linkCopied: boolean;
@@ -209,14 +219,24 @@ export function GameToolbar({
           ←
         </button>
         <div>
-          <span className={panelLabelClass}>{gameModeLabel(selectedGame.mode, t)}</span>
+          <span className={panelLabelClass}>
+            {gameModeLabel(selectedGame.mode, t)}
+            {selectedGame.opponentType === 'stockfish' && selectedGame.engineLevel !== undefined
+              ? ` · ${t('game.stockfish')} · ${t('game.engineLevel')} ${selectedGame.engineLevel}`
+              : ''}
+          </span>
           <h2 className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-lg tracking-[-.03em] text-[var(--game-text)]">
             {selectedGame.code}
           </h2>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <GameStatusBadge status={selectedGame.status} spectatorMode={spectatorMode} t={t} />
+        <GameStatusBadge
+          status={selectedGame.status}
+          positionStatus={positionStatus}
+          spectatorMode={spectatorMode}
+          t={t}
+        />
         <GameToolbarActions
           t={t}
           spectatorMode={spectatorMode}
@@ -352,6 +372,11 @@ export function GameBoardPanel({
           color="black"
           active={gameState.activeColor === 'black'}
           playerId={selectedGame.blackPlayerId}
+          labelOverride={
+            selectedGame.opponentType === 'stockfish'
+              ? `${t('game.stockfish')}${selectedGame.engineLevel === undefined ? '' : ` · ${selectedGame.engineLevel}`}`
+              : undefined
+          }
           userId={user.id}
           spectatorMode={spectatorMode}
           remainingMs={selectedGame.blackRemainingMs}
@@ -386,7 +411,7 @@ export function GameBoardPanel({
       <div className="flex justify-between gap-4 border-t border-[var(--game-divider)] bg-[var(--game-surface-inset)] px-3.5 py-2.5 text-[.68rem] text-[var(--game-muted)] max-[760px]:items-start max-[760px]:flex-col max-[760px]:gap-1">
         <span>
           <span className="inline-block size-[.42rem] rounded-full bg-[#6de29d] shadow-[0_0_0_3px_rgb(109_226_157_/_12%)]" />{' '}
-          {turnStatusText(selectedGame.status, spectatorMode, turnLabel, t)}
+          {turnStatusText(selectedGame.status, gameState.status, spectatorMode, turnLabel, t)}
         </span>
         <span>
           {selectedSquare ? `${selectedSquare} ${t('game.selected')}` : t('game.moveBoard')}
@@ -400,6 +425,7 @@ function PlayerCard({
   color,
   active,
   playerId,
+  labelOverride,
   userId,
   spectatorMode,
   remainingMs,
@@ -411,6 +437,7 @@ function PlayerCard({
   color: 'black' | 'white';
   active: boolean;
   playerId?: string;
+  labelOverride?: string;
   userId: string;
   spectatorMode: boolean;
   remainingMs: number;
@@ -447,7 +474,7 @@ function PlayerCard({
       </span>
       <div className="grid min-w-0 flex-1 gap-0.5">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-[var(--game-text)]">
-          {viewerPlayerLabel(playerId, userId, spectatorMode, t)}
+          {labelOverride ?? viewerPlayerLabel(playerId, userId, spectatorMode, t)}
         </strong>
         <span className="text-[.65rem] text-[var(--game-muted)]">
           {isWhite ? t('game.white') : t('game.black')}
@@ -505,7 +532,7 @@ export function GameInfoPanel({
             {t('game.status')}
           </span>
           <strong className="text-xs text-[var(--game-text)]">
-            {gameStatusLabel(selectedGame.status, t)}
+            {gameStatusText(selectedGame.status, gameState.status, false, t)}
           </strong>
         </div>
         <div className="grid min-w-0 gap-1 rounded-lg border border-[var(--game-divider)] bg-[var(--game-surface-inset)] p-2.5">

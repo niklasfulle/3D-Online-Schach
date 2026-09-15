@@ -28,6 +28,8 @@ export interface HistoryGame {
   id: string;
   code: string;
   mode: GameMode;
+  opponentType?: 'human' | 'stockfish';
+  engineLevel?: number;
   result: 'white' | 'black' | 'draw' | null;
   createdAt: string;
   finishedAt: string;
@@ -203,6 +205,8 @@ function toHistoryGame(record: {
   id: string;
   code: string;
   mode: string;
+  opponentType?: string;
+  engineLevel?: number | null;
   result: string | null;
   createdAt: Date;
   finishedAt: Date | null;
@@ -217,11 +221,20 @@ function toHistoryGame(record: {
     id: record.id,
     code: record.code,
     mode,
+    ...(record.opponentType === 'stockfish'
+      ? {
+          opponentType: 'stockfish' as const,
+          engineLevel: record.engineLevel ?? undefined,
+        }
+      : {}),
     result: toResult(record.result),
     createdAt: record.createdAt.toISOString(),
     finishedAt: record.finishedAt!.toISOString(),
     whitePlayer: record.whitePlayer,
-    blackPlayer: record.blackPlayer,
+    blackPlayer:
+      record.opponentType === 'stockfish'
+        ? { id: 'stockfish', username: 'Stockfish' }
+        : record.blackPlayer,
     moves: record.moves.map((move) => ({ ...move, elapsedMs: move.elapsedMs ?? 0 })),
     ...(ratingEvent
       ? {

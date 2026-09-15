@@ -76,6 +76,53 @@ describe('PrismaGamePersistence', () => {
     );
   });
 
+  it('persists Stockfish identity and level without assigning a human black player', async () => {
+    const client = createClient();
+    const persistence = new PrismaGamePersistence(client);
+
+    await persistence.saveGame(
+      { ...baseSummary, blackPlayerId: undefined, opponentType: 'stockfish', engineLevel: 20 },
+      'fen-stockfish',
+    );
+
+    expect(client.game.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          opponentType: 'stockfish',
+          engineLevel: 20,
+          blackPlayerId: undefined,
+        }),
+        update: expect.objectContaining({ opponentType: 'stockfish', engineLevel: 20 }),
+      }),
+    );
+  });
+
+  it('never records rating changes for a finished Stockfish game', async () => {
+    const client = createClient();
+    const ratingRecorder = {
+      recordGame: vi.fn(async () => undefined),
+      recordGameInTransaction: vi.fn(async () => undefined),
+    };
+    const persistence = new PrismaGamePersistence(client, ratingRecorder);
+
+    await persistence.saveGame(
+      {
+        ...baseSummary,
+        mode: 'casual',
+        status: 'finished',
+        opponentType: 'stockfish',
+        engineLevel: 12,
+        blackPlayerId: undefined,
+        result: 'black',
+        finishedAt: Date.parse('2026-09-11T12:01:00.000Z'),
+      },
+      'fen-stockfish-finished',
+    );
+
+    expect(ratingRecorder.recordGame).not.toHaveBeenCalled();
+    expect(ratingRecorder.recordGameInTransaction).not.toHaveBeenCalled();
+  });
+
   it('preserves existing user ids instead of creating users named after those ids', async () => {
     const client = createClient();
     client.user.findUnique = vi.fn(async ({ where }: { where: { id: string } }) =>
@@ -130,6 +177,35 @@ describe('PrismaGamePersistence', () => {
     expect(client.game.findUnique).toHaveBeenLastCalledWith(
       expect.objectContaining({ where: { code: 'ABC123' } }),
     );
+  });
+
+  it('restores the Stockfish level and opponent name in saved PGN history', async () => {
+    const client = createClient();
+    const persistence = new PrismaGamePersistence(client);
+    client.game.findUnique = vi.fn(async () => ({
+      id: 'game-ai',
+      code: 'BOT123',
+      mode: 'casual',
+      opponentType: 'stockfish',
+      engineLevel: 6,
+      status: 'finished',
+      initialFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      currentFen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+      whiteTimeMs: 300_000,
+      blackTimeMs: 300_000,
+      incrementMs: 0,
+      result: 'white',
+      startedAt: new Date('2026-09-11T12:00:00.000Z'),
+      finishedAt: new Date('2026-09-11T12:05:00.000Z'),
+      whitePlayer: { username: 'alice' },
+      blackPlayer: null,
+      moves: [{ from: 'e2', to: 'e4', promotion: null, moveNumber: 1 }],
+    }));
+
+    const history = await persistence.loadHistory('bot123');
+
+    expect(history?.game).toMatchObject({ opponentType: 'stockfish', engineLevel: 6 });
+    expect(history?.pgn).toContain('[Black "Stockfish (Level 6)"]');
   });
 
   it('rolls back the game snapshot when atomic rating persistence fails', async () => {

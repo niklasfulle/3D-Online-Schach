@@ -56,3 +56,44 @@ it("counts down the active player's clock while the opponent clock stays still",
   act(() => vi.advanceTimersByTime(1_300));
   expect(screen.getByText('14:58')).toBeTruthy();
 });
+
+it('identifies checkmate after the mating move', () => {
+  const chess = new ChessGame();
+  chess.move({ from: 'f2', to: 'f3' });
+  chess.move({ from: 'e7', to: 'e5' });
+  chess.move({ from: 'g2', to: 'g4' });
+  const matingMove = chess.move({ from: 'd8', to: 'h4' });
+  const syncedGame = new ChessGame(chess.getState().fen);
+
+  expect(matingMove.san).toBe('Qh4#');
+  expect(chess.getState().status).toBe('checkmate');
+  expect(syncedGame.getState().status).toBe('checkmate');
+
+  render(
+    <GameBoardPanel
+      user={{ id: 'white', username: 'White', email: 'white@example.com', rating: 1200 }}
+      selectedGame={{
+        id: 'game-1',
+        code: 'MATE01',
+        status: 'finished',
+        result: 'black',
+        whitePlayerId: 'white',
+        blackPlayerId: 'black',
+        timeControl: { initialMs: 15 * 60_000, incrementMs: 0 },
+        whiteRemainingMs: 15 * 60_000,
+        blackRemainingMs: 15 * 60_000,
+      }}
+      gameState={syncedGame.getState()}
+      boardColor="white"
+      legalTargets={[]}
+      selectedSquare={null}
+      moveHistory={[matingMove]}
+      spectatorMode={false}
+      turnLabel="White"
+      t={(key) => key}
+      onSelectSquare={() => undefined}
+    />,
+  );
+
+  expect(screen.getByText('status.checkmate')).toBeTruthy();
+});
