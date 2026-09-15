@@ -12,3 +12,4 @@ coverage/
 .playwright-cli/
 output/playwright/
 .agents
+debug.log
